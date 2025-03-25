@@ -29,9 +29,14 @@ class AIDocumentProcessor:
         if not self.anthropic_key:
             logger.warning("ANTHROPIC_API_KEY not found in environment variables")
         
-        self.client = Anthropic(api_key=self.anthropic_key)
-        # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
-        self.model = "claude-3-5-sonnet-20241022"
+        if self.anthropic_key:
+            self.client = Anthropic(api_key=self.anthropic_key)
+            # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
+            self.model = "claude-3-5-sonnet-20241022"
+        else:
+            self.client = None
+            self.model = None
+            logger.info("Using rule-based document analysis as fallback (no Claude API key available)")
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
         """Extract text from PDF using OCR"""
@@ -113,30 +118,73 @@ class AIDocumentProcessor:
             }
     
     def _identify_document_type(self, text_content: str) -> str:
-        """Identify document type using Claude"""
-        # Create prompt for document type identification
-        prompt = f"""
-        You are a document analyst. Analyze the following document text and identify what type of document it is.
+        """Identify document type using Claude or rule-based fallback"""
+        # Fallback rule-based document identification (when Claude API is unavailable)
+        def identify_by_rules(text):
+            # Convert to lowercase for case-insensitive matching
+            text_lower = text.lower()
+            
+            # Invoice detection keywords
+            invoice_keywords = [
+                'invoice', 'factuur', 'facture', 'rechnung', 'bill', 
+                'amount due', 'bedrag verschuldigd', 'payment due', 'betaling verschuldigd',
+                'tax', 'btw', 'vat', 'subtotal', 'total', 'totaal',
+                'customer', 'klant', 'client', 'purchase', 'order'
+            ]
+            invoice_count = sum(1 for keyword in invoice_keywords if keyword in text_lower)
+            
+            # Bank statement detection keywords
+            bank_keywords = [
+                'bank statement', 'rekeningafschrift', 'account statement', 'transactie', 'transaction',
+                'opening balance', 'closing balance', 'beginsaldo', 'eindsaldo',
+                'withdrawal', 'opname', 'deposit', 'storting', 'credit', 'debit',
+                'interest', 'rente', 'banking', 'bank', 'rekeningnummer', 'account number'
+            ]
+            bank_count = sum(1 for keyword in bank_keywords if keyword in text_lower)
+            
+            # Determine document type based on keyword counts
+            if invoice_count > bank_count and invoice_count >= 3:
+                return 'invoice'
+            elif bank_count > invoice_count and bank_count >= 3:
+                return 'bank_statement'
+            else:
+                # Check for specific strong indicators
+                if re.search(r'invoice\s+number|invoice\s+#|factuurnummer', text_lower):
+                    return 'invoice'
+                elif re.search(r'bank\s+statement|statement\s+date|afschrift\s+datum', text_lower):
+                    return 'bank_statement'
+                
+                # Default when uncertain
+                return 'unknown'
         
-        Document types:
-        - invoice: A bill requesting payment from a customer, containing items, prices, tax rates, etc.
-        - bank_statement: A document from a bank showing account activity, transactions, balances, etc.
-        - unknown: Any other document type
-        
-        Document text:
-        ---
-        {text_content[:8000]}  # Limit content to avoid exceeding context window
-        ---
-        
-        Respond in JSON format with:
-        {{
-            "document_type": "invoice|bank_statement|unknown",
-            "confidence": 0.0-1.0,  # Your confidence in the identification
-            "reasoning": "brief explanation"
-        }}
-        """
-        
+        # First try Claude API
         try:
+            if not self.anthropic_key:
+                logger.warning("No Anthropic API key provided, using rule-based identification")
+                return identify_by_rules(text_content)
+                
+            # Create prompt for document type identification
+            prompt = f"""
+            You are a document analyst. Analyze the following document text and identify what type of document it is.
+            
+            Document types:
+            - invoice: A bill requesting payment from a customer, containing items, prices, tax rates, etc.
+            - bank_statement: A document from a bank showing account activity, transactions, balances, etc.
+            - unknown: Any other document type
+            
+            Document text:
+            ---
+            {text_content[:8000]}  # Limit content to avoid exceeding context window
+            ---
+            
+            Respond in JSON format with:
+            {{
+                "document_type": "invoice|bank_statement|unknown",
+                "confidence": 0.0-1.0,  # Your confidence in the identification
+                "reasoning": "brief explanation"
+            }}
+            """
+            
             # Call Claude API
             response = self.client.messages.create(
                 model=self.model,
@@ -158,14 +206,225 @@ class AIDocumentProcessor:
                 return result.get('document_type', 'unknown')
             else:
                 logger.error("No JSON found in Claude's response")
-                return 'unknown'
+                return identify_by_rules(text_content)
                 
         except Exception as e:
             logger.error(f"Error identifying document type: {str(e)}")
-            return 'unknown'
+            logger.info("Falling back to rule-based document identification")
+            return identify_by_rules(text_content)
     
     def _analyze_invoice(self, text_content: str, file_path: str) -> Dict[str, Any]:
-        """Extract invoice information using Claude"""
+        """Extract invoice information using Claude or basic regex fallback"""
+        # Fallback method for invoice extraction when Claude API is unavailable
+        def extract_invoice_info_from_text(text):
+            text_lower = text.lower()
+            lines = text.splitlines()
+            
+            # Initialize result with default values
+            result = {
+                'document_type': 'invoice',
+                'confidence': 0.5,  # Medium confidence for rule-based extraction
+                'invoice_number': None,
+                'date': None,
+                'amount_excl_vat': None,
+                'amount_incl_vat': None,
+                'vat_amount': None,
+                'vat_rate': 21,  # Default Belgian VAT rate
+                'invoice_type': 'expense',  # Default to expense
+                'seller': {
+                    'name': None,
+                    'address': None,
+                    'vat_number': None,
+                    'email': None
+                },
+                'buyer': {
+                    'name': None,
+                    'address': None,
+                    'vat_number': None,
+                    'email': None
+                }
+            }
+            
+            # Try to extract invoice number
+            invoice_patterns = [
+                r'invoice\s*(?:#|number|nr|nummer)?\s*[:;. ]\s*([A-Za-z0-9\-_/]+)',
+                r'factuurnr\s*[:;. ]\s*([A-Za-z0-9\-_/]+)',
+                r'factuurnummer\s*[:;. ]\s*([A-Za-z0-9\-_/]+)',
+                r'facture\s*n[o°]?\s*[:;. ]\s*([A-Za-z0-9\-_/]+)',
+                r'rechnung\s*(?:nr|nummer)?\s*[:;. ]\s*([A-Za-z0-9\-_/]+)'
+            ]
+            
+            for pattern in invoice_patterns:
+                match = re.search(pattern, text_lower)
+                if match:
+                    result['invoice_number'] = match.group(1).strip()
+                    break
+                    
+            # Try to extract date
+            date_patterns = [
+                r'(?:invoice|facture|fact\.|factuurdatum|datum)\s*date\s*[:;. ]\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'date\s*[:;. ]\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'datum\s*[:;. ]\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'(?:date|datum)\s*[:;. ]\s*(\d{1,2}\s+[a-z]{3,}\s+\d{2,4})',
+                r'\b(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})\b'
+            ]
+            
+            for pattern in date_patterns:
+                match = re.search(pattern, text_lower)
+                if match:
+                    # Try to convert to YYYY-MM-DD format
+                    date_str = match.group(1).strip()
+                    # Very basic conversion - in real app would need more robust date parsing
+                    if re.match(r'\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4}', date_str):
+                        parts = re.split(r'[-/\.]', date_str)
+                        if len(parts) == 3:
+                            # Assuming day-month-year format
+                            day, month, year = parts
+                            if len(year) == 2:
+                                year = '20' + year
+                            result['date'] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                            break
+            
+            # Try to extract amounts using regex
+            amount_patterns = [
+                (r'total\s*(?:excl\.?|excluding|zonder|excl|ex)[.\s]*(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_excl_vat'),
+                (r'subtotal\s*[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_excl_vat'),
+                (r'total\s*(?:incl\.?|including|met|incl)[.\s]*(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_incl_vat'),
+                (r'total\s*[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_incl_vat'),
+                (r'(?:vat|btw)\s*(?:amount|bedrag)?[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'vat_amount'),
+                (r'(?:vat|btw)\s*(?:rate|tarief|percentage)?[.\s:%]*\s*(\d+)[.,]?(\d*)\s*%?', 'vat_rate')
+            ]
+            
+            for pattern, field in amount_patterns:
+                match = re.search(pattern, text_lower)
+                if match and field != 'vat_rate':
+                    # Convert string amount to float
+                    amount_str = match.group(1).replace(',', '.')
+                    try:
+                        result[field] = float(amount_str)
+                    except ValueError:
+                        pass
+                elif match and field == 'vat_rate':
+                    # Extract VAT rate percentage
+                    rate = match.group(1)
+                    if match.group(2):
+                        rate += '.' + match.group(2)
+                    try:
+                        result['vat_rate'] = float(rate)
+                    except ValueError:
+                        pass
+            
+            # Extract seller and buyer info
+            company_patterns = [
+                r'(?:from|van|seller|verkoper|company|bedrijf)[.\s:]*\s*([A-Za-z0-9\s]+(?:B\.?V\.?|N\.?V\.?|S\.?A\.?|Ltd\.?|Inc\.?|GmbH)?)',
+                r'(?:bill to|aan|buyer|koper|client|klant)[.\s:]*\s*([A-Za-z0-9\s]+(?:B\.?V\.?|N\.?V\.?|S\.?A\.?|Ltd\.?|Inc\.?|GmbH)?)'
+            ]
+            
+            # Try to find company names in text
+            seller_found = False
+            buyer_found = False
+            
+            for i, line in enumerate(lines):
+                line_lower = line.lower().strip()
+                
+                # Look for invoice or buyer/seller indicators
+                if not seller_found and any(x in line_lower for x in ['from:', 'van:', 'seller:', 'verkoper:']):
+                    # Next line might be the company name
+                    if i+1 < len(lines) and lines[i+1].strip():
+                        result['seller']['name'] = lines[i+1].strip()
+                        seller_found = True
+                        # Next few lines might be address
+                        address_lines = []
+                        for j in range(i+2, min(i+5, len(lines))):
+                            if lines[j].strip() and not any(x in lines[j].lower() for x in ['vat', 'btw', 'email', 'tel']):
+                                address_lines.append(lines[j].strip())
+                            else:
+                                break
+                        if address_lines:
+                            result['seller']['address'] = ' '.join(address_lines)
+                
+                if not buyer_found and any(x in line_lower for x in ['to:', 'aan:', 'buyer:', 'koper:', 'bill to:']):
+                    # Next line might be the company name
+                    if i+1 < len(lines) and lines[i+1].strip():
+                        result['buyer']['name'] = lines[i+1].strip()
+                        buyer_found = True
+                        # Next few lines might be address
+                        address_lines = []
+                        for j in range(i+2, min(i+5, len(lines))):
+                            if lines[j].strip() and not any(x in lines[j].lower() for x in ['vat', 'btw', 'email', 'tel']):
+                                address_lines.append(lines[j].strip())
+                            else:
+                                break
+                        if address_lines:
+                            result['buyer']['address'] = ' '.join(address_lines)
+            
+            # Extract VAT numbers
+            vat_patterns = [
+                (r'(?:vat|btw|tva)(?:\s*id|\s*number|\s*nr|\s*nummer)?[.\s:]*\s*((?:[A-Za-z]{2})?[0-9]{8,12})', 'vat_number'),
+                (r'(?:vat|btw|tva)(?:\s*id|\s*number|\s*nr|\s*nummer)?[.\s:]*\s*([A-Za-z]{2}\s*[0-9]{8,12})', 'vat_number'),
+                (r'be\s*0?[0-9]{9}', 'vat_number')
+            ]
+            
+            for i, line in enumerate(lines):
+                line_lower = line.lower().strip()
+                
+                # Check if line contains VAT number
+                for pattern, field in vat_patterns:
+                    match = re.search(pattern, line_lower)
+                    if match:
+                        vat_num = match.group(1).strip()
+                        # Normalize VAT number format
+                        if vat_num:
+                            # Add BE prefix if missing and looks like Belgian VAT
+                            if not vat_num.upper().startswith('BE') and re.match(r'0?[0-9]{9}', vat_num):
+                                vat_num = 'BE' + vat_num.zfill(10)
+                            # Remove spaces
+                            vat_num = vat_num.replace(' ', '')
+                            
+                            # Assign to seller or buyer based on context
+                            if any(x in line_lower for x in ['seller', 'verkoper', 'from']):
+                                result['seller']['vat_number'] = vat_num.upper()
+                            elif any(x in line_lower for x in ['buyer', 'koper', 'to', 'client']):
+                                result['buyer']['vat_number'] = vat_num.upper()
+                            else:
+                                # If no clear indicator, assign to seller by default
+                                result['seller']['vat_number'] = vat_num.upper()
+            
+            # Extract email addresses
+            email_pattern = r'[\w.+-]+@[\w-]+\.[\w.-]+'
+            for i, line in enumerate(lines):
+                match = re.search(email_pattern, line)
+                if match:
+                    email = match.group(0)
+                    # Determine if seller or buyer based on context
+                    if i > 0 and any(x in lines[i-1].lower() for x in ['seller', 'verkoper', 'from']):
+                        result['seller']['email'] = email
+                    elif i > 0 and any(x in lines[i-1].lower() for x in ['buyer', 'koper', 'to', 'client']):
+                        result['buyer']['email'] = email
+                    else:
+                        # If no clear indicator, assign to seller by default
+                        result['seller']['email'] = email
+            
+            # Determine if income or expense
+            # This is a simplistic approach - in real implementation would need more logic
+            if 'income' in text_lower or 'omzet' in text_lower:
+                result['invoice_type'] = 'income'
+            
+            # Calculate missing amounts if possible
+            if result['amount_incl_vat'] is not None and result['amount_excl_vat'] is None and result['vat_rate'] is not None:
+                result['amount_excl_vat'] = result['amount_incl_vat'] / (1 + result['vat_rate']/100)
+                result['vat_amount'] = result['amount_incl_vat'] - result['amount_excl_vat']
+            elif result['amount_excl_vat'] is not None and result['amount_incl_vat'] is None and result['vat_rate'] is not None:
+                result['vat_amount'] = result['amount_excl_vat'] * (result['vat_rate']/100)
+                result['amount_incl_vat'] = result['amount_excl_vat'] + result['vat_amount']
+            
+            return result
+        
+        # First try Claude API if available
+        if not self.anthropic_key:
+            logger.warning("No Anthropic API key provided, using rule-based invoice extraction")
+            return extract_invoice_info_from_text(text_content)
+            
         prompt = f"""
         You are a financial document analyst. Analyze the following invoice text and extract key information.
         
@@ -233,22 +492,214 @@ class AIDocumentProcessor:
                 return result
             else:
                 logger.error("No JSON found in Claude's response")
-                return {
-                    'document_type': 'invoice',
-                    'confidence': 0.0,
-                    'error': "Failed to parse Claude's response"
-                }
+                return extract_invoice_info_from_text(text_content)
                 
         except Exception as e:
             logger.error(f"Error analyzing invoice: {str(e)}")
-            return {
-                'document_type': 'invoice',
-                'confidence': 0.0,
-                'error': str(e)
-            }
+            logger.info("Falling back to rule-based invoice extraction")
+            return extract_invoice_info_from_text(text_content)
     
     def _analyze_bank_statement(self, text_content: str, file_path: str) -> Dict[str, Any]:
-        """Extract bank statement information using Claude"""
+        """Extract bank statement information using Claude or basic regex fallback"""
+        # Fallback method for bank statement extraction when Claude API is unavailable
+        def extract_bank_statement_info_from_text(text):
+            text_lower = text.lower()
+            lines = text.splitlines()
+            
+            # Initialize result with default values
+            result = {
+                'document_type': 'bank_statement',
+                'confidence': 0.5,  # Medium confidence for rule-based extraction
+                'bank_name': None,
+                'account_number': None,
+                'statement_date': None,
+                'statement_period': None,
+                'opening_balance': None,
+                'closing_balance': None,
+                'currency': '€',  # Default to Euro
+                'transactions': []
+            }
+            
+            # Try to extract bank name
+            bank_name_patterns = [
+                r'(ing\s+bank)',
+                r'(bnp\s+paribas\s+fortis)',
+                r'(kbc\s+bank)',
+                r'(belfius\s+bank)',
+                r'(argenta\s+bank)',
+                r'(axa\s+bank)',
+                r'(deutsche\s+bank)',
+                r'(beobank)',
+                r'(crelan)',
+                r'(rabobank)'
+            ]
+            
+            for pattern in bank_name_patterns:
+                match = re.search(pattern, text_lower)
+                if match:
+                    result['bank_name'] = match.group(1).strip().title()
+                    break
+                    
+            if not result['bank_name']:
+                # Try to find any word followed by "Bank"
+                bank_match = re.search(r'(\w+)\s+bank', text_lower)
+                if bank_match:
+                    result['bank_name'] = bank_match.group(0).strip().title()
+            
+            # Try to extract account number
+            account_patterns = [
+                r'(?:account(?:\s+number)?|rekening(?:\s*nummer)?|no\.?|nr\.?)[:;. ]\s*([A-Z]{2}\d{2}[\s-]?[A-Z0-9]{4}[\s-]?[A-Z0-9]{4}[\s-]?[A-Z0-9]{4})',
+                r'(?:iban)[:;. ]\s*([A-Z]{2}\d{2}[\s-]?[A-Z0-9]{4}[\s-]?[A-Z0-9]{4}[\s-]?[A-Z0-9]{4})',
+                r'([A-Z]{2}\d{2}[\s-]?[A-Z0-9]{4}[\s-]?[A-Z0-9]{4}[\s-]?[A-Z0-9]{4})'
+            ]
+            
+            for pattern in account_patterns:
+                match = re.search(pattern, text)
+                if match:
+                    # Normalize account number format (remove spaces)
+                    result['account_number'] = match.group(1).replace(' ', '').replace('-', '')
+                    break
+            
+            # Try to extract date
+            date_patterns = [
+                r'(?:statement|afschrift)(?:\s+date|\s+datum)[:;. ]\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'(?:date|datum)[:;. ]\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'(?:date|datum)[:;. ]\s*(\d{1,2}\s+[a-z]{3,}\s+\d{2,4})'
+            ]
+            
+            for pattern in date_patterns:
+                match = re.search(pattern, text_lower)
+                if match:
+                    # Try to convert to YYYY-MM-DD format
+                    date_str = match.group(1).strip()
+                    # Very basic conversion - in real app would need more robust date parsing
+                    if re.match(r'\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4}', date_str):
+                        parts = re.split(r'[-/\.]', date_str)
+                        if len(parts) == 3:
+                            # Assuming day-month-year format
+                            day, month, year = parts
+                            if len(year) == 2:
+                                year = '20' + year
+                            result['statement_date'] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                            break
+            
+            # Try to extract statement period
+            period_patterns = [
+                r'(?:period|periode)[:;. ]\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})\s*(?:to|tot|[-/\.])\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})\s*(?:to|tot|[-/\.])\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})'
+            ]
+            
+            for pattern in period_patterns:
+                match = re.search(pattern, text_lower)
+                if match:
+                    # Simplistic approach - just use the raw match
+                    result['statement_period'] = f"{match.group(1)} to {match.group(2)}"
+                    break
+            
+            # Try to extract balances
+            balance_patterns = [
+                (r'(?:opening|begin)(?:\s+balance|\s+saldo)[:;. ]\s*(?:[€$£]|\beur\b)?\s*([+-]?\d+[.,]\d+)', 'opening_balance'),
+                (r'(?:closing|eind)(?:\s+balance|\s+saldo)[:;. ]\s*(?:[€$£]|\beur\b)?\s*([+-]?\d+[.,]\d+)', 'closing_balance'),
+                (r'(?:balance|saldo)(?:\s+brought\s+forward|\s+opening|\s+begin)[:;. ]\s*(?:[€$£]|\beur\b)?\s*([+-]?\d+[.,]\d+)', 'opening_balance'),
+                (r'(?:balance|saldo)(?:\s+carried\s+forward|\s+closing|\s+eind)[:;. ]\s*(?:[€$£]|\beur\b)?\s*([+-]?\d+[.,]\d+)', 'closing_balance')
+            ]
+            
+            for pattern, field in balance_patterns:
+                match = re.search(pattern, text_lower)
+                if match:
+                    # Convert string amount to float
+                    amount_str = match.group(1).replace(',', '.')
+                    try:
+                        result[field] = float(amount_str)
+                    except ValueError:
+                        pass
+            
+            # Try to extract transactions
+            # This is a very simplistic approach - in a real implementation would need more robust parsing
+            transaction_date_pattern = r'\b(\d{1,2}[-/\.]\d{1,2}(?:[-/\.]\d{2,4})?)\b'
+            transaction_amount_pattern = r'\b([+-]?\d+[.,]\d+)\b'
+            
+            # Look for transaction sections in the document
+            transaction_section = False
+            current_transaction = {}
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Check if this might be a transaction line
+                date_match = re.search(transaction_date_pattern, line)
+                amount_match = re.search(transaction_amount_pattern, line)
+                
+                if date_match and amount_match:
+                    # This looks like a transaction line
+                    transaction_section = True
+                    
+                    # Get the date
+                    date_str = date_match.group(1)
+                    # Simple date conversion (not robust)
+                    if re.match(r'\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4}', date_str):
+                        parts = re.split(r'[-/\.]', date_str)
+                        if len(parts) == 3:
+                            day, month, year = parts
+                            if len(year) == 2:
+                                year = '20' + year
+                            date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                        else:
+                            date = date_str
+                    else:
+                        date = date_str
+                    
+                    # Get the amount
+                    amount_str = amount_match.group(1).replace(',', '.')
+                    try:
+                        amount = float(amount_str)
+                        # Determine transaction type
+                        if amount < 0:
+                            ttype = 'debit'
+                        else:
+                            ttype = 'credit'
+                        
+                        # Extract description (everything except date and amount)
+                        description = line
+                        # Remove date
+                        description = re.sub(transaction_date_pattern, '', description)
+                        # Remove amount
+                        description = re.sub(transaction_amount_pattern, '', description)
+                        # Clean up
+                        description = re.sub(r'\s+', ' ', description).strip()
+                        
+                        # Add transaction
+                        result['transactions'].append({
+                            'date': date,
+                            'description': description,
+                            'amount': abs(amount),  # Store absolute value
+                            'type': ttype
+                        })
+                    except ValueError:
+                        pass
+            
+            # Extract currency
+            currency_match = re.search(r'(?:currency|valuta|munt)[:;. ]\s*([A-Z]{3})', text)
+            if currency_match:
+                result['currency'] = currency_match.group(1)
+            else:
+                # Look for currency symbols
+                if '€' in text:
+                    result['currency'] = '€'
+                elif '$' in text:
+                    result['currency'] = '$'
+                elif '£' in text:
+                    result['currency'] = '£'
+                
+            return result
+        
+        # First try Claude API if available
+        if not self.anthropic_key:
+            logger.warning("No Anthropic API key provided, using rule-based bank statement extraction")
+            return extract_bank_statement_info_from_text(text_content)
+            
         prompt = f"""
         You are a financial document analyst. Analyze the following bank statement text and extract key information.
         
@@ -303,16 +754,9 @@ class AIDocumentProcessor:
                 return result
             else:
                 logger.error("No JSON found in Claude's response")
-                return {
-                    'document_type': 'bank_statement',
-                    'confidence': 0.0,
-                    'error': "Failed to parse Claude's response"
-                }
+                return extract_bank_statement_info_from_text(text_content)
                 
         except Exception as e:
             logger.error(f"Error analyzing bank statement: {str(e)}")
-            return {
-                'document_type': 'bank_statement',
-                'confidence': 0.0,
-                'error': str(e)
-            }
+            logger.info("Falling back to rule-based bank statement extraction")
+            return extract_bank_statement_info_from_text(text_content)
