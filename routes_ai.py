@@ -86,7 +86,7 @@ def ai_analyze_document():
 def ai_analysis_results():
     """Display the results of AI analysis"""
     results = session.get('ai_analysis_results', [])
-    return render_template('ai_results.html', results=results)
+    return render_template('ai_results.html', results=results, now=datetime.now())
 
 @ai_bp.route('/ai/process/<path:file_path>', methods=['POST'])
 def ai_process_document(file_path):
