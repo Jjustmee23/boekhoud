@@ -455,14 +455,16 @@ def edit_customer(customer_id):
         return render_template(
             'customer_form.html',
             customer=request.form,
-            edit_mode=True
+            edit_mode=True,
+            now=datetime.now()
         )
     
     # GET request - show the form
     return render_template(
         'customer_form.html',
         customer=customer,
-        edit_mode=True
+        edit_mode=True,
+        now=datetime.now()
     )
 
 @app.route('/customers/<customer_id>/delete', methods=['POST'])
@@ -487,7 +489,8 @@ def reports():
         quarters=get_quarters(),
         months=get_months(),
         current_year=current_year,
-        current_quarter=current_quarter
+        current_quarter=current_quarter,
+        now=datetime.now()
     )
 
 @app.route('/reports/monthly/<int:year>', methods=['GET'])
@@ -531,7 +534,8 @@ def monthly_report(year):
         years=get_years(),
         quarters=get_quarters(),
         months=get_months(),
-        format_currency=format_currency
+        format_currency=format_currency,
+        now=datetime.now()
     )
 
 @app.route('/reports/quarterly/<int:year>', methods=['GET'])
@@ -575,7 +579,8 @@ def quarterly_report(year):
         years=get_years(),
         quarters=get_quarters(),
         months=get_months(),
-        format_currency=format_currency
+        format_currency=format_currency,
+        now=datetime.now()
     )
 
 @app.route('/reports/customers', methods=['GET'])
@@ -618,7 +623,8 @@ def customer_report():
         years=get_years(),
         quarters=get_quarters(),
         months=get_months(),
-        format_currency=format_currency
+        format_currency=format_currency,
+        now=datetime.now()
     )
 
 # VAT report routes
@@ -630,7 +636,8 @@ def vat_report_form():
         quarters=get_quarters(),
         months=get_months(),
         current_year=datetime.now().year,
-        current_quarter=date_to_quarter(datetime.now())
+        current_quarter=date_to_quarter(datetime.now()),
+        now=datetime.now()
     )
 
 @app.route('/vat-report/generate', methods=['POST'])
@@ -703,7 +710,8 @@ def generate_vat_report():
         years=get_years(),
         quarters=get_quarters(),
         months=get_months(),
-        format_currency=format_currency
+        format_currency=format_currency,
+        now=datetime.now()
     )
 
 # Error handlers
