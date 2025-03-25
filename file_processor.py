@@ -73,14 +73,116 @@ class InvoiceDocument(Document):
         self.document_type = "invoice"
         self.invoice_type = file_info.get('invoice_type', 'expense')
         self.invoice_number = file_info.get('invoice_number', '')
-        self.amount_incl_vat = file_info.get('amount_incl_vat', 0.0)
-        self.vat_rate = file_info.get('vat_rate', 21.0)
+        
+        # Advanced amount extraction
+        if file_info and 'amount_incl_vat' in file_info:
+            self.amount_incl_vat = self._normalize_amount(file_info.get('amount_incl_vat', 0.0))
+        else:
+            # Try to extract from filename
+            self.amount_incl_vat = self._extract_amount_from_filename()
+            
+        # Advanced VAT rate extraction
+        if file_info and 'vat_rate' in file_info:
+            self.vat_rate = float(file_info.get('vat_rate', 21.0))
+        else:
+            # Try to extract from filename
+            self.vat_rate = self._extract_vat_rate_from_filename()
+        
+        # Enhanced customer information extraction
         self.customer_info = {
             'name': file_info.get('customer_name', ''),
             'address': file_info.get('customer_address', ''),
-            'vat_number': file_info.get('customer_vat_number', ''),
+            'vat_number': self._normalize_vat_number(file_info.get('customer_vat_number', '')),
             'email': file_info.get('customer_email', '')
         }
+    
+    def _normalize_amount(self, amount):
+        """Normalize amount to float"""
+        if isinstance(amount, (int, float)):
+            return float(amount)
+        elif isinstance(amount, str):
+            # Remove currency symbols and convert commas to dots
+            cleaned = re.sub(r'[€$£\s]', '', amount).replace(',', '.')
+            try:
+                return float(cleaned)
+            except ValueError:
+                logger.warning(f"Could not convert amount: {amount}")
+                return 0.0
+        return 0.0
+    
+    def _extract_amount_from_filename(self):
+        """Extract amount from filename if possible."""
+        # Look for patterns like 100eur, 99.95euro, etc.
+        patterns = [
+            r'(\d+[.,]\d+)(?:eur|euro|€)', # 123.45eur
+            r'(\d+)(?:eur|euro|€)',        # 100eur
+            r'€\s*(\d+[.,]\d+)',           # € 123,45
+            r'€\s*(\d+)'                   # € 100
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, self.file_name.lower())
+            if match:
+                amount_str = match.group(1).replace(',', '.')
+                try:
+                    return float(amount_str)
+                except ValueError:
+                    pass
+        
+        # Default amount if none found
+        return 0.0
+    
+    def _extract_vat_rate_from_filename(self):
+        """Extract VAT rate from filename if possible."""
+        # Look for patterns like 21%, VAT21, 6pct, etc.
+        patterns = [
+            r'(\d+)(?:%|pct|percent)',    # 21%, 21pct
+            r'btw\s*(\d+)',               # btw 21
+            r'vat\s*(\d+)'                # vat 21
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, self.file_name.lower())
+            if match:
+                try:
+                    rate = float(match.group(1))
+                    # Validate the rate is reasonable (common Belgian VAT rates)
+                    if rate in [0, 6, 12, 21]:
+                        return rate
+                except ValueError:
+                    pass
+        
+        # Default to standard Belgian VAT rate
+        return 21.0
+    
+    def _normalize_vat_number(self, vat_number):
+        """Normalize VAT number format to standard format."""
+        if not vat_number:
+            return ""
+            
+        vat_number = vat_number.strip().upper()
+        
+        # Belgian VAT regex patterns
+        be_patterns = [
+            r'BE\s*0*(\d{9,10})',                   # BE0123456789 or BE123456789
+            r'BE\s*(\d{4})[.\s]*(\d{3})[.\s]*(\d{3})'  # BE 0123.456.789
+        ]
+        
+        for pattern in be_patterns:
+            match = re.search(pattern, vat_number)
+            if match:
+                if len(match.groups()) == 1:
+                    digits = match.group(1).zfill(9)  # Ensure 9 digits
+                    return f"BE{digits}"
+                elif len(match.groups()) == 3:
+                    digits = f"{match.group(1)}{match.group(2)}{match.group(3)}".zfill(9)
+                    return f"BE{digits}"
+        
+        # If we get here, just clean up the number a bit
+        cleaned = re.sub(r'[^A-Z0-9]', '', vat_number)
+        if cleaned.startswith('BE') and len(cleaned) >= 11:
+            return cleaned
+        return vat_number
     
     def get_invoice_data(self):
         """Return invoice data for creating an invoice."""
@@ -238,9 +340,9 @@ class FileProcessor:
             matching_customer = None
             
             # First try to match by VAT number if available
-            if customer_data.get('vat_number'):
+            if customer_data.get('vat_number') and customer_data.get('vat_number').strip():
                 for c in customers:
-                    if c.get('vat_number') == customer_data.get('vat_number'):
+                    if c.get('vat_number') and c.get('vat_number').strip() and c.get('vat_number').strip() == customer_data.get('vat_number').strip():
                         matching_customer = c
                         break
             
