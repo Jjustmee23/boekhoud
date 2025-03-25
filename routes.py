@@ -179,7 +179,8 @@ def new_invoice():
             'invoice_form.html',
             customers=customers_data,
             vat_rates=get_vat_rates(),
-            invoice=request.form
+            invoice=request.form,
+            now=datetime.now()
         )
     
     # GET request - show the form
@@ -233,7 +234,8 @@ def edit_invoice(invoice_id):
                 invoice=invoice,
                 customers=customers_data,
                 vat_rates=get_vat_rates(),
-                edit_mode=True
+                edit_mode=True,
+                now=datetime.now()
             )
         
         # Update invoice
@@ -262,7 +264,8 @@ def edit_invoice(invoice_id):
             invoice=request.form,
             customers=customers_data,
             vat_rates=get_vat_rates(),
-            edit_mode=True
+            edit_mode=True,
+            now=datetime.now()
         )
     
     # GET request - show the form
@@ -272,7 +275,8 @@ def edit_invoice(invoice_id):
         invoice=invoice,
         customers=customers_data,
         vat_rates=get_vat_rates(),
-        edit_mode=True
+        edit_mode=True,
+        now=datetime.now()
     )
 
 @app.route('/invoices/<invoice_id>/delete', methods=['POST'])
