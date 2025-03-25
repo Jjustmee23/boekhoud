@@ -38,13 +38,19 @@ class DocumentProcessor:
         try:
             logger.info(f"Processing document: {file_path}")
             
-            # Check if file exists
+            # Ensure correct file path (relative or absolute)
+            absolute_path = file_path
             if not os.path.exists(file_path):
-                logger.error(f"File does not exist: {file_path}")
-                return {
-                    'error': f"File does not exist: {file_path}",
-                    'file_path': file_path
-                }
+                # Try with static prefix
+                static_path = os.path.join('static', file_path)
+                if os.path.exists(static_path):
+                    absolute_path = static_path
+                else:
+                    logger.error(f"File does not exist: {file_path}")
+                    return {
+                        'error': f"File does not exist: {file_path}",
+                        'file_path': file_path
+                    }
             
             # Get file name and extension
             file_name = os.path.basename(file_path)
