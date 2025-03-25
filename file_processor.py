@@ -163,20 +163,20 @@ class InvoiceDocument(Document):
         vat_number = vat_number.strip().upper()
         
         # Belgian VAT regex patterns
-        be_patterns = [
-            r'BE\s*0*(\d{9,10})',                   # BE0123456789 or BE123456789
-            r'BE\s*(\d{4})[.\s]*(\d{3})[.\s]*(\d{3})'  # BE 0123.456.789
-        ]
+        be_pattern1 = r'BE\s*0*(\d{9,10})'         # BE0123456789 or BE123456789
+        be_pattern2 = r'BE\s*(\d{4})[.\s]*(\d{3})[.\s]*(\d{3})'  # BE 0123.456.789
         
-        for pattern in be_patterns:
-            match = re.search(pattern, vat_number)
-            if match:
-                if len(match.groups()) == 1:
-                    digits = match.group(1).zfill(9)  # Ensure 9 digits
-                    return f"BE{digits}"
-                elif len(match.groups()) == 3:
-                    digits = f"{match.group(1)}{match.group(2)}{match.group(3)}".zfill(9)
-                    return f"BE{digits}"
+        # Check pattern 1
+        match = re.search(be_pattern1, vat_number)
+        if match:
+            digits = match.group(1).zfill(9)  # Ensure 9 digits
+            return f"BE{digits}"
+            
+        # Check pattern 2
+        match = re.search(be_pattern2, vat_number)
+        if match:
+            digits = f"{match.group(1)}{match.group(2)}{match.group(3)}".zfill(9)
+            return f"BE{digits}"
         
         # If we get here, just clean up the number a bit
         cleaned = re.sub(r'[^A-Z0-9]', '', vat_number)
