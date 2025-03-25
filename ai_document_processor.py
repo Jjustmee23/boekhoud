@@ -316,19 +316,42 @@ class AIDocumentProcessor:
             
             # Extract seller and buyer info
             company_patterns = [
-                r'(?:from|van|seller|verkoper|company|bedrijf)[.\s:]*\s*([A-Za-z0-9\s]+(?:B\.?V\.?|N\.?V\.?|S\.?A\.?|Ltd\.?|Inc\.?|GmbH)?)',
-                r'(?:bill to|aan|buyer|koper|client|klant)[.\s:]*\s*([A-Za-z0-9\s]+(?:B\.?V\.?|N\.?V\.?|S\.?A\.?|Ltd\.?|Inc\.?|GmbH)?)'
+                (r'(?:from|van|seller|verkoper|company|bedrijf)[.\s:]*\s*([A-Za-z0-9\s]+(?:B\.?V\.?|N\.?V\.?|S\.?A\.?|Ltd\.?|Inc\.?|GmbH)?)', 'seller'),
+                (r'(?:bill to|aan|buyer|koper|client|klant)[.\s:]*\s*([A-Za-z0-9\s]+(?:B\.?V\.?|N\.?V\.?|S\.?A\.?|Ltd\.?|Inc\.?|GmbH)?)', 'buyer')
             ]
             
-            # Try to find company names in text
-            seller_found = False
-            buyer_found = False
+            # Advanced company name detection
+            # First 5-10 lines often have company info
+            header_text = '\n'.join(lines[:min(10, len(lines))])
+            header_text_lower = header_text.lower()
+            
+            # Try to find company names directly in document
+            for pattern, entity_type in company_patterns:
+                match = re.search(pattern, header_text_lower)
+                if match and entity_type == 'seller' and not result['seller']['name']:
+                    result['seller']['name'] = match.group(1).strip()
+                elif match and entity_type == 'buyer' and not result['buyer']['name']:
+                    result['buyer']['name'] = match.group(1).strip()
+            
+            # For invoices with specific formats
+            # VirtFusion and similar hosted service invoices typically have seller at top left
+            if not result['seller']['name'] and len(lines) > 5:
+                # Try first line if it looks like a company name
+                if re.match(r'^[A-Za-z0-9\s]+(?:B\.?V\.?|N\.?V\.?|S\.?A\.?|Ltd\.?|Inc\.?|GmbH)?$', lines[0].strip()):
+                    result['seller']['name'] = lines[0].strip()
+                # Or look for logo labels that might be company names
+                elif re.search(r'VirtFusion|Virtfusion|virtfusion', text):
+                    result['seller']['name'] = "VirtFusion"
+            
+            # Try to find company names in text structure
+            seller_found = result['seller']['name'] is not None
+            buyer_found = result['buyer']['name'] is not None
             
             for i, line in enumerate(lines):
                 line_lower = line.lower().strip()
                 
                 # Look for invoice or buyer/seller indicators
-                if not seller_found and any(x in line_lower for x in ['from:', 'van:', 'seller:', 'verkoper:']):
+                if not seller_found and any(x in line_lower for x in ['from:', 'van:', 'seller:', 'verkoper:', 'invoice from:', 'factuur van:']):
                     # Next line might be the company name
                     if i+1 < len(lines) and lines[i+1].strip():
                         result['seller']['name'] = lines[i+1].strip()
@@ -343,7 +366,7 @@ class AIDocumentProcessor:
                         if address_lines:
                             result['seller']['address'] = ' '.join(address_lines)
                 
-                if not buyer_found and any(x in line_lower for x in ['to:', 'aan:', 'buyer:', 'koper:', 'bill to:']):
+                if not buyer_found and any(x in line_lower for x in ['to:', 'aan:', 'buyer:', 'koper:', 'bill to:', 'invoice to:', 'factuur aan:']):
                     # Next line might be the company name
                     if i+1 < len(lines) and lines[i+1].strip():
                         result['buyer']['name'] = lines[i+1].strip()
@@ -357,6 +380,29 @@ class AIDocumentProcessor:
                                 break
                         if address_lines:
                             result['buyer']['address'] = ' '.join(address_lines)
+                            
+                # For invoices with specific layouts
+                # Look for "Customer:" or "Klant:" followed by name
+                if not buyer_found:
+                    customer_match = re.search(r'(?:customer|klant)[:\s]+([A-Za-z0-9\s]+)', line_lower)
+                    if customer_match:
+                        result['buyer']['name'] = customer_match.group(1).strip().title()
+                        buyer_found = True
+                        
+                # Generic company name detection for first few lines
+                if i < 5 and not seller_found and len(line) > 3 and len(line) < 40:
+                    # If a line looks like it could be a company name at the top of the invoice
+                    # and doesn't contain common header words
+                    common_header_words = ['invoice', 'factuur', 'date', 'datum', 'number', 'nummer', 'page', 'pagina']
+                    if not any(word in line_lower for word in common_header_words):
+                        if re.match(r'^[A-Za-z0-9\s\.,-]+$', line):
+                            result['seller']['name'] = line.strip()
+                            seller_found = True
+                            
+                # Look for common patterns in specific invoice types
+                if 'virtfusion' in line_lower and not seller_found:
+                    result['seller']['name'] = "VirtFusion"
+                    seller_found = True
             
             # Extract VAT numbers
             vat_patterns = [
