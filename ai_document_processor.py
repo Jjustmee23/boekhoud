@@ -247,25 +247,53 @@ class AIDocumentProcessor:
             
             # Try to extract invoice number
             invoice_patterns = [
-                r'invoice\s*(?:#|number|nr|nummer)?\s*[:;. ]\s*([A-Za-z0-9\-_/]+)',
-                r'factuurnr\s*[:;. ]\s*([A-Za-z0-9\-_/]+)',
-                r'factuurnummer\s*[:;. ]\s*([A-Za-z0-9\-_/]+)',
-                r'facture\s*n[o°]?\s*[:;. ]\s*([A-Za-z0-9\-_/]+)',
-                r'rechnung\s*(?:nr|nummer)?\s*[:;. ]\s*([A-Za-z0-9\-_/]+)'
+                r'(?:invoice|factuur)\s*(?:[-#:;]|number|nr\.?|nummer|no\.?)?\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'(?:invoice|factuur)(?:[-#:;]|number|nr\.?|nummer|no\.?)?\s*[:;. ]*\s*#\s*([A-Za-z0-9\-_/\.]+)',
+                r'(?:invoice|factuur)(?:[-#:;]|number|nr\.?|nummer|no\.?)?\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'(?:facture|rekening|bill)\s*(?:[-#:;]|number|nr\.?|nummer|no\.?)?\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'factuurnr\.?\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'factuurnummer\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'nummer\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'klantnummer\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'(?<!\w)nr\.?\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'(?<!\w)no\.?\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'facture\s*n[o°]?\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'rechnung\s*(?:nr|nummer)?\s*[:;. ]*\s*([A-Za-z0-9\-_/\.]+)',
+                r'invoice\s+(?:date|datum).{1,30}((?:VF|HS)[-\s]*\d+)', # VirtFusion format
+                r'((?:VF|HS)[-\s]*\d+)' # VirtFusion/HostingSolutions format as standalone
             ]
             
+            # First check in header area
+            header_text = '\n'.join(lines[:min(10, len(lines))])
+            header_text_lower = header_text.lower()
+            
             for pattern in invoice_patterns:
-                match = re.search(pattern, text_lower)
+                match = re.search(pattern, header_text_lower)
                 if match:
                     result['invoice_number'] = match.group(1).strip()
                     break
+            
+            # Then check in full text if not found
+            if not result['invoice_number']:
+                for pattern in invoice_patterns:
+                    match = re.search(pattern, text_lower)
+                    if match:
+                        result['invoice_number'] = match.group(1).strip()
+                        break
                     
             # Try to extract date
             date_patterns = [
-                r'(?:invoice|facture|fact\.|factuurdatum|datum)\s*date\s*[:;. ]\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
-                r'date\s*[:;. ]\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
-                r'datum\s*[:;. ]\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
-                r'(?:date|datum)\s*[:;. ]\s*(\d{1,2}\s+[a-z]{3,}\s+\d{2,4})',
+                r'(?:invoice|facture|fact\.|factuur|factuurdatum)\s*(?:date|datum)\s*[:;. ]*\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'(?:date|datum)(?:\s+of\s+invoice|\s+van\s+factuur)?\s*[:;. ]*\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'(?:date|datum)(?:\s+of\s+invoice|\s+van\s+factuur)?\s*[:;. ]*\s*(\d{1,2}\s+[a-z]{3,}\s+\d{2,4})',
+                r'(?:invoice|factuur)\s*(?:date|datum)\s*[:;. ]*\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'(?:invoice|factuur)\s*(?:date|datum)\s*[:;. ]*\s*(\d{1,2}\s+[a-z]{3,}\s+\d{2,4})',
+                r'(?:invoice|factuur|bill|rekening)\s*[:;.]\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'(?:issued|issued\s+date|uitgegeven|uitgegeven\s+op)\s*[:;. ]*\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
+                r'(?:issued|issued\s+date|uitgegeven|uitgegeven\s+op)\s*[:;. ]*\s*(\d{1,2}\s+[a-z]{3,}\s+\d{2,4})',
+                # Month names in Dutch and English
+                r'(\d{1,2}\s+(?:januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{2,4})',
+                # Standard date formats
                 r'\b(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})\b'
             ]
             
@@ -287,12 +315,30 @@ class AIDocumentProcessor:
             
             # Try to extract amounts using regex
             amount_patterns = [
-                (r'total\s*(?:excl\.?|excluding|zonder|excl|ex)[.\s]*(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_excl_vat'),
-                (r'subtotal\s*[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_excl_vat'),
-                (r'total\s*(?:incl\.?|including|met|incl)[.\s]*(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_incl_vat'),
-                (r'total\s*[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_incl_vat'),
-                (r'(?:vat|btw)\s*(?:amount|bedrag)?[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'vat_amount'),
-                (r'(?:vat|btw)\s*(?:rate|tarief|percentage)?[.\s:%]*\s*(\d+)[.,]?(\d*)\s*%?', 'vat_rate')
+                # For amount_excl_vat (bedrag exclusief BTW)
+                (r'(?:total|totaal|subtotal|subtotaal|sub-totaal|total amount|net amount|net|netto)\s*(?:excl\.?|excluding|zonder|excl|ex)[.\s]*(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_excl_vat'),
+                (r'(?:subtotal|subtotaal|sub-totaal)\s*[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_excl_vat'),
+                (r'(?:amount|bedrag)(?:\s+excl\.?|\s+excluding|\s+zonder|\s+excl|\s+ex)[.\s]*(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_excl_vat'),
+                (r'(?:excl\.?|excluding|zonder|excl|ex)[.\s]*(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_excl_vat'),
+                (r'(?:netto\s+)?(?:bedrag|amount)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)\s*(?:excl\.?|excluding|zonder|excl|ex)[.\s]*(?:vat|btw)', 'amount_excl_vat'),
+                
+                # For amount_incl_vat (bedrag inclusief BTW)
+                (r'(?:total|totaal|eindtotaal|te\s+betalen|to\s+pay|amount\s+due|grand\s+total)\s*(?:incl\.?|including|inclusief|met|incl)[.\s]*(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_incl_vat'),
+                (r'(?:amount|bedrag)(?:\s+incl\.?|\s+including|\s+met|\s+inclusief|\s+incl)[.\s]*(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_incl_vat'),
+                (r'(?:incl\.?|including|inclusief|met|incl)[.\s]*(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_incl_vat'),
+                (r'(?:to\s+pay|te\s+betalen|balance\s+due|amount\s+due|grand\s+total|eindtotaal)\s*[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_incl_vat'),
+                (r'(?:bruto\s+)?(?:bedrag|amount)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)\s*(?:incl\.?|including|inclusief|met|incl)[.\s]*(?:vat|btw)', 'amount_incl_vat'),
+                
+                # Last resort - total without qualification (usually incl_vat)
+                (r'(?:total|totaal|total amount|totaalbedrag)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'amount_incl_vat'),
+                
+                # For VAT amount
+                (r'(?:vat|btw)(?:\s+amount|\s+bedrag)?[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'vat_amount'),
+                (r'(?:vat|btw)[.\s:]*\s*(?:[€$£]|\beur\b)?\s*(\d+[.,]\d+)', 'vat_amount'),
+                
+                # For VAT rate
+                (r'(?:vat|btw)(?:\s+rate|\s+tarief|\s+percentage|\s+%)?[.\s:%]*\s*(\d+)[.,]?(\d*)\s*%?', 'vat_rate'),
+                (r'(?:rate|tarief|percentage)[.\s:%]*\s*(\d+)[.,]?(\d*)\s*%', 'vat_rate')
             ]
             
             for pattern, field in amount_patterns:
@@ -406,9 +452,26 @@ class AIDocumentProcessor:
             
             # Extract VAT numbers
             vat_patterns = [
-                (r'(?:vat|btw|tva)(?:\s*id|\s*number|\s*nr|\s*nummer)?[.\s:]*\s*((?:[A-Za-z]{2})?[0-9]{8,12})', 'vat_number'),
-                (r'(?:vat|btw|tva)(?:\s*id|\s*number|\s*nr|\s*nummer)?[.\s:]*\s*([A-Za-z]{2}\s*[0-9]{8,12})', 'vat_number'),
-                (r'be\s*0?[0-9]{9}', 'vat_number')
+                # Standard VAT patterns with label
+                (r'(?:vat|btw|tva|vatin|tax\s+id)(?:\s*id|\s*number|\s*nr|\s*nummer)?[.\s:]*\s*((?:[A-Za-z]{2})?[0-9]{8,12})', 'vat_number'),
+                (r'(?:vat|btw|tva|vatin|tax\s+id)(?:\s*id|\s*number|\s*nr|\s*nummer)?[.\s:]*\s*([A-Za-z]{2}\s*[0-9]{8,12})', 'vat_number'),
+                # Country-specific VAT patterns
+                (r'be\s*0?[0-9]{9}', 'vat_number'),  # Belgian
+                (r'nl\s*[0-9]{9}B[0-9]{2}', 'vat_number'),  # Dutch
+                (r'lu\s*[0-9]{8}', 'vat_number'),  # Luxembourg
+                (r'fr\s*[0-9A-Z]{2}\s*[0-9]{9}', 'vat_number'),  # French
+                (r'de\s*[0-9]{9}', 'vat_number'),  # German
+                (r'gb\s*[0-9]{9}', 'vat_number'),  # UK (GB)
+                (r'gb\s*[0-9]{12}', 'vat_number'),  # UK (GB)
+                # Random formats that appear in invoices
+                (r'ondernemingnummer[.\s:]*\s*([0-9]{4}\.[0-9]{3}\.[0-9]{3})', 'vat_number'),  # Belgian enterprise number
+                (r'ondernemingsnummer[.\s:]*\s*([0-9]{4}\.[0-9]{3}\.[0-9]{3})', 'vat_number'),  # Belgian enterprise number
+                (r'btw[.\s:]*\s*([A-Za-z]{2}[0-9]{4}\.[0-9]{3}\.[0-9]{3})', 'vat_number'),  # Belgian VAT with dots
+                (r'btw[.\s:]*\s*([A-Za-z]{2}[0-9]{4}[0-9]{3}[0-9]{3})', 'vat_number'),  # Belgian VAT without dots
+                # Direct patterns without labels (careful to avoid false positives)
+                (r'\b([A-Za-z]{2}[0-9]{9,12})\b', 'vat_number'),  # General EU VAT pattern
+                (r'\b(BE0[0-9]{9})\b', 'vat_number'),  # Specific Belgian pattern
+                (r'\b(BE\s+0[0-9]{3}\s+[0-9]{3}\s+[0-9]{3})\b', 'vat_number')  # Belgian with spaces
             ]
             
             for i, line in enumerate(lines):
