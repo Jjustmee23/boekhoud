@@ -18,6 +18,8 @@ ai_bp = Blueprint('ai', __name__)
 # Initialize the AI processor
 ai_processor = AIDocumentProcessor()
 
+from datetime import datetime
+
 @ai_bp.route('/ai/analyze', methods=['GET', 'POST'])
 def ai_analyze_document():
     """Render the AI document analysis page and handle uploads"""
@@ -78,7 +80,7 @@ def ai_analyze_document():
         
         return redirect(url_for('ai.ai_analysis_results'))
     
-    return render_template('ai_analyze.html')
+    return render_template('ai_analyze.html', now=datetime.now())
 
 @ai_bp.route('/ai/results')
 def ai_analysis_results():
