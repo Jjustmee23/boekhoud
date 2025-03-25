@@ -56,6 +56,9 @@ class DocumentProcessor:
             file_name = os.path.basename(file_path)
             file_ext = os.path.splitext(file_name)[1].lower()
             
+            # Log that we're using the correct path
+            logger.info(f"Processing file: {file_name} from path: {absolute_path}")
+            
             # Identify document type from filename
             doc_type, type_confidence = self._identify_document_type(file_name)
             
