@@ -381,31 +381,55 @@ class FileProcessor:
         # Generate a customer name based on the filename - improved algorithm
         customer_parts = []
         
-        # First, look for known name patterns: klant_*_factuur.pdf or company-name_invoice_*.pdf
-        name_pattern = re.match(r'^([^_\.]+)[_\.-]', os.path.splitext(filename)[0])
-        if name_pattern:
-            customer_parts.append(name_pattern.group(1))
+        # Generic terms that should not be treated as customer names
+        generic_terms = ['invoice', 'factuur', 'bank', 'statement', 'afschrift', 'expense', 
+                         'uitgave', 'income', 'inkomst', 'detail', 'datum', 'date', 'auto',
+                         'document', 'pdf', 'scan', 'doc', 'file', 'bestand', 'kopie', 'copy',
+                         'rekening', 'account', 'betaling', 'payment', 'hs', 'nr', 'no']
+        
+        # First check for a specific company name pattern in the filename
+        # Example: bedrijfsnaam_factuur.pdf or telenet-factuur-123.pdf
+        possible_customer_name = ""
+        name_match = re.search(r'^([a-zA-Z0-9\s&\-\.]+?)[-_\s]+(factuur|invoice|rekening)', filename, re.IGNORECASE)
+        if name_match:
+            possible_name = name_match.group(1).strip()
+            if possible_name.lower() not in generic_terms and len(possible_name) > 2:
+                possible_customer_name = possible_name
+        
+        # If we don't have a name yet, try another approach
+        if not possible_customer_name:
+            # Extract parts from the filename (split by common separators)
+            parts = re.split(r'[_\.\-\s]', os.path.splitext(filename)[0])
             
-        # If nothing matched with first pattern, try another approach
-        if not customer_parts:
-            parts = re.split(r'[_\.-]', os.path.splitext(filename)[0])
-            for part in parts:
+            # Use a more sophisticated approach to identify the most likely company name
+            for i, part in enumerate(parts):
                 lower_part = part.lower()
-                # Skip common terms that aren't part of a company name
-                if not any(term in lower_part for term in ['invoice', 'factuur', 'bank', 'statement', 
-                                                        'afschrift', 'expense', 'uitgave', 'income', 
-                                                        'inkomst', 'detail', 'datum', 'date']):
-                    # Only add if it's not just numbers
-                    if not re.match(r'^\d+$', part):
-                        customer_parts.append(part)
-                    # Stop once we have a plausible name
-                    if len(customer_parts) == 1 and len(part) > 3:
-                        break
+                
+                # Skip parts that are generic terms
+                if lower_part in generic_terms:
+                    continue
+                    
+                # Skip parts that are just numbers or dates
+                if re.match(r'^\d+$', part) or re.match(r'\d{4}', part):
+                    continue
+                
+                # Skip very short parts unless they might be acronyms (all caps)
+                if len(part) < 3 and not (part.isupper() and len(part) > 1):
+                    continue
+                
+                # If the part looks like a potential company name, add it
+                if part[0].isupper() or (i == 0 and len(part) > 2):  # First part or capitalized
+                    customer_parts.append(part)
+            
+            # If we found potential parts, join them
+            if customer_parts:
+                possible_customer_name = ' '.join(customer_parts).strip()
+            else:
+                # If no good name found, use auto-detected
+                possible_customer_name = "Auto-detected Customer"
         
-        possible_customer_name = ' '.join(customer_parts).strip()
-        
-        # Provide default if we couldn't extract anything meaningful
-        if len(possible_customer_name) < 3:  # Too short to be a real name
+        # Default if we couldn't extract anything meaningful
+        if len(possible_customer_name) < 3 or possible_customer_name.lower() in generic_terms:
             possible_customer_name = "Auto-detected Customer"
         
         # Check if it looks like an invoice
