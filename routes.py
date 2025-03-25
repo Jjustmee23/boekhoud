@@ -845,6 +845,7 @@ def bulk_upload():
             'total_files': len(results['saved_files']),
             'processed_invoices': len(results['recognized_invoices']),
             'new_customers': len(results['new_customers']),
+            'bank_statements': len(results['bank_statements']),
             'manual_review': len(results['manual_review']),
             'errors': len(results['errors'])
         }
@@ -854,6 +855,7 @@ def bulk_upload():
             flash(f"Processed {summary['total_files']} files: "
                   f"{summary['processed_invoices']} invoices created, "
                   f"{summary['new_customers']} new customers, "
+                  f"{summary['bank_statements']} bank statements, "
                   f"{summary['manual_review']} need review", 'success')
         else:
             flash('No files were processed', 'warning')
@@ -889,7 +891,8 @@ def bulk_upload_results():
         'recognized_invoices': [],
         'new_customers': [],
         'manual_review': [],
-        'errors': []
+        'errors': [],
+        'bank_statements': []  # Add bank statements to default
     })
     
     # Create a more detailed summary
@@ -897,6 +900,7 @@ def bulk_upload_results():
         'total_files': len(results['saved_files']),
         'processed_invoices': len(results['recognized_invoices']),
         'new_customers': len(results['new_customers']),
+        'bank_statements': len(results['bank_statements']),
         'manual_review': len(results['manual_review']),
         'errors': len(results['errors'])
     }

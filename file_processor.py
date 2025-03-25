@@ -316,6 +316,7 @@ class FileProcessor:
 
     def _process_bank_statement_document(self, document, results):
         """Process a bank statement document"""
+        # Extract data from document
         statement_data = document.get_statement_data()
         
         # For now, we'll just record that we processed a bank statement
@@ -325,7 +326,7 @@ class FileProcessor:
         # Add to bank statements list
         results['bank_statements'].append({
             'file_path': document.file_path,
-            'date': statement_data.get('date'),
+            'date': statement_data.get('date', datetime.now().strftime('%Y-%m-%d')),
             'transactions': statement_data.get('transactions', []),
             'metadata': document.get_metadata()
         })
