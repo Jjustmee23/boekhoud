@@ -14,6 +14,7 @@ from utils import (
     get_vat_rates, date_to_quarter, get_quarters, get_months, get_years,
     save_uploaded_file, allowed_file
 )
+from file_processor import FileProcessor
 
 # Dashboard routes
 @app.route('/')
@@ -798,6 +799,123 @@ def generate_vat_report():
         years=get_years(),
         quarters=get_quarters(),
         months=get_months(),
+        format_currency=format_currency,
+        now=datetime.now()
+    )
+
+# Bulk upload routes
+@app.route('/bulk-upload', methods=['GET', 'POST'])
+def bulk_upload():
+    # Get optional customer_id from URL parameter (for GET)
+    url_customer_id = request.args.get('customer_id')
+    
+    if request.method == 'POST':
+        # Get optional customer_id if specified
+        customer_id = request.form.get('customer_id')
+        
+        # Check if any files were uploaded
+        if 'files[]' not in request.files:
+            flash('No files selected', 'danger')
+            customers_data = get_customers()
+            return render_template(
+                'bulk_upload.html',
+                customers=customers_data,
+                now=datetime.now()
+            )
+        
+        files = request.files.getlist('files[]')
+        if not files or all(not f.filename for f in files):
+            flash('No files selected', 'danger')
+            customers_data = get_customers()
+            return render_template(
+                'bulk_upload.html',
+                customers=customers_data,
+                now=datetime.now()
+            )
+        
+        # Process the uploaded files
+        processor = FileProcessor()
+        results = processor.process_files(files, customer_id)
+        
+        # Store results in session for display
+        session['bulk_upload_results'] = results
+        
+        # Create summary counts
+        summary = {
+            'total_files': len(results['saved_files']),
+            'processed_invoices': len(results['recognized_invoices']),
+            'new_customers': len(results['new_customers']),
+            'manual_review': len(results['manual_review']),
+            'errors': len(results['errors'])
+        }
+        
+        # Flash appropriate message
+        if summary['total_files'] > 0:
+            flash(f"Processed {summary['total_files']} files: "
+                  f"{summary['processed_invoices']} invoices created, "
+                  f"{summary['new_customers']} new customers, "
+                  f"{summary['manual_review']} need review", 'success')
+        else:
+            flash('No files were processed', 'warning')
+        
+        # Return to results page
+        return redirect(url_for('bulk_upload_results'))
+    
+    # GET request - show the form
+    customers_data = get_customers()
+    selected_customer = None
+    
+    # Set pre-selected customer if specified in URL
+    if url_customer_id:
+        selected_customer = url_customer_id
+        # Try to get customer name for displaying
+        for customer in customers_data:
+            if str(customer['id']) == url_customer_id:
+                flash(f"Bestanden worden geüpload voor klant: {customer['name']}", 'info')
+                break
+    
+    return render_template(
+        'bulk_upload.html',
+        customers=customers_data,
+        selected_customer=selected_customer,
+        now=datetime.now()
+    )
+
+@app.route('/bulk-upload/results')
+def bulk_upload_results():
+    # Get results from session
+    results = session.get('bulk_upload_results', {
+        'saved_files': [],
+        'recognized_invoices': [],
+        'new_customers': [],
+        'manual_review': [],
+        'errors': []
+    })
+    
+    # Create a more detailed summary
+    summary = {
+        'total_files': len(results['saved_files']),
+        'processed_invoices': len(results['recognized_invoices']),
+        'new_customers': len(results['new_customers']),
+        'manual_review': len(results['manual_review']),
+        'errors': len(results['errors'])
+    }
+    
+    # Get customers for displaying names instead of IDs
+    customers_dict = {c['id']: c for c in get_customers()}
+    
+    # Enrich invoice data with customer names
+    for invoice in results.get('recognized_invoices', []):
+        if invoice.get('customer_id') in customers_dict:
+            invoice['customer_name'] = customers_dict[invoice['customer_id']]['name']
+        else:
+            invoice['customer_name'] = 'Unknown Customer'
+    
+    return render_template(
+        'bulk_upload_results.html',
+        results=results,
+        summary=summary,
+        customers_dict=customers_dict,
         format_currency=format_currency,
         now=datetime.now()
     )

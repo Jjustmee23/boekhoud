@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Bulk Upload{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h1 class="mb-4">Bulk Upload</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Upload Multiple Files</h5>
+        </div>
+        <div class="card-body">
+            <p class="card-text">
+                Upload multiple files at once. The system will automatically process and categorize them:
+            </p>
+            <ul>
+                <li>Invoices will be recognized and associated with customers</li>
+                <li>If an invoice is from an unknown customer, a new customer will be created</li>
+                <li>Bank statements will be identified for later matching with invoices</li>
+                <li>Files that can't be automatically processed will be marked for manual review</li>
+            </ul>
+            
+            <form action="{{ url_for('bulk_upload') }}" method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="customer_id" class="form-label">Associate with Customer (Optional)</label>
+                    <select name="customer_id" id="customer_id" class="form-select">
+                        <option value="">-- Auto-detect or Create New --</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}" {% if selected_customer and selected_customer == customer.id|string %}selected{% endif %}>{{ customer.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">
+                        If selected, all invoices will be associated with this customer. Leave blank for auto-detection.
+                    </small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="files" class="form-label">Select Files</label>
+                    <input type="file" name="files[]" id="files" class="form-control" multiple required>
+                    <small class="form-text text-muted">
+                        Select multiple files by holding Ctrl (or Cmd on Mac) while clicking.
+                        Supported formats: PDF, PNG, JPG, JPEG
+                    </small>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i> Upload and Process
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="card-title mb-0">File Naming Tips</h5>
+        </div>
+        <div class="card-body">
+            <p>To help with automatic recognition, consider using these naming patterns:</p>
+            <ul>
+                <li><strong>Invoices:</strong> Include "invoice" or "factuur" in the filename</li>
+                <li><strong>Income/Sales:</strong> Add "income" or "inkomst" for sales invoices</li>
+                <li><strong>Expenses:</strong> Add "expense" or "uitgave" for purchase invoices</li>
+                <li><strong>Bank Statements:</strong> Include "bank", "statement" or "afschrift" in the filename</li>
+            </ul>
+            <p class="mb-0">
+                <small class="text-muted">
+                    The system will attempt to extract information from the files regardless of naming, 
+                    but consistent naming helps improve automatic recognition.
+                </small>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

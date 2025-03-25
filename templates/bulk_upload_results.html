@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+
+{% block title %}Bulk Upload Results{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h1 class="mb-4">Bulk Upload Results</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Total Files</h5>
+                    <p class="card-text display-4">{{ summary.total_files }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Invoices Created</h5>
+                    <p class="card-text display-4">{{ summary.processed_invoices }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <h5 class="card-title">New Customers</h5>
+                    <p class="card-text display-4">{{ summary.new_customers }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Need Review</h5>
+                    <p class="card-text display-4">{{ summary.manual_review }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if results.recognized_invoices %}
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="card-title mb-0">Successfully Processed Invoices</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in results.recognized_invoices %}
+                        <tr>
+                            <td>{{ invoice.invoice_number }}</td>
+                            <td>{{ invoice.customer_name }}</td>
+                            <td>{{ invoice.date }}</td>
+                            <td>
+                                {% if invoice.invoice_type == 'income' %}
+                                <span class="badge bg-success">Income</span>
+                                {% else %}
+                                <span class="badge bg-danger">Expense</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ format_currency(invoice.amount_incl_vat) }}</td>
+                            <td>
+                                <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if results.new_customers %}
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="card-title mb-0">Newly Created Customers</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>VAT Number</th>
+                            <th>Email</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in results.new_customers %}
+                        <tr>
+                            <td>{{ customer.name }}</td>
+                            <td>{{ customer.vat_number }}</td>
+                            <td>{{ customer.email }}</td>
+                            <td>
+                                <a href="{{ url_for('view_customer', customer_id=customer.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                <a href="{{ url_for('edit_customer', customer_id=customer.id) }}" class="btn btn-sm btn-warning">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-3 mb-0">
+                <small class="text-muted">
+                    New customers created from document analysis may need additional information. Click 'Edit' to update.
+                </small>
+            </p>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if results.bank_statements %}
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="card-title mb-0">Bank Statements</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Date</th>
+                            <th>Transactions</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for statement in results.bank_statements %}
+                        <tr>
+                            <td>{{ statement.file_path.split('/')[-1] }}</td>
+                            <td>{{ statement.date }}</td>
+                            <td>{{ statement.transactions|length }} transactions</td>
+                            <td>
+                                <a href="/{{ statement.file_path }}" target="_blank" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-file"></i> View File
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p class="mt-3 mb-0 text-muted small">
+                    Bank statements will need to be manually matched with invoices. In the future, this could be automated
+                    by extracting transaction data and matching with invoice amounts.
+                </p>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% if results.manual_review %}
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="card-title mb-0">Files Needing Manual Review</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Reason</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in results.manual_review %}
+                        <tr>
+                            <td>{{ item.file_path.split('/')[-1] }}</td>
+                            <td>{{ item.reason }}</td>
+                            <td>
+                                {% if item.metadata %}
+                                    {{ item.metadata.document_type|capitalize }}
+                                {% else %}
+                                    Unknown
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.duplicate_id %}
+                                <a href="{{ url_for('view_invoice', invoice_id=item.duplicate_id) }}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i> View Duplicate
+                                </a>
+                                {% endif %}
+                                
+                                {% if item.file_path %}
+                                <a href="/{{ item.file_path }}" target="_blank" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-file"></i> View File
+                                </a>
+                                {% endif %}
+                                
+                                <a href="{{ url_for('new_invoice') }}" class="btn btn-sm btn-warning">
+                                    <i class="fas fa-plus"></i> Create Invoice
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endif %}
+    
+    {% if results.errors %}
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="card-title mb-0">Processing Errors</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for error in results.errors %}
+                        <tr>
+                            <td>{{ error.file_path.split('/')[-1] }}</td>
+                            <td>{{ error.error }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="mb-4">
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('bulk_upload') }}" class="btn btn-primary">
+                <i class="fas fa-upload me-2"></i> Upload More Files
+            </a>
+            <a href="{{ url_for('invoices_list') }}" class="btn btn-secondary">
+                <i class="fas fa-list me-2"></i> View All Invoices
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
