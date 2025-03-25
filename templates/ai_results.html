@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}AI Analyse Resultaten{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-robot me-2"></i> AI Analyse Resultaten
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if results|length == 0 %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Geen analyseresultaten beschikbaar. <a href="{{ url_for('ai.ai_analyze_document') }}">Upload documenten</a> om ze te analyseren.
+                    </div>
+                    {% else %}
+                    <p class="mb-4">
+                        De AI heeft {{ results|length }} document(en) geanalyseerd. Hieronder vind je de resultaten:
+                    </p>
+                    
+                    {% for result in results %}
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">{{ result.filename }}</h6>
+                            <span class="badge bg-{{ 'danger' if result.get('error') else 'success' }}">
+                                {% if result.get('error') %}
+                                    Analyse mislukt
+                                {% else %}
+                                    {% set confidence = result.get('analysis', {}).get('confidence', 0)|float %}
+                                    {% if confidence > 0.8 %}
+                                        Hoge betrouwbaarheid ({{ (confidence * 100)|int }}%)
+                                    {% elif confidence > 0.5 %}
+                                        Gemiddelde betrouwbaarheid ({{ (confidence * 100)|int }}%)
+                                    {% else %}
+                                        Lage betrouwbaarheid ({{ (confidence * 100)|int }}%)
+                                    {% endif %}
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            {% if result.get('error') %}
+                            <div class="alert alert-danger">
+                                {{ result.error }}
+                            </div>
+                            {% else %}
+                                {% set analysis = result.get('analysis', {}) %}
+                                {% set doc_type = analysis.get('document_type', 'unknown') %}
+                                
+                                <div class="mb-3">
+                                    <span class="badge bg-{{ 'primary' if doc_type == 'invoice' else 'info' if doc_type == 'bank_statement' else 'secondary' }}">
+                                        {{ doc_type|capitalize }}
+                                    </span>
+                                </div>
+                                
+                                {% if doc_type == 'invoice' %}
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Factuurgegevens</h6>
+                                        <dl class="row">
+                                            <dt class="col-sm-4">Factuurnummer:</dt>
+                                            <dd class="col-sm-8">{{ analysis.get('invoice_number', 'Niet gevonden') }}</dd>
+                                            
+                                            <dt class="col-sm-4">Datum:</dt>
+                                            <dd class="col-sm-8">{{ analysis.get('date', 'Niet gevonden') }}</dd>
+                                            
+                                            <dt class="col-sm-4">Bedrag (excl. BTW):</dt>
+                                            <dd class="col-sm-8">
+                                                {% if analysis.get('amount_excl_vat') %}
+                                                    € {{ analysis.get('amount_excl_vat')|round(2) }}
+                                                {% else %}
+                                                    Niet gevonden
+                                                {% endif %}
+                                            </dd>
+                                            
+                                            <dt class="col-sm-4">Bedrag (incl. BTW):</dt>
+                                            <dd class="col-sm-8">
+                                                {% if analysis.get('amount_incl_vat') %}
+                                                    € {{ analysis.get('amount_incl_vat')|round(2) }}
+                                                {% else %}
+                                                    Niet gevonden
+                                                {% endif %}
+                                            </dd>
+                                            
+                                            <dt class="col-sm-4">BTW bedrag:</dt>
+                                            <dd class="col-sm-8">
+                                                {% if analysis.get('vat_amount') %}
+                                                    € {{ analysis.get('vat_amount')|round(2) }}
+                                                {% else %}
+                                                    Niet gevonden
+                                                {% endif %}
+                                            </dd>
+                                            
+                                            <dt class="col-sm-4">BTW percentage:</dt>
+                                            <dd class="col-sm-8">
+                                                {% if analysis.get('vat_rate') %}
+                                                    {{ analysis.get('vat_rate') }}%
+                                                {% else %}
+                                                    Niet gevonden
+                                                {% endif %}
+                                            </dd>
+                                            
+                                            <dt class="col-sm-4">Type:</dt>
+                                            <dd class="col-sm-8">
+                                                {% if analysis.get('invoice_type') == 'expense' %}
+                                                    Uitgave
+                                                {% elif analysis.get('invoice_type') == 'income' %}
+                                                    Inkomst
+                                                {% else %}
+                                                    Niet gevonden
+                                                {% endif %}
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <h6>Verkoper</h6>
+                                            {% if analysis.get('seller') %}
+                                                {% set seller = analysis.get('seller', {}) %}
+                                                <dl class="row">
+                                                    <dt class="col-sm-4">Naam:</dt>
+                                                    <dd class="col-sm-8">{{ seller.get('name', 'Niet gevonden') }}</dd>
+                                                    
+                                                    <dt class="col-sm-4">Adres:</dt>
+                                                    <dd class="col-sm-8">{{ seller.get('address', 'Niet gevonden') }}</dd>
+                                                    
+                                                    <dt class="col-sm-4">BTW nummer:</dt>
+                                                    <dd class="col-sm-8">{{ seller.get('vat_number', 'Niet gevonden') }}</dd>
+                                                    
+                                                    <dt class="col-sm-4">E-mail:</dt>
+                                                    <dd class="col-sm-8">{{ seller.get('email', 'Niet gevonden') }}</dd>
+                                                </dl>
+                                            {% else %}
+                                                <p>Geen verkopergegevens gevonden</p>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <h6>Koper</h6>
+                                            {% if analysis.get('buyer') %}
+                                                {% set buyer = analysis.get('buyer', {}) %}
+                                                <dl class="row">
+                                                    <dt class="col-sm-4">Naam:</dt>
+                                                    <dd class="col-sm-8">{{ buyer.get('name', 'Niet gevonden') }}</dd>
+                                                    
+                                                    <dt class="col-sm-4">Adres:</dt>
+                                                    <dd class="col-sm-8">{{ buyer.get('address', 'Niet gevonden') }}</dd>
+                                                    
+                                                    <dt class="col-sm-4">BTW nummer:</dt>
+                                                    <dd class="col-sm-8">{{ buyer.get('vat_number', 'Niet gevonden') }}</dd>
+                                                    
+                                                    <dt class="col-sm-4">E-mail:</dt>
+                                                    <dd class="col-sm-8">{{ buyer.get('email', 'Niet gevonden') }}</dd>
+                                                </dl>
+                                            {% else %}
+                                                <p>Geen kopergegevens gevonden</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {% if analysis.get('line_items') %}
+                                <div class="mt-3">
+                                    <h6>Factuurregels</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Omschrijving</th>
+                                                    <th>Aantal</th>
+                                                    <th>Prijs per eenheid</th>
+                                                    <th>Bedrag</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for item in analysis.get('line_items', []) %}
+                                                <tr>
+                                                    <td>{{ item.get('description', '') }}</td>
+                                                    <td>{{ item.get('quantity', '') }}</td>
+                                                    <td>{{ item.get('unit_price', '') }}</td>
+                                                    <td>{{ item.get('amount', '') }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="d-flex justify-content-end mt-3">
+                                    <a href="/{{ result.file_path }}" target="_blank" class="btn btn-sm btn-info me-2">
+                                        <i class="fas fa-file-alt me-1"></i> Document bekijken
+                                    </a>
+                                    
+                                    <form action="{{ url_for('ai.ai_process_document', file_path=result.file_path) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-success">
+                                            <i class="fas fa-check-circle me-1"></i> Verwerken
+                                        </button>
+                                    </form>
+                                </div>
+                                
+                                {% elif doc_type == 'bank_statement' %}
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Bankafschrift</h6>
+                                        <dl class="row">
+                                            <dt class="col-sm-4">Bank:</dt>
+                                            <dd class="col-sm-8">{{ analysis.get('bank_name', 'Niet gevonden') }}</dd>
+                                            
+                                            <dt class="col-sm-4">Rekeningnummer:</dt>
+                                            <dd class="col-sm-8">{{ analysis.get('account_number', 'Niet gevonden') }}</dd>
+                                            
+                                            <dt class="col-sm-4">Datum:</dt>
+                                            <dd class="col-sm-8">{{ analysis.get('statement_date', 'Niet gevonden') }}</dd>
+                                            
+                                            <dt class="col-sm-4">Periode:</dt>
+                                            <dd class="col-sm-8">{{ analysis.get('statement_period', 'Niet gevonden') }}</dd>
+                                        </dl>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Saldo's</h6>
+                                        <dl class="row">
+                                            <dt class="col-sm-4">Beginsaldo:</dt>
+                                            <dd class="col-sm-8">
+                                                {% if analysis.get('opening_balance') %}
+                                                    {{ analysis.get('currency', '€') }} {{ analysis.get('opening_balance')|round(2) }}
+                                                {% else %}
+                                                    Niet gevonden
+                                                {% endif %}
+                                            </dd>
+                                            
+                                            <dt class="col-sm-4">Eindsaldo:</dt>
+                                            <dd class="col-sm-8">
+                                                {% if analysis.get('closing_balance') %}
+                                                    {{ analysis.get('currency', '€') }} {{ analysis.get('closing_balance')|round(2) }}
+                                                {% else %}
+                                                    Niet gevonden
+                                                {% endif %}
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                                
+                                {% if analysis.get('transactions') %}
+                                <div class="mt-3">
+                                    <h6>Transacties</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Datum</th>
+                                                    <th>Omschrijving</th>
+                                                    <th>Bedrag</th>
+                                                    <th>Type</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for tx in analysis.get('transactions', []) %}
+                                                <tr class="{{ 'table-success' if tx.get('type') == 'credit' else 'table-danger' if tx.get('type') == 'debit' else '' }}">
+                                                    <td>{{ tx.get('date', '') }}</td>
+                                                    <td>{{ tx.get('description', '') }}</td>
+                                                    <td>
+                                                        {% if tx.get('amount') %}
+                                                            {{ analysis.get('currency', '€') }} {{ tx.get('amount')|round(2) }}
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if tx.get('type') == 'credit' %}
+                                                            <span class="badge bg-success">Credit</span>
+                                                        {% elif tx.get('type') == 'debit' %}
+                                                            <span class="badge bg-danger">Debit</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="d-flex justify-content-end mt-3">
+                                    <a href="/{{ result.file_path }}" target="_blank" class="btn btn-sm btn-info me-2">
+                                        <i class="fas fa-file-alt me-1"></i> Document bekijken
+                                    </a>
+                                </div>
+                                
+                                {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Onbekend documenttype: {{ doc_type }}
+                                </div>
+                                
+                                <pre class="mt-3">{{ analysis|tojson(indent=2) }}</pre>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('ai.ai_analyze_document') }}" class="btn btn-primary">
+                <i class="fas fa-upload me-2"></i> Meer documenten uploaden
+            </a>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Terug naar dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
