@@ -377,11 +377,33 @@ class FileProcessor:
             except ValueError:
                 pass
         
-        # Generate a customer name based on the filename
-        possible_customer_name = re.sub(r'[._-]', ' ', os.path.splitext(filename)[0])
-        possible_customer_name = re.sub(r'(?:invoice|factuur|bank|statement|afschrift|expense|uitgave|income|inkomst).*', '', possible_customer_name, flags=re.IGNORECASE)
-        possible_customer_name = possible_customer_name.strip()
+        # Generate a customer name based on the filename - improved algorithm
+        customer_parts = []
         
+        # First, look for known name patterns: klant_*_factuur.pdf or company-name_invoice_*.pdf
+        name_pattern = re.match(r'^([^_\.]+)[_\.-]', os.path.splitext(filename)[0])
+        if name_pattern:
+            customer_parts.append(name_pattern.group(1))
+            
+        # If nothing matched with first pattern, try another approach
+        if not customer_parts:
+            parts = re.split(r'[_\.-]', os.path.splitext(filename)[0])
+            for part in parts:
+                lower_part = part.lower()
+                # Skip common terms that aren't part of a company name
+                if not any(term in lower_part for term in ['invoice', 'factuur', 'bank', 'statement', 
+                                                        'afschrift', 'expense', 'uitgave', 'income', 
+                                                        'inkomst', 'detail', 'datum', 'date']):
+                    # Only add if it's not just numbers
+                    if not re.match(r'^\d+$', part):
+                        customer_parts.append(part)
+                    # Stop once we have a plausible name
+                    if len(customer_parts) == 1 and len(part) > 3:
+                        break
+        
+        possible_customer_name = ' '.join(customer_parts).strip()
+        
+        # Provide default if we couldn't extract anything meaningful
         if len(possible_customer_name) < 3:  # Too short to be a real name
             possible_customer_name = "Auto-detected Customer"
         
