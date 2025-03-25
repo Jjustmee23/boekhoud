@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Create Flask app
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET")
+app.secret_key = os.environ.get("SESSION_SECRET", "your-default-secret-key-here")
 
 # Import routes after app creation to avoid circular imports
 from routes import *
