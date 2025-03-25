@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %} - {% if edit_mode %}Factuur Bewerken{% else %}Nieuwe Factuur{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{% if edit_mode %}Factuur Bewerken{% else %}Nieuwe Factuur{% endif %}</h1>
+    <a href="{{ url_for('invoices_list') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Terug naar facturen
+    </a>
+</div>
+
+<div class="card border-0">
+    <div class="card-body">
+        <form method="post" action="{% if edit_mode %}{{ url_for('edit_invoice', invoice_id=invoice.id) }}{% else %}{{ url_for('new_invoice') }}{% endif %}">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="customer_id" class="form-label">Klant <span class="text-danger">*</span></label>
+                    <select name="customer_id" id="customer_id" class="form-select" required>
+                        <option value="">-- Selecteer een klant --</option>
+                        {% for customer in customers %}
+                            <option value="{{ customer.id }}" {% if invoice.customer_id == customer.id %}selected{% endif %}>
+                                {{ customer.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="date" class="form-label">Datum <span class="text-danger">*</span></label>
+                    <input type="date" name="date" id="date" class="form-control" value="{{ invoice.date }}" required>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="type" class="form-label">Type <span class="text-danger">*</span></label>
+                    <select name="type" id="type" class="form-select" required>
+                        <option value="income" {% if invoice.invoice_type == 'income' %}selected{% endif %}>Inkomsten</option>
+                        <option value="expense" {% if invoice.invoice_type == 'expense' %}selected{% endif %}>Uitgaven</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="vat_rate" class="form-label">BTW Tarief <span class="text-danger">*</span></label>
+                    <select name="vat_rate" id="vat_rate" class="form-select" required>
+                        {% for rate in vat_rates %}
+                            <option value="{{ rate.rate }}" {% if invoice.vat_rate == rate.rate %}selected{% endif %}>
+                                {{ rate.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="amount_incl_vat" class="form-label">Bedrag (incl. BTW) <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text">€</span>
+                        <input type="number" name="amount_incl_vat" id="amount_incl_vat" class="form-control" step="0.01" min="0" value="{{ invoice.amount_incl_vat }}" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label for="amount_excl_vat" class="form-label">Bedrag (excl. BTW)</label>
+                    <div class="input-group">
+                        <span class="input-group-text">€</span>
+                        <input type="number" id="amount_excl_vat" class="form-control" step="0.01" min="0" value="{{ invoice.amount_excl_vat }}" readonly>
+                    </div>
+                    <small class="form-text text-muted">Dit wordt automatisch berekend</small>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <hr>
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-secondary me-2" onclick="history.back()">Annuleren</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {% if edit_mode %}Bijwerken{% else %}Opslaan{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const amountInclVat = document.getElementById('amount_incl_vat');
+        const amountExclVat = document.getElementById('amount_excl_vat');
+        const vatRate = document.getElementById('vat_rate');
+        
+        // Calculate amount excluding VAT when inputs change
+        function calculateExclVat() {
+            const inclVatValue = parseFloat(amountInclVat.value) || 0;
+            const vatRateValue = parseFloat(vatRate.value) || 0;
+            
+            if (inclVatValue > 0) {
+                const exclVatValue = inclVatValue / (1 + (vatRateValue / 100));
+                amountExclVat.value = exclVatValue.toFixed(2);
+            } else {
+                amountExclVat.value = "0.00";
+            }
+        }
+        
+        // Initial calculation
+        calculateExclVat();
+        
+        // Update on change
+        amountInclVat.addEventListener('input', calculateExclVat);
+        vatRate.addEventListener('change', calculateExclVat);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %} - Klant {{ customer.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Klantdetails</h1>
+    <div>
+        <a href="{{ url_for('customers_list') }}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left"></i> Terug naar klanten
+        </a>
+        <div class="btn-group">
+            <a href="{{ url_for('edit_customer', customer_id=customer.id) }}" class="btn btn-outline-primary">
+                <i class="fas fa-edit"></i> Bewerken
+            </a>
+            <button type="button" class="btn btn-outline-danger" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#deleteCustomerModal"
+                    {% if invoices %}disabled{% endif %}>
+                <i class="fas fa-trash"></i> Verwijderen
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card border-0 mb-4">
+            <div class="card-header bg-transparent">
+                <h5 class="card-title mb-0">Klantinformatie</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mb-2">{{ customer.name }}</h6>
+                <p class="mb-1">{{ customer.address }}</p>
+                <p class="mb-1">BTW: {{ customer.vat_number }}</p>
+                <p class="mb-0">Email: {{ customer.email }}</p>
+                
+                <hr>
+                
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h6>Totaal inkomsten</h6>
+                        <p class="text-success fs-5">{{ format_currency(total_income) }}</p>
+                    </div>
+                    <div class="col-6">
+                        <h6>Totaal uitgaven</h6>
+                        <p class="text-danger fs-5">{{ format_currency(total_expense) }}</p>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 mt-3">
+                    <a href="{{ url_for('new_invoice') }}?customer_id={{ customer.id }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Nieuwe factuur voor deze klant
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card border-0">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Facturen</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if invoices %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Factuurnummer</th>
+                                    <th>Datum</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Excl. BTW</th>
+                                    <th class="text-end">BTW</th>
+                                    <th class="text-end">Incl. BTW</th>
+                                    <th class="text-center">Acties</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in invoices %}
+                                    <tr>
+                                        <td>{{ invoice.invoice_number }}</td>
+                                        <td>{{ invoice.date }}</td>
+                                        <td>
+                                            {% if invoice.invoice_type == 'income' %}
+                                                <span class="badge bg-success">Inkomsten</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Uitgaven</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">{{ format_currency(invoice.amount_excl_vat) }}</td>
+                                        <td class="text-end">{{ format_currency(invoice.vat_amount) }}</td>
+                                        <td class="text-end">{{ format_currency(invoice.amount_incl_vat) }}</td>
+                                        <td class="text-center">
+                                            <div class="btn-group" role="group">
+                                                <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="Bekijken">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('generate_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-info" title="PDF downloaden">
+                                                    <i class="fas fa-file-pdf"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info m-3">
+                        <i class="fas fa-info-circle"></i> Geen facturen gevonden voor deze klant.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Customer Modal -->
+<div class="modal fade" id="deleteCustomerModal" tabindex="-1" aria-labelledby="deleteCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteCustomerModalLabel">Klant verwijderen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Weet u zeker dat u deze klant wilt verwijderen?</p>
+                <p><strong>Naam: {{ customer.name }}</strong></p>
+                
+                {% if invoices %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Deze klant heeft facturen. Verwijder eerst alle facturen van deze klant.
+                    </div>
+                {% else %}
+                    <p class="text-danger">Deze actie kan niet ongedaan worden gemaakt.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <form action="{{ url_for('delete_customer_route', customer_id=customer.id) }}" method="post">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                    <button type="submit" class="btn btn-danger" {% if invoices %}disabled{% endif %}>Verwijderen</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

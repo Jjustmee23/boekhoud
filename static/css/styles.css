@@ -1,0 +1,219 @@
+/**
+ * Custom styles for the Facturatie & Boekhouding application
+ * Using Bootstrap's dark theme from Replit
+ */
+
+/* General styling overrides */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+footer {
+    flex-shrink: 0;
+}
+
+/* Form styling */
+.form-label {
+    font-weight: 500;
+}
+
+/* Card styling */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    font-weight: 500;
+}
+
+/* Dashboard styling */
+.dashboard-stat {
+    padding: 1.5rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1.5rem;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.dashboard-stat .stat-title {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-stat .stat-value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.dashboard-stat .stat-description {
+    font-size: 0.875rem;
+    opacity: 0.8;
+}
+
+/* Table styling */
+.table th {
+    font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+    background-color: var(--bs-dark-bg-subtle);
+}
+
+/* Print styling for invoices */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .print-only {
+        display: block !important;
+    }
+    
+    body {
+        background-color: white !important;
+        color: black !important;
+    }
+    
+    .container {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+    }
+}
+
+/* Invoice details page */
+.invoice-summary {
+    border-left: 3px solid var(--bs-info);
+    padding-left: 1rem;
+}
+
+.customer-summary {
+    border-left: 3px solid var(--bs-success);
+    padding-left: 1rem;
+}
+
+/* VAT report styling */
+.vat-grid-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.vat-info-card {
+    height: 100%;
+}
+
+.vat-info-card .card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* Responsive utilities */
+@media (max-width: 767.98px) {
+    .dashboard-stat {
+        min-height: auto;
+    }
+    
+    .dashboard-stat .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .table-responsive {
+        border: none;
+    }
+}
+
+/* Invoice status indicators */
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 50rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.status-paid {
+    background-color: var(--bs-success-bg-subtle);
+    color: var(--bs-success);
+}
+
+.status-badge.status-pending {
+    background-color: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning);
+}
+
+.status-badge.status-overdue {
+    background-color: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger);
+}
+
+/* Utility classes */
+.text-monospace {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* Add padding to dropdown menu items */
+.dropdown-menu .dropdown-item {
+    padding: 0.5rem 1rem;
+}
+
+/* Custom button for VAT report */
+.btn-vat {
+    background-color: var(--bs-info);
+    color: var(--bs-white);
+}
+
+.btn-vat:hover {
+    background-color: var(--bs-info-emphasis);
+    color: var(--bs-white);
+}
+
+/* Chart containers */
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+
+/* Placeholder for empty states */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state-text {
+    font-size: 1.25rem;
+    font-weight: 300;
+    margin-bottom: 1.5rem;
+}

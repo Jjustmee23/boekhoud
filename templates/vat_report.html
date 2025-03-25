@@ -1,0 +1,380 @@
+{% extends 'base.html' %}
+
+{% block title %} - BTW-aangifte{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>BTW-aangifte</h1>
+</div>
+
+<!-- VAT Report Form -->
+{% if not report %}
+<div class="card border-0 mb-4">
+    <div class="card-header bg-transparent">
+        <h5 class="card-title mb-0">Genereer BTW-aangifte</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('generate_vat_report') }}" method="post">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label for="year" class="form-label">Jaar</label>
+                    <select name="year" id="year" class="form-select" required>
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if year == current_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="report_type" class="form-label">Periode</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="report_type" id="quarterly" value="quarterly" checked>
+                        <label class="form-check-label" for="quarterly">
+                            Kwartaal
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="report_type" id="monthly" value="monthly">
+                        <label class="form-check-label" for="monthly">
+                            Maand
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-4" id="quarterSelection">
+                    <label for="quarter" class="form-label">Kwartaal</label>
+                    <select name="quarter" id="quarter" class="form-select">
+                        {% for quarter in quarters %}
+                            <option value="{{ quarter.id }}" {% if quarter.id == current_quarter %}selected{% endif %}>{{ quarter.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4" id="monthSelection" style="display: none;">
+                    <label for="month" class="form-label">Maand</label>
+                    <select name="month" id="month" class="form-select">
+                        {% for month in months %}
+                            <option value="{{ month.id }}">{{ month.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label for="export_format" class="form-label">Exportformaat (optioneel)</label>
+                    <select name="export_format" id="export_format" class="form-select">
+                        <option value="">Geen export (bekijk online)</option>
+                        <option value="excel">Excel</option>
+                        <option value="csv">CSV</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-calculator"></i> BTW-aangifte genereren
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- VAT Report Display -->
+{% if report %}
+<div class="card border-0 mb-4">
+    <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">BTW-aangifte voor {{ period_name }}</h5>
+        <div class="btn-group">
+            <form action="{{ url_for('generate_vat_report') }}" method="post">
+                <input type="hidden" name="year" value="{{ report.year }}">
+                {% if report.quarter %}
+                    <input type="hidden" name="report_type" value="quarterly">
+                    <input type="hidden" name="quarter" value="{{ report.quarter }}">
+                {% else %}
+                    <input type="hidden" name="report_type" value="monthly">
+                    <input type="hidden" name="month" value="{{ report.month }}">
+                {% endif %}
+                <div class="btn-group">
+                    <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Exporteren
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <button type="submit" name="export_format" value="excel" class="dropdown-item">Excel</button>
+                        </li>
+                        <li>
+                            <button type="submit" name="export_format" value="csv" class="dropdown-item">CSV</button>
+                        </li>
+                    </ul>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6 class="mb-3">Belgische BTW-roosters</h6>
+                <div class="list-group">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Rooster 03 (omzet excl. btw)</h6>
+                            <small class="text-muted">Verkopen zonder BTW</small>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">{{ format_currency(report.grid_03) }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Rooster 54 (verschuldigde btw)</h6>
+                            <small class="text-muted">BTW op verkopen</small>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">{{ format_currency(report.grid_54) }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Rooster 59 (aftrekbare btw)</h6>
+                            <small class="text-muted">BTW op aankopen</small>
+                        </div>
+                        <span class="badge bg-success rounded-pill">{{ format_currency(report.grid_59) }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center fw-bold">
+                        <div>
+                            <h6 class="mb-0">Rooster 71 (saldo)</h6>
+                            <small class="text-muted">Te betalen of terug te krijgen</small>
+                        </div>
+                        {% if report.grid_71 >= 0 %}
+                            <span class="badge bg-danger rounded-pill">{{ format_currency(report.grid_71) }}</span>
+                        {% else %}
+                            <span class="badge bg-success rounded-pill">{{ format_currency(report.grid_71) }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6 class="mb-3">BTW-aangifte Samenvatting</h6>
+                <div class="card bg-dark-subtle border-0">
+                    <div class="card-body">
+                        <p>Deze BTW-aangifte is gebaseerd op:</p>
+                        <ul>
+                            <li><strong>Periode:</strong> {{ period_name }}</li>
+                            <li><strong>Aantal inkomende facturen:</strong> 
+                                {{ report.invoices|selectattr('invoice_type', 'equalto', 'income')|list|length }}
+                            </li>
+                            <li><strong>Aantal uitgaande facturen:</strong> 
+                                {{ report.invoices|selectattr('invoice_type', 'equalto', 'expense')|list|length }}
+                            </li>
+                            <li><strong>Totale omzet (excl. BTW):</strong> {{ format_currency(report.grid_03) }}</li>
+                        </ul>
+                        
+                        <div class="alert {% if report.grid_71 >= 0 %}alert-danger{% else %}alert-success{% endif %} mt-3 mb-0">
+                            <i class="fas {% if report.grid_71 >= 0 %}fa-exclamation-triangle{% else %}fa-check-circle{% endif %}"></i>
+                            {% if report.grid_71 >= 0 %}
+                                <strong>Te betalen BTW:</strong> {{ format_currency(report.grid_71) }}
+                            {% else %}
+                                <strong>Terug te vorderen BTW:</strong> {{ format_currency(report.grid_71|abs) }}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Invoices included in this report -->
+        <h6 class="mb-3">Facturen in deze BTW-aangifte</h6>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Factuurnummer</th>
+                        <th>Datum</th>
+                        <th>Klant</th>
+                        <th>Type</th>
+                        <th class="text-end">Excl. BTW</th>
+                        <th class="text-end">BTW</th>
+                        <th class="text-end">Incl. BTW</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in report.invoices %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}">
+                                    {{ invoice.invoice_number }}
+                                </a>
+                            </td>
+                            <td>{{ invoice.date }}</td>
+                            <td>{{ get_customer(invoice.customer_id).name }}</td>
+                            <td>
+                                {% if invoice.invoice_type == 'income' %}
+                                    <span class="badge bg-success">Inkomsten</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Uitgaven</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ format_currency(invoice.amount_excl_vat) }}</td>
+                            <td class="text-end">{{ format_currency(invoice.vat_amount) }}</td>
+                            <td class="text-end">{{ format_currency(invoice.amount_incl_vat) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-secondary fw-bold">
+                        <td colspan="4">Totaal</td>
+                        <td class="text-end">{{ format_currency(report.invoices|sum(attribute='amount_excl_vat')) }}</td>
+                        <td class="text-end">{{ format_currency(report.invoices|sum(attribute='vat_amount')) }}</td>
+                        <td class="text-end">{{ format_currency(report.invoices|sum(attribute='amount_incl_vat')) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- VAT Report Chart -->
+<div class="card border-0 mb-4">
+    <div class="card-header bg-transparent">
+        <h5 class="card-title mb-0">BTW Visualisatie</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="vatChart" height="300"></canvas>
+    </div>
+</div>
+{% endif %}
+
+<!-- Information about Belgian VAT -->
+<div class="card border-0">
+    <div class="card-header bg-transparent">
+        <h5 class="card-title mb-0">Info over Belgische BTW</h5>
+    </div>
+    <div class="card-body">
+        <h6>Belgische BTW-tarieven</h6>
+        <p>De volgende BTW-tarieven zijn van toepassing in België:</p>
+        <ul>
+            <li><strong>0%</strong> - Vrijgestelde goederen en diensten</li>
+            <li><strong>6%</strong> - Verlaagd tarief (voedingsmiddelen, boeken, medicijnen, etc.)</li>
+            <li><strong>12%</strong> - Verlaagd tarief (restaurantdiensten, sociale huisvesting, etc.)</li>
+            <li><strong>21%</strong> - Standaardtarief voor de meeste goederen en diensten</li>
+        </ul>
+        
+        <h6>BTW-aangifte roosters</h6>
+        <p>De belangrijkste roosters voor de BTW-aangifte zijn:</p>
+        <ul>
+            <li><strong>Rooster 03</strong> - Totale omzet exclusief BTW</li>
+            <li><strong>Rooster 54</strong> - Verschuldigde BTW op verkopen</li>
+            <li><strong>Rooster 59</strong> - Aftrekbare BTW op aankopen</li>
+            <li><strong>Rooster 71</strong> - Saldo (Rooster 54 - Rooster 59)</li>
+        </ul>
+        
+        <h6>Aangifte termijnen</h6>
+        <p>BTW moet worden aangegeven en betaald:</p>
+        <ul>
+            <li><strong>Kwartaalaangifte</strong> - Binnen 20 dagen na het einde van elk kwartaal</li>
+            <li><strong>Maandaangifte</strong> - Binnen 20 dagen na het einde van elke maand (voor grotere ondernemingen)</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle between quarterly and monthly selection
+        const quarterlyRadio = document.getElementById('quarterly');
+        const monthlyRadio = document.getElementById('monthly');
+        const quarterSelection = document.getElementById('quarterSelection');
+        const monthSelection = document.getElementById('monthSelection');
+        
+        if (quarterlyRadio && monthlyRadio) {
+            quarterlyRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    quarterSelection.style.display = 'block';
+                    monthSelection.style.display = 'none';
+                }
+            });
+            
+            monthlyRadio.addEventListener('change', function() {
+                if (this.checked) {
+                    quarterSelection.style.display = 'none';
+                    monthSelection.style.display = 'block';
+                }
+            });
+        }
+        
+        // Create VAT Chart
+        {% if report %}
+            const vatChartCanvas = document.getElementById('vatChart');
+            if (vatChartCanvas) {
+                const ctx = vatChartCanvas.getContext('2d');
+                
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['BTW-aangifte voor {{ period_name }}'],
+                        datasets: [
+                            {
+                                label: 'Verschuldigde BTW (rooster 54)',
+                                data: [{{ report.grid_54 }}],
+                                backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Aftrekbare BTW (rooster 59)',
+                                data: [{{ report.grid_59 }}],
+                                backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                                borderColor: 'rgba(40, 167, 69, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'BTW Saldo (rooster 71)',
+                                data: [{{ report.grid_71 }}],
+                                backgroundColor: 'rgba(23, 162, 184, 0.7)',
+                                borderColor: 'rgba(23, 162, 184, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('nl-BE', { 
+                                                style: 'currency', 
+                                                currency: 'EUR' 
+                                            }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '€' + value.toLocaleString('nl-BE');
+                                    }
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    maxRotation: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        {% endif %}
+    });
+</script>
+{% endblock %}

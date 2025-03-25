@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block title %} - Klanten{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Klanten</h1>
+    <a href="{{ url_for('new_customer') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nieuwe Klant
+    </a>
+</div>
+
+<!-- Customers Table -->
+<div class="card border-0">
+    <div class="card-body p-0">
+        {% if customers %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Naam</th>
+                            <th>BTW-nummer</th>
+                            <th>Email</th>
+                            <th class="text-center">Aantal facturen</th>
+                            <th class="text-end">Totaal bedrag</th>
+                            <th class="text-center">Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in customers %}
+                            <tr>
+                                <td>{{ customer.name }}</td>
+                                <td>{{ customer.vat_number }}</td>
+                                <td>{{ customer.email }}</td>
+                                <td class="text-center">{{ customer.invoice_count }}</td>
+                                <td class="text-end">{{ format_currency(customer.total_amount) }}</td>
+                                <td class="text-center">
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('view_customer', customer_id=customer.id) }}" class="btn btn-sm btn-outline-primary" title="Bekijken">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('edit_customer', customer_id=customer.id) }}" class="btn btn-sm btn-outline-secondary" title="Bewerken">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteCustomerModal" 
+                                                data-customer-id="{{ customer.id }}"
+                                                data-customer-name="{{ customer.name }}"
+                                                data-has-invoices="{{ customer.invoice_count > 0 }}"
+                                                title="Verwijderen">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info m-3">
+                <i class="fas fa-info-circle"></i> Geen klanten gevonden.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Customer Modal -->
+<div class="modal fade" id="deleteCustomerModal" tabindex="-1" aria-labelledby="deleteCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteCustomerModalLabel">Klant verwijderen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Weet u zeker dat u deze klant wilt verwijderen?</p>
+                <p><strong>Naam: <span id="deleteCustomerName"></span></strong></p>
+                <div id="hasInvoicesWarning" class="alert alert-danger mt-3" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i> Deze klant heeft facturen. Verwijder eerst alle facturen van deze klant.
+                </div>
+                <div id="deleteWarning" class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle"></i> Deze actie kan niet ongedaan worden gemaakt.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <form id="deleteCustomerForm" method="post">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                    <button type="submit" id="deleteCustomerButton" class="btn btn-danger">Verwijderen</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle delete customer modal
+        const deleteCustomerModal = document.getElementById('deleteCustomerModal');
+        if (deleteCustomerModal) {
+            deleteCustomerModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const customerId = button.getAttribute('data-customer-id');
+                const customerName = button.getAttribute('data-customer-name');
+                const hasInvoices = button.getAttribute('data-has-invoices') === 'True';
+                
+                document.getElementById('deleteCustomerName').textContent = customerName;
+                document.getElementById('deleteCustomerForm').action = `/customers/${customerId}/delete`;
+                
+                // Show/hide warning and disable/enable delete button if customer has invoices
+                const hasInvoicesWarning = document.getElementById('hasInvoicesWarning');
+                const deleteWarning = document.getElementById('deleteWarning');
+                const deleteButton = document.getElementById('deleteCustomerButton');
+                
+                if (hasInvoices) {
+                    hasInvoicesWarning.style.display = 'block';
+                    deleteWarning.style.display = 'none';
+                    deleteButton.disabled = true;
+                } else {
+                    hasInvoicesWarning.style.display = 'none';
+                    deleteWarning.style.display = 'block';
+                    deleteButton.disabled = false;
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,399 @@
+{% extends 'base.html' %}
+
+{% block title %} - Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Dashboard</h1>
+
+<!-- Year Selector -->
+<div class="mb-4">
+    <div class="card border-0 bg-dark-subtle">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Overzicht voor jaar:</h5>
+                <div class="d-flex">
+                    <select id="yearSelector" class="form-select">
+                        {% for year in range(current_year-3, current_year+2) %}
+                            <option value="{{ year }}" {% if year == current_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 h-100">
+            <div class="card-body">
+                <h5 class="card-title text-primary">
+                    <i class="fas fa-money-bill-wave"></i> Totaal Omzet
+                </h5>
+                <p class="card-text fs-4">{{ format_currency(year_income) }}</p>
+                <p class="card-text text-muted">Excl. BTW voor {{ current_year }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 h-100">
+            <div class="card-body">
+                <h5 class="card-title text-danger">
+                    <i class="fas fa-file-invoice"></i> Totaal Uitgaven
+                </h5>
+                <p class="card-text fs-4">{{ format_currency(year_expenses) }}</p>
+                <p class="card-text text-muted">Excl. BTW voor {{ current_year }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 h-100">
+            <div class="card-body">
+                <h5 class="card-title text-success">
+                    <i class="fas fa-chart-line"></i> Saldo
+                </h5>
+                <p class="card-text fs-4">{{ format_currency(year_profit) }}</p>
+                <p class="card-text text-muted">Excl. BTW voor {{ current_year }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 h-100">
+            <div class="card-body">
+                <h5 class="card-title text-info">
+                    <i class="fas fa-percent"></i> BTW Saldo
+                </h5>
+                <p class="card-text fs-4">{{ format_currency(vat_balance) }}</p>
+                <p class="card-text text-muted">Te betalen/terugvorderen voor {{ current_year }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 h-100">
+            <div class="card-header bg-transparent">
+                <h5 class="card-title mb-0">Maandelijks Overzicht</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 h-100">
+            <div class="card-header bg-transparent">
+                <h5 class="card-title mb-0">Kwartaal Overzicht</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="quarterlyChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Invoices -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card border-0">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recente Facturen</h5>
+                <a href="{{ url_for('invoices_list') }}" class="btn btn-sm btn-primary">
+                    Alle facturen <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Factuurnummer</th>
+                                <th>Klant</th>
+                                <th>Datum</th>
+                                <th>Type</th>
+                                <th class="text-end">Bedrag (excl. BTW)</th>
+                                <th class="text-end">Bedrag (incl. BTW)</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_invoices %}
+                                {% for invoice in recent_invoices %}
+                                    <tr>
+                                        <td>{{ invoice.invoice_number }}</td>
+                                        <td>{{ invoice.customer_name }}</td>
+                                        <td>{{ invoice.date }}</td>
+                                        <td>
+                                            {% if invoice.invoice_type == 'income' %}
+                                                <span class="badge bg-success">Inkomsten</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Uitgaven</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">{{ format_currency(invoice.amount_excl_vat) }}</td>
+                                        <td class="text-end">{{ format_currency(invoice.amount_incl_vat) }}</td>
+                                        <td class="text-end">
+                                            <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center">Geen recente facturen</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Customers -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card border-0">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Top Klanten</h5>
+                <a href="{{ url_for('customers_list') }}" class="btn btn-sm btn-primary">
+                    Alle klanten <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Naam</th>
+                                <th>BTW-nummer</th>
+                                <th class="text-end">Aantal facturen</th>
+                                <th class="text-end">Totaal omzet</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if customer_summary %}
+                                {% for customer in customer_summary[:5] %}
+                                    <tr>
+                                        <td>{{ customer.customer_name }}</td>
+                                        <td>{{ get_customer(customer.customer_id).vat_number }}</td>
+                                        <td class="text-end">{{ customer.invoice_count }}</td>
+                                        <td class="text-end">{{ format_currency(customer.income) }}</td>
+                                        <td class="text-end">
+                                            <a href="{{ url_for('view_customer', customer_id=customer.customer_id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">Geen klanten gevonden</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const yearSelector = document.getElementById('yearSelector');
+        const currentYear = {{ current_year }};
+        
+        // Load initial charts
+        loadCharts(currentYear);
+        
+        // Year selector change event
+        yearSelector.addEventListener('change', function() {
+            const selectedYear = parseInt(this.value);
+            loadCharts(selectedYear);
+        });
+        
+        function loadCharts(year) {
+            // Load monthly data
+            fetch(`/dashboard/api/monthly-data/${year}`)
+                .then(response => response.json())
+                .then(data => {
+                    renderMonthlyChart(data);
+                });
+            
+            // Load quarterly data
+            fetch(`/dashboard/api/quarterly-data/${year}`)
+                .then(response => response.json())
+                .then(data => {
+                    renderQuarterlyChart(data);
+                });
+        }
+        
+        // Chart variables for later destruction
+        let monthlyChart = null;
+        let quarterlyChart = null;
+        
+        function renderMonthlyChart(data) {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            
+            // Destroy previous chart if exists
+            if (monthlyChart) {
+                monthlyChart.destroy();
+            }
+            
+            // Create new chart
+            monthlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Inkomsten',
+                            data: data.income,
+                            backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                            borderColor: 'rgba(40, 167, 69, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Uitgaven',
+                            data: data.expenses,
+                            backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                            borderColor: 'rgba(220, 53, 69, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Winst',
+                            data: data.profit,
+                            type: 'line',
+                            fill: false,
+                            borderColor: 'rgba(23, 162, 184, 1)',
+                            tension: 0.1,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('nl-BE', { 
+                                            style: 'currency', 
+                                            currency: 'EUR' 
+                                        }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value.toLocaleString('nl-BE');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderQuarterlyChart(data) {
+            const ctx = document.getElementById('quarterlyChart').getContext('2d');
+            
+            // Destroy previous chart if exists
+            if (quarterlyChart) {
+                quarterlyChart.destroy();
+            }
+            
+            // Create new chart
+            quarterlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Inkomsten',
+                            data: data.income,
+                            backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                            borderColor: 'rgba(40, 167, 69, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Uitgaven',
+                            data: data.expenses,
+                            backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                            borderColor: 'rgba(220, 53, 69, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Winst',
+                            data: data.profit,
+                            type: 'line',
+                            fill: false,
+                            borderColor: 'rgba(23, 162, 184, 1)',
+                            tension: 0.1,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('nl-BE', { 
+                                            style: 'currency', 
+                                            currency: 'EUR' 
+                                        }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value.toLocaleString('nl-BE');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,342 @@
+{% extends 'base.html' %}
+
+{% block title %} - Rapporten{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Rapporten</h1>
+</div>
+
+<!-- Report Type Selection -->
+{% if not report_type %}
+<div class="card border-0 mb-4">
+    <div class="card-header bg-transparent">
+        <h5 class="card-title mb-0">Rapport type selecteren</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card h-100 border-0 bg-dark-subtle">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-calendar-day fa-3x mb-3 text-primary"></i>
+                        <h5 class="card-title">Maandelijkse rapporten</h5>
+                        <p class="card-text">Bekijk omzet, uitgaven en BTW per maand</p>
+                        <a href="{{ url_for('monthly_report', year=current_year) }}" class="btn btn-primary mt-2">Bekijken</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 border-0 bg-dark-subtle">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-calendar-week fa-3x mb-3 text-success"></i>
+                        <h5 class="card-title">Kwartaal rapporten</h5>
+                        <p class="card-text">Bekijk omzet, uitgaven en BTW per kwartaal</p>
+                        <a href="{{ url_for('quarterly_report', year=current_year) }}" class="btn btn-success mt-2">Bekijken</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 border-0 bg-dark-subtle">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-users fa-3x mb-3 text-info"></i>
+                        <h5 class="card-title">Klant rapporten</h5>
+                        <p class="card-text">Bekijk omzet en BTW per klant</p>
+                        <a href="{{ url_for('customer_report') }}" class="btn btn-info mt-2">Bekijken</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Report Content (if a report type is selected) -->
+{% if report_type %}
+<div class="card border-0 mb-4">
+    <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            {% if report_type == 'monthly' %}
+                Maandelijks rapport {{ year }}
+            {% elif report_type == 'quarterly' %}
+                Kwartaal rapport {{ year }}
+            {% elif report_type == 'customers' %}
+                Klant rapport
+            {% endif %}
+        </h5>
+        <div class="btn-group">
+            {% if report_type == 'monthly' or report_type == 'quarterly' %}
+                <select id="yearSelector" class="form-select me-2">
+                    {% for year_option in years %}
+                        <option value="{{ year_option }}" {% if year_option == year %}selected{% endif %}>{{ year_option }}</option>
+                    {% endfor %}
+                </select>
+            {% endif %}
+            
+            <!-- Export buttons -->
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-download"></i> Exporteren
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {% if report_type == 'monthly' %}
+                        <li><a class="dropdown-item" href="{{ url_for('monthly_report', year=year, format='excel') }}">Excel</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('monthly_report', year=year, format='csv') }}">CSV</a></li>
+                    {% elif report_type == 'quarterly' %}
+                        <li><a class="dropdown-item" href="{{ url_for('quarterly_report', year=year, format='excel') }}">Excel</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('quarterly_report', year=year, format='csv') }}">CSV</a></li>
+                    {% elif report_type == 'customers' %}
+                        <li><a class="dropdown-item" href="{{ url_for('customer_report', format='excel') }}">Excel</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('customer_report', format='csv') }}">CSV</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if report_data %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            {% if report_type == 'monthly' %}
+                                <th>Maand</th>
+                                <th class="text-end">Inkomsten</th>
+                                <th class="text-end">Uitgaven</th>
+                                <th class="text-end">Winst</th>
+                                <th class="text-end">BTW geïnd</th>
+                                <th class="text-end">BTW betaald</th>
+                                <th class="text-end">BTW saldo</th>
+                            {% elif report_type == 'quarterly' %}
+                                <th>Kwartaal</th>
+                                <th class="text-end">Inkomsten</th>
+                                <th class="text-end">Uitgaven</th>
+                                <th class="text-end">Winst</th>
+                                <th class="text-end">BTW geïnd</th>
+                                <th class="text-end">BTW betaald</th>
+                                <th class="text-end">BTW saldo</th>
+                            {% elif report_type == 'customers' %}
+                                <th>Klantnaam</th>
+                                <th class="text-end">Inkomsten</th>
+                                <th class="text-end">BTW geïnd</th>
+                                <th class="text-end">Aantal facturen</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if report_type == 'monthly' %}
+                            {% for month in report_data %}
+                                <tr>
+                                    <td>{{ month.month_name }}</td>
+                                    <td class="text-end">{{ format_currency(month.income) }}</td>
+                                    <td class="text-end">{{ format_currency(month.expenses) }}</td>
+                                    <td class="text-end">{{ format_currency(month.profit) }}</td>
+                                    <td class="text-end">{{ format_currency(month.vat_collected) }}</td>
+                                    <td class="text-end">{{ format_currency(month.vat_paid) }}</td>
+                                    <td class="text-end">{{ format_currency(month.vat_balance) }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% elif report_type == 'quarterly' %}
+                            {% for quarter in report_data %}
+                                <tr>
+                                    <td>Q{{ quarter.quarter }}</td>
+                                    <td class="text-end">{{ format_currency(quarter.income) }}</td>
+                                    <td class="text-end">{{ format_currency(quarter.expenses) }}</td>
+                                    <td class="text-end">{{ format_currency(quarter.profit) }}</td>
+                                    <td class="text-end">{{ format_currency(quarter.vat_collected) }}</td>
+                                    <td class="text-end">{{ format_currency(quarter.vat_paid) }}</td>
+                                    <td class="text-end">{{ format_currency(quarter.vat_balance) }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% elif report_type == 'customers' %}
+                            {% for customer in report_data %}
+                                <tr>
+                                    <td>{{ customer.customer_name }}</td>
+                                    <td class="text-end">{{ format_currency(customer.income) }}</td>
+                                    <td class="text-end">{{ format_currency(customer.vat_collected) }}</td>
+                                    <td class="text-end">{{ customer.invoice_count }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                    <!-- Totals for monthly and quarterly reports -->
+                    {% if report_type == 'monthly' or report_type == 'quarterly' %}
+                        <tfoot>
+                            <tr class="table-secondary fw-bold">
+                                <td>Totaal</td>
+                                <td class="text-end">{{ format_currency(report_data|sum(attribute='income')) }}</td>
+                                <td class="text-end">{{ format_currency(report_data|sum(attribute='expenses')) }}</td>
+                                <td class="text-end">{{ format_currency(report_data|sum(attribute='profit')) }}</td>
+                                <td class="text-end">{{ format_currency(report_data|sum(attribute='vat_collected')) }}</td>
+                                <td class="text-end">{{ format_currency(report_data|sum(attribute='vat_paid')) }}</td>
+                                <td class="text-end">{{ format_currency(report_data|sum(attribute='vat_balance')) }}</td>
+                            </tr>
+                        </tfoot>
+                    {% endif %}
+                    <!-- Totals for customer report -->
+                    {% if report_type == 'customers' %}
+                        <tfoot>
+                            <tr class="table-secondary fw-bold">
+                                <td>Totaal</td>
+                                <td class="text-end">{{ format_currency(report_data|sum(attribute='income')) }}</td>
+                                <td class="text-end">{{ format_currency(report_data|sum(attribute='vat_collected')) }}</td>
+                                <td class="text-end">{{ report_data|sum(attribute='invoice_count') }}</td>
+                            </tr>
+                        </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Geen gegevens beschikbaar voor deze periode.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Chart for reports -->
+{% if report_type == 'monthly' or report_type == 'quarterly' %}
+    <div class="card border-0 mb-4">
+        <div class="card-header bg-transparent">
+            <h5 class="card-title mb-0">Grafiek</h5>
+        </div>
+        <div class="card-body">
+            <canvas id="reportChart" height="300"></canvas>
+        </div>
+    </div>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Year selector change event
+        const yearSelector = document.getElementById('yearSelector');
+        if (yearSelector) {
+            yearSelector.addEventListener('change', function() {
+                const selectedYear = this.value;
+                {% if report_type == 'monthly' %}
+                    window.location.href = "{{ url_for('monthly_report', year=0) }}".replace('0', selectedYear);
+                {% elif report_type == 'quarterly' %}
+                    window.location.href = "{{ url_for('quarterly_report', year=0) }}".replace('0', selectedYear);
+                {% endif %}
+            });
+        }
+        
+        // Chart for reports
+        {% if report_type == 'monthly' or report_type == 'quarterly' %}
+            const reportChart = document.getElementById('reportChart');
+            if (reportChart) {
+                const ctx = reportChart.getContext('2d');
+                
+                // Prepare data
+                const labels = [
+                    {% if report_type == 'monthly' %}
+                        {% for month in report_data %}
+                            "{{ month.month_name }}",
+                        {% endfor %}
+                    {% elif report_type == 'quarterly' %}
+                        {% for quarter in report_data %}
+                            "Q{{ quarter.quarter }}",
+                        {% endfor %}
+                    {% endif %}
+                ];
+                
+                const incomeData = [
+                    {% if report_type == 'monthly' or report_type == 'quarterly' %}
+                        {% for item in report_data %}
+                            {{ item.income }},
+                        {% endfor %}
+                    {% endif %}
+                ];
+                
+                const expenseData = [
+                    {% if report_type == 'monthly' or report_type == 'quarterly' %}
+                        {% for item in report_data %}
+                            {{ item.expenses }},
+                        {% endfor %}
+                    {% endif %}
+                ];
+                
+                const profitData = [
+                    {% if report_type == 'monthly' or report_type == 'quarterly' %}
+                        {% for item in report_data %}
+                            {{ item.profit }},
+                        {% endfor %}
+                    {% endif %}
+                ];
+                
+                // Create chart
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Inkomsten',
+                                data: incomeData,
+                                backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                                borderColor: 'rgba(40, 167, 69, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Uitgaven',
+                                data: expenseData,
+                                backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Winst',
+                                data: profitData,
+                                type: 'line',
+                                fill: false,
+                                borderColor: 'rgba(23, 162, 184, 1)',
+                                tension: 0.1,
+                                borderWidth: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('nl-BE', { 
+                                                style: 'currency', 
+                                                currency: 'EUR' 
+                                            }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '€' + value.toLocaleString('nl-BE');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        {% endif %}
+    });
+</script>
+{% endblock %}

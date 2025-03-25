@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factuur {{ invoice.invoice_number }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #333;
+        }
+        .header {
+            margin-bottom: 40px;
+        }
+        .invoice-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .company-details {
+            float: left;
+            width: 50%;
+        }
+        .company-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        .invoice-details {
+            float: right;
+            width: 45%;
+            text-align: right;
+        }
+        .client-details {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .client-name {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .amount-col {
+            text-align: right;
+        }
+        .subtotal-row td, .vat-row td, .total-row td {
+            padding-top: 15px;
+        }
+        .total-row td {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .footer {
+            margin-top: 50px;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            font-size: 11px;
+            color: #666;
+        }
+        .clear {
+            clear: both;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-details">
+            <p class="company-name">Facturatie & Boekhouding</p>
+            <p>Voorbeeldstraat 123<br>
+            1000 Brussel<br>
+            België</p>
+            <p>BE 0123.456.789<br>
+            info@facturatie-boekhouding.be</p>
+        </div>
+        <div class="invoice-details">
+            <div class="invoice-title">
+                {% if invoice.invoice_type == 'income' %}
+                    FACTUUR
+                {% else %}
+                    AANKOOPFACTUUR
+                {% endif %}
+            </div>
+            <p><strong>Factuurnummer:</strong> {{ invoice.invoice_number }}</p>
+            <p><strong>Datum:</strong> {{ invoice.date }}</p>
+            {% if invoice.invoice_type == 'income' %}
+                <p><strong>Vervaldatum:</strong> {{ (invoice.date|string|strptime('%Y-%m-%d') + timedelta(days=30)).strftime('%Y-%m-%d') }}</p>
+            {% endif %}
+        </div>
+        <div class="clear"></div>
+    </div>
+
+    <div class="client-details">
+        <p class="section-title">
+            {% if invoice.invoice_type == 'income' %}
+                Factuur aan:
+            {% else %}
+                Leverancier:
+            {% endif %}
+        </p>
+        <p class="client-name">{{ customer.name }}</p>
+        <p>{{ customer.address }}</p>
+        {% if customer.vat_number %}
+            <p><strong>BTW-nummer:</strong> {{ customer.vat_number }}</p>
+        {% endif %}
+        {% if customer.email %}
+            <p><strong>Email:</strong> {{ customer.email }}</p>
+        {% endif %}
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Omschrijving</th>
+                <th class="amount-col">Bedrag excl. BTW</th>
+                <th class="amount-col">BTW ({{ invoice.vat_rate }}%)</th>
+                <th class="amount-col">Bedrag incl. BTW</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    {% if invoice.invoice_type == 'income' %}
+                        Facturatie services
+                    {% else %}
+                        Aankoop services
+                    {% endif %}
+                </td>
+                <td class="amount-col">{{ format_currency(invoice.amount_excl_vat) }}</td>
+                <td class="amount-col">{{ format_currency(invoice.vat_amount) }}</td>
+                <td class="amount-col">{{ format_currency(invoice.amount_incl_vat) }}</td>
+            </tr>
+            <tr class="subtotal-row">
+                <td colspan="2"></td>
+                <td>Subtotaal excl. BTW:</td>
+                <td class="amount-col">{{ format_currency(invoice.amount_excl_vat) }}</td>
+            </tr>
+            <tr class="vat-row">
+                <td colspan="2"></td>
+                <td>BTW ({{ invoice.vat_rate }}%):</td>
+                <td class="amount-col">{{ format_currency(invoice.vat_amount) }}</td>
+            </tr>
+            <tr class="total-row">
+                <td colspan="2"></td>
+                <td>Totaal incl. BTW:</td>
+                <td class="amount-col">{{ format_currency(invoice.amount_incl_vat) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div>
+        {% if invoice.invoice_type == 'income' %}
+            <h4>Betalingsinformatie</h4>
+            <p>Gelieve te betalen binnen 30 dagen na factuurdatum.</p>
+            <p><strong>Bankrekening:</strong> BE12 3456 7890 1234</p>
+            <p><strong>Referentie:</strong> {{ invoice.invoice_number }}</p>
+        {% endif %}
+    </div>
+
+    <div class="footer">
+        <p>Facturatie & Boekhouding - Voorbeeldstraat 123, 1000 Brussel</p>
+        <p>BTW: BE 0123.456.789 - Tel: +32 2 123 45 67 - Email: info@facturatie-boekhouding.be</p>
+        <p>Deze factuur werd automatisch gegenereerd op {{ now.strftime('%d/%m/%Y %H:%M') }}</p>
+    </div>
+</body>
+</html>
