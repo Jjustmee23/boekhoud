@@ -4,6 +4,8 @@ from datetime import datetime
 from decimal import Decimal
 from flask import render_template
 import tempfile
+import uuid
+from werkzeug.utils import secure_filename
 from weasyprint import HTML
 
 def format_currency(value):
@@ -114,3 +116,52 @@ def get_years():
     """Return a list of years for reporting, from 5 years ago to 5 years in the future"""
     current_year = datetime.now().year
     return list(range(current_year - 5, current_year + 6))
+
+def save_uploaded_file(file, prefix="invoice"):
+    """
+    Save an uploaded file to the uploads directory with a unique name
+    
+    Args:
+        file: The FileStorage object from request.files
+        prefix: Prefix for the filename (default: "invoice")
+        
+    Returns:
+        str: Path to the saved file relative to the static directory
+    """
+    if not file:
+        return None
+        
+    # Make sure the filename is safe
+    filename = secure_filename(file.filename)
+    
+    # Generate a unique filename to prevent overwriting
+    unique_filename = f"{prefix}_{uuid.uuid4()}_{filename}"
+    
+    # Create the upload path (relative to the static directory)
+    upload_path = os.path.join('uploads', unique_filename)
+    
+    # Create the full file path
+    full_path = os.path.join('static', upload_path)
+    
+    # Save the file
+    file.save(full_path)
+    
+    # Return the path relative to the static directory
+    return upload_path
+
+def allowed_file(filename, allowed_extensions=None):
+    """
+    Check if the file has an allowed extension
+    
+    Args:
+        filename: The filename to check
+        allowed_extensions: Set of allowed extensions (default: pdf, png, jpg, jpeg)
+        
+    Returns:
+        bool: True if file is allowed, False otherwise
+    """
+    if allowed_extensions is None:
+        allowed_extensions = {'pdf', 'png', 'jpg', 'jpeg'}
+        
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in allowed_extensions

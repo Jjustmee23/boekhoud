@@ -64,16 +64,52 @@ def get_customers():
     return list(customers.values())
 
 # Invoice Management
-def add_invoice(customer_id, date, invoice_type, amount_incl_vat, vat_rate):
+def check_duplicate_invoice(invoice_number=None, customer_id=None, date=None, amount_incl_vat=None):
+    """
+    Check if an invoice might be a duplicate based on multiple criteria
+    
+    Returns:
+        tuple: (is_duplicate, existing_invoice_id)
+    """
+    if invoice_number:
+        # Direct check for exact invoice number match
+        for inv_id, inv in invoices.items():
+            if inv.get('invoice_number') == invoice_number:
+                return True, inv_id
+    
+    # If other criteria provided, check for likely duplicates
+    if customer_id and date and amount_incl_vat:
+        amount_incl_vat = Decimal(str(amount_incl_vat))
+        for inv_id, inv in invoices.items():
+            if (inv['customer_id'] == customer_id and 
+                inv['date'] == date and 
+                abs(Decimal(str(inv['amount_incl_vat'])) - amount_incl_vat) < Decimal('0.01')):
+                return True, inv_id
+    
+    # No duplicate found
+    return False, None
+
+def add_invoice(customer_id, date, invoice_type, amount_incl_vat, vat_rate, invoice_number=None, file_path=None, check_duplicate=True):
     """Add a new invoice"""
     if customer_id not in customers:
         return None
     
-    invoice_id = str(uuid.uuid4())
-    
     # Convert to Decimal for accurate calculations
     amount_incl_vat = Decimal(str(amount_incl_vat))
     vat_rate = Decimal(str(vat_rate))
+    
+    # Check for duplicates if requested
+    if check_duplicate:
+        is_duplicate, duplicate_id = check_duplicate_invoice(
+            invoice_number=invoice_number,
+            customer_id=customer_id,
+            date=date,
+            amount_incl_vat=amount_incl_vat
+        )
+        if is_duplicate:
+            return None, "Duplicate invoice detected", duplicate_id
+    
+    invoice_id = str(uuid.uuid4())
     
     # Calculate amounts
     vat_amount = amount_incl_vat - (amount_incl_vat / (1 + vat_rate / 100))
@@ -81,7 +117,7 @@ def add_invoice(customer_id, date, invoice_type, amount_incl_vat, vat_rate):
     
     invoice = {
         'id': invoice_id,
-        'invoice_number': get_next_invoice_number(),
+        'invoice_number': invoice_number if invoice_number else get_next_invoice_number(),
         'customer_id': customer_id,
         'date': date,
         'invoice_type': invoice_type,  # 'income' or 'expense'
@@ -89,16 +125,17 @@ def add_invoice(customer_id, date, invoice_type, amount_incl_vat, vat_rate):
         'amount_excl_vat': float(amount_excl_vat),
         'vat_rate': float(vat_rate),
         'vat_amount': float(vat_amount),
+        'file_path': file_path,
         'created_at': datetime.now()
     }
     
     invoices[invoice_id] = invoice
-    return invoice
+    return invoice, "Invoice added successfully", None
 
-def update_invoice(invoice_id, customer_id, date, invoice_type, amount_incl_vat, vat_rate):
+def update_invoice(invoice_id, customer_id, date, invoice_type, amount_incl_vat, vat_rate, invoice_number=None, file_path=None):
     """Update an existing invoice"""
     if invoice_id not in invoices or customer_id not in customers:
-        return None
+        return None, "Invoice or customer not found", None
     
     # Convert to Decimal for accurate calculations
     amount_incl_vat = Decimal(str(amount_incl_vat))
@@ -109,6 +146,13 @@ def update_invoice(invoice_id, customer_id, date, invoice_type, amount_incl_vat,
     amount_excl_vat = amount_incl_vat - vat_amount
     
     invoice = invoices[invoice_id]
+    
+    # Check if invoice number is being changed, and if so, check for duplicates
+    if invoice_number and invoice_number != invoice['invoice_number']:
+        is_duplicate, duplicate_id = check_duplicate_invoice(invoice_number=invoice_number)
+        if is_duplicate and duplicate_id != invoice_id:
+            return None, "Duplicate invoice number detected", duplicate_id
+    
     invoice['customer_id'] = customer_id
     invoice['date'] = date
     invoice['invoice_type'] = invoice_type
@@ -116,9 +160,17 @@ def update_invoice(invoice_id, customer_id, date, invoice_type, amount_incl_vat,
     invoice['amount_excl_vat'] = float(amount_excl_vat)
     invoice['vat_rate'] = float(vat_rate)
     invoice['vat_amount'] = float(vat_amount)
+    
+    # Only update these fields if provided
+    if invoice_number:
+        invoice['invoice_number'] = invoice_number
+        
+    if file_path:
+        invoice['file_path'] = file_path
+        
     invoice['updated_at'] = datetime.now()
     
-    return invoice
+    return invoice, "Invoice updated successfully", None
 
 def delete_invoice(invoice_id):
     """Delete an invoice by ID"""
