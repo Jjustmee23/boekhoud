@@ -74,7 +74,12 @@
                     <tbody>
                         {% for invoice in invoices %}
                             <tr>
-                                <td>{{ invoice.invoice_number }}</td>
+                                <td>
+                                    {{ invoice.invoice_number }}
+                                    {% if invoice.file_path %}
+                                        <span class="badge bg-info ms-1" title="Bestand bijgevoegd"><i class="fas fa-paperclip"></i></span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ invoice.customer_name }}</td>
                                 <td>{{ invoice.date }}</td>
                                 <td>

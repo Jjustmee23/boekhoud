@@ -144,6 +144,7 @@ def new_invoice():
         invoice_type = request.form.get('type')
         amount_incl_vat = request.form.get('amount_incl_vat')
         vat_rate = request.form.get('vat_rate')
+        invoice_number = request.form.get('invoice_number')  # Optional
         
         # Validate data
         if not all([customer_id, date, invoice_type, amount_incl_vat, vat_rate]):
@@ -153,24 +154,41 @@ def new_invoice():
                 'invoice_form.html',
                 customers=customers_data,
                 vat_rates=get_vat_rates(),
-                invoice={'date': datetime.now().strftime('%Y-%m-%d'), 'type': 'income'}
+                invoice={'date': datetime.now().strftime('%Y-%m-%d'), 'type': 'income'},
+                now=datetime.now()
             )
+        
+        # Handle file upload
+        file_path = None
+        if 'invoice_file' in request.files:
+            file = request.files['invoice_file']
+            if file and file.filename and allowed_file(file.filename):
+                file_path = save_uploaded_file(file)
+                if not file_path:
+                    flash('Failed to upload file', 'warning')
+            elif file and file.filename:
+                flash('Only PDF, PNG, JPG and JPEG files are allowed', 'warning')
         
         # Add invoice
         try:
-            invoice = add_invoice(
+            invoice, message, duplicate_id = add_invoice(
                 customer_id=customer_id,
                 date=date,
                 invoice_type=invoice_type,
                 amount_incl_vat=float(amount_incl_vat),
-                vat_rate=float(vat_rate)
+                vat_rate=float(vat_rate),
+                invoice_number=invoice_number if invoice_number else None,
+                file_path=file_path
             )
             
             if invoice:
-                flash('Invoice added successfully', 'success')
+                flash(message, 'success')
                 return redirect(url_for('invoices_list'))
             else:
-                flash('Failed to add invoice', 'danger')
+                if duplicate_id:
+                    flash(f'{message}. <a href="{url_for("view_invoice", invoice_id=duplicate_id)}">View duplicate</a>', 'warning')
+                else:
+                    flash(message, 'danger')
         except ValueError as e:
             flash(f'Invalid input: {str(e)}', 'danger')
         
@@ -225,6 +243,7 @@ def edit_invoice(invoice_id):
         invoice_type = request.form.get('type')
         amount_incl_vat = request.form.get('amount_incl_vat')
         vat_rate = request.form.get('vat_rate')
+        invoice_number = request.form.get('invoice_number')  # Optional
         
         # Validate data
         if not all([customer_id, date, invoice_type, amount_incl_vat, vat_rate]):
@@ -239,22 +258,41 @@ def edit_invoice(invoice_id):
                 now=datetime.now()
             )
         
+        # Handle file upload
+        file_path = invoice.get('file_path')  # Keep existing file path by default
+        if 'invoice_file' in request.files:
+            file = request.files['invoice_file']
+            if file and file.filename and allowed_file(file.filename):
+                # Replace the old file with the new one
+                new_file_path = save_uploaded_file(file)
+                if new_file_path:
+                    file_path = new_file_path
+                else:
+                    flash('Failed to upload file', 'warning')
+            elif file and file.filename:
+                flash('Only PDF, PNG, JPG and JPEG files are allowed', 'warning')
+        
         # Update invoice
         try:
-            updated_invoice = update_invoice(
+            updated_invoice, message, duplicate_id = update_invoice(
                 invoice_id=invoice_id,
                 customer_id=customer_id,
                 date=date,
                 invoice_type=invoice_type,
                 amount_incl_vat=float(amount_incl_vat),
-                vat_rate=float(vat_rate)
+                vat_rate=float(vat_rate),
+                invoice_number=invoice_number if invoice_number else None,
+                file_path=file_path
             )
             
             if updated_invoice:
-                flash('Invoice updated successfully', 'success')
+                flash(message, 'success')
                 return redirect(url_for('view_invoice', invoice_id=invoice_id))
             else:
-                flash('Failed to update invoice', 'danger')
+                if duplicate_id:
+                    flash(f'{message}. <a href="{url_for("view_invoice", invoice_id=duplicate_id)}">View duplicate</a>', 'warning')
+                else:
+                    flash(message, 'danger')
         except ValueError as e:
             flash(f'Invalid input: {str(e)}', 'danger')
         
@@ -313,6 +351,51 @@ def generate_invoice_pdf(invoice_id):
         as_attachment=True,
         download_name=filename,
         mimetype='application/pdf'
+    )
+
+@app.route('/invoices/<invoice_id>/attachment')
+def view_invoice_attachment(invoice_id):
+    invoice = get_invoice(invoice_id)
+    if not invoice:
+        flash('Invoice not found', 'danger')
+        return redirect(url_for('invoices_list'))
+    
+    # Check if invoice has a file attached
+    if not invoice.get('file_path'):
+        flash('This invoice has no file attached', 'warning')
+        return redirect(url_for('view_invoice', invoice_id=invoice_id))
+    
+    # Get the file extension to determine mime type
+    file_ext = os.path.splitext(invoice['file_path'])[1].lower()
+    
+    # Set mime type based on extension
+    if file_ext in ['.jpg', '.jpeg']:
+        mime_type = 'image/jpeg'
+    elif file_ext == '.png':
+        mime_type = 'image/png'
+    elif file_ext == '.pdf':
+        mime_type = 'application/pdf'
+    else:
+        mime_type = 'application/octet-stream'  # Generic binary
+    
+    # Create the full file path
+    full_file_path = os.path.join('static', invoice['file_path'])
+    
+    # Check if file exists
+    if not os.path.exists(full_file_path):
+        flash('The attached file could not be found', 'danger')
+        return redirect(url_for('view_invoice', invoice_id=invoice_id))
+    
+    # Get filename for download
+    filename = os.path.basename(invoice['file_path'])
+    
+    # Send the file for viewing or download
+    download = request.args.get('download', '0') == '1'
+    return send_file(
+        full_file_path,
+        as_attachment=download,
+        download_name=filename,
+        mimetype=mime_type
     )
 
 # Customer management routes
