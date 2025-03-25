@@ -73,160 +73,14 @@ class InvoiceDocument(Document):
         self.document_type = "invoice"
         self.invoice_type = file_info.get('invoice_type', 'expense')
         self.invoice_number = file_info.get('invoice_number', '')
-        
-        # Advanced amount extraction
-        if file_info and 'amount_incl_vat' in file_info:
-            self.amount_incl_vat = self._normalize_amount(file_info.get('amount_incl_vat', 0.0))
-        else:
-            # Try to extract from filename
-            self.amount_incl_vat = self._extract_amount_from_filename()
-            
-        # Advanced VAT rate extraction
-        if file_info and 'vat_rate' in file_info:
-            self.vat_rate = float(file_info.get('vat_rate', 21.0))
-        else:
-            # Try to extract from filename
-            self.vat_rate = self._extract_vat_rate_from_filename()
-        
-        # Enhanced customer information extraction
+        self.amount_incl_vat = file_info.get('amount_incl_vat', 0.0)
+        self.vat_rate = file_info.get('vat_rate', 21.0)
         self.customer_info = {
             'name': file_info.get('customer_name', ''),
             'address': file_info.get('customer_address', ''),
-            'vat_number': self._normalize_vat_number(file_info.get('customer_vat_number', '')),
+            'vat_number': file_info.get('customer_vat_number', ''),
             'email': file_info.get('customer_email', '')
         }
-    
-    def _normalize_amount(self, amount):
-        """Normalize amount to float"""
-        if isinstance(amount, (int, float)):
-            return float(amount)
-        elif isinstance(amount, str):
-            # Remove currency symbols and convert commas to dots
-            cleaned = re.sub(r'[€$£\s]', '', amount).replace(',', '.')
-            try:
-                return float(cleaned)
-            except ValueError:
-                logger.warning(f"Could not convert amount: {amount}")
-                return 0.0
-        return 0.0
-    
-    def _extract_amount_from_filename(self):
-        """Extract amount from filename if possible."""
-        # Extended patterns to detect amounts in multiple formats and currencies
-        patterns = [
-            # Euro formats
-            r'(\d+[.,]\d+)(?:eur|euro|€)', # 123.45eur
-            r'(\d+)(?:eur|euro|€)',        # 100eur
-            r'€\s*(\d+[.,]\d+)',           # € 123,45
-            r'€\s*(\d+)',                  # € 100
-            
-            # Pound formats
-            r'(\d+[.,]\d+)(?:gbp|pound|£)', # 123.45gbp
-            r'(\d+)(?:gbp|pound|£)',        # 100gbp
-            r'£\s*(\d+[.,]\d+)',           # £ 123,45
-            r'£\s*(\d+)',                  # £ 100
-            
-            # Dollar formats
-            r'(\d+[.,]\d+)(?:usd|\$)',     # 123.45usd
-            r'(\d+)(?:usd|\$)',            # 100usd
-            r'\$\s*(\d+[.,]\d+)',           # $ 123,45
-            r'\$\s*(\d+)',                  # $ 100
-            
-            # Generic formats
-            r'(?:amount|total|bedrag|totaal)[\s:]*(\d+[.,]\d+)', # amount: 123.45
-            r'(?:amount|total|bedrag|totaal)[\s:]*(\d+)',        # total: 100
-            r'(?:price|prijs)[\s:]*(\d+[.,]\d+)',                # price: 123.45
-            r'(?:price|prijs)[\s:]*(\d+)',                       # price: 100
-            
-            # Look for numbers that appear to be prices (before tax)
-            r'excl[\s\.:]*(\d+[.,]\d+)', # excl: 123.45
-            
-            # Additional decimal format variations
-            r'(\d+),(\d{2})(?:\s|$|[^0-9])', # 123,45 - treat as 123.45
-            r'(\d+)\.(\d{2})(?:\s|$|[^0-9])'  # 123.45
-        ]
-        
-        # First try file name
-        for pattern in patterns:
-            match = re.search(pattern, self.file_name.lower())
-            if match:
-                if len(match.groups()) > 1:  # Matched something like "123,45"
-                    amount_str = f"{match.group(1)}.{match.group(2)}"
-                else:
-                    amount_str = match.group(1).replace(',', '.')
-                try:
-                    return float(amount_str)
-                except ValueError:
-                    pass
-        
-        # Special cases with specific amount lookup
-        # Match based on specific identifiers
-        if 'virtfusion' in self.file_name.lower() or 'vf13814' in self.file_name.lower():
-            # Data from VirtFusion invoice example
-            return 100.00  # The example amount €100.00 from the screenshot
-            
-        # Match specific invoice pattern from screenshot
-        if re.search(r'bc\d{2}-\d{3}', self.file_name.lower()):
-            return 100.00  # Amount from the screenshot bc62-496 (€100.00)
-            
-        # Other special cases for specific customers    
-        if 'hostio' in self.file_name.lower() and 'hs-1430' in self.file_name.lower():
-            return 129.99  # Example amount for HS-1430
-                
-        # Default amount if none found
-        return 0.0
-    
-    def _extract_vat_rate_from_filename(self):
-        """Extract VAT rate from filename if possible."""
-        # Look for patterns like 21%, VAT21, 6pct, etc.
-        patterns = [
-            r'(\d+)(?:%|pct|percent)',    # 21%, 21pct
-            r'btw\s*(\d+)',               # btw 21
-            r'vat\s*(\d+)'                # vat 21
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, self.file_name.lower())
-            if match:
-                try:
-                    rate = float(match.group(1))
-                    # Validate the rate is reasonable (common Belgian VAT rates)
-                    if rate in [0, 6, 12, 21]:
-                        return rate
-                except ValueError:
-                    pass
-        
-        # Default to standard Belgian VAT rate
-        return 21.0
-    
-    def _normalize_vat_number(self, vat_number):
-        """Normalize VAT number format to standard format."""
-        if not vat_number:
-            return ""
-            
-        vat_number = vat_number.strip().upper()
-        
-        # Belgian VAT regex patterns
-        be_pattern1 = r'BE\s*0*(\d{9,10})'         # BE0123456789 or BE123456789
-        be_pattern2 = r'BE\s*(\d{4})[.\s]*(\d{3})[.\s]*(\d{3})'  # BE 0123.456.789
-        
-        # Check pattern 1
-        match = re.search(be_pattern1, vat_number)
-        if match:
-            digits = match.group(1).zfill(9)  # Ensure 9 digits
-            return f"BE{digits}"
-            
-        # Check pattern 2
-        match = re.search(be_pattern2, vat_number)
-        if match:
-            digits = f"{match.group(1)}{match.group(2)}{match.group(3)}".zfill(9)
-            return f"BE{digits}"
-        
-        # If we get here, just clean up the number a bit
-        cleaned = re.sub(r'[^A-Z0-9]', '', vat_number)
-        if cleaned.startswith('BE') and len(cleaned) >= 11:
-            return cleaned
-        return vat_number
     
     def get_invoice_data(self):
         """Return invoice data for creating an invoice."""
@@ -250,17 +104,13 @@ class BankStatementDocument(Document):
         self.document_type = "bank_statement"
         self.statement_date = file_info.get('date', self.extract_date)
         self.transactions = file_info.get('transactions', [])
-        self.bank_name = file_info.get('bank_name', 'Unknown Bank')
-        self.statement_number = file_info.get('statement_number', f"BS-{uuid.uuid4().hex[:8].upper()}")
     
     def get_statement_data(self):
         """Return bank statement data."""
         return {
             'date': self.statement_date,
             'file_path': self.file_path,
-            'transactions': self.transactions,
-            'bank_name': self.bank_name,
-            'statement_number': self.statement_number
+            'transactions': self.transactions
         }
 
 class FileProcessor:
@@ -313,8 +163,7 @@ class FileProcessor:
             'new_customers': [],  # Newly created customers
             'manual_review': [],  # Files needing manual review
             'errors': [],  # Processing errors
-            'bank_statements': [],  # Processed bank statements
-            'duplicate_items': []  # Duplicate documents detected
+            'bank_statements': []  # Processed bank statements
         }
         
         # First save all files
@@ -371,15 +220,6 @@ class FileProcessor:
         
         return results
 
-    def _check_duplicate_invoice(self, invoice_data):
-        """Check if this invoice appears to be a duplicate"""
-        is_duplicate, existing_invoice_id = check_duplicate_invoice(
-            invoice_number=invoice_data.get('invoice_number'),
-            date=invoice_data.get('date'),
-            amount_incl_vat=invoice_data.get('amount_incl_vat')
-        )
-        return is_duplicate, existing_invoice_id
-    
     def _process_invoice_document(self, document, customer_id, results):
         """Process an invoice document"""
         # Extract data from document
@@ -387,32 +227,17 @@ class FileProcessor:
         customer_data = document.get_customer_data()
         file_path = document.file_path
         
-        # Check for duplicate invoices
-        is_duplicate, existing_invoice_id = self._check_duplicate_invoice(invoice_data)
-        if is_duplicate:
-            # Add to duplicate list
-            results['duplicate_items'] = results.get('duplicate_items', [])
-            results['duplicate_items'].append({
-                'file_path': file_path,
-                'invoice_data': invoice_data,
-                'existing_invoice_id': existing_invoice_id,
-                'options': ['link', 'delete']
-            })
-            return
-        
         # Use provided customer_id or try to find/create one
         if not customer_id:
-            # Try to find an existing customer by VAT number or name
+            # Try to find an existing customer by VAT number
             customers = get_customers()
             matching_customer = None
-            confidence_score = 0
             
             # First try to match by VAT number if available
-            if customer_data.get('vat_number') and customer_data.get('vat_number').strip():
+            if customer_data.get('vat_number'):
                 for c in customers:
-                    if c.get('vat_number') and c.get('vat_number').strip() and c.get('vat_number').strip() == customer_data.get('vat_number').strip():
+                    if c.get('vat_number') == customer_data.get('vat_number'):
                         matching_customer = c
-                        confidence_score = 1.0  # 100% confidence with VAT match
                         break
             
             # If no match by VAT, try to match by name with basic fuzzy matching
@@ -491,38 +316,28 @@ class FileProcessor:
 
     def _process_bank_statement_document(self, document, results):
         """Process a bank statement document"""
-        # Extract data from document
         statement_data = document.get_statement_data()
         
-        # Enhanced bank statement processing
-        bank_name = statement_data.get('bank_name', 'Unknown Bank')
-        statement_date = statement_data.get('date', datetime.now().strftime('%Y-%m-%d'))
-        transactions = statement_data.get('transactions', [])
+        # For now, we'll just record that we processed a bank statement
+        # and mark it for manual review since matching it to invoices
+        # requires more complex logic
         
-        # Add to bank statements list with more details
-        statement_info = {
+        # Add to bank statements list
+        results['bank_statements'].append({
             'file_path': document.file_path,
-            'date': statement_date,
-            'bank_name': bank_name,
-            'transactions': transactions,
-            'metadata': document.get_metadata(),
-            'statement_number': statement_data.get('statement_number', f"BS-{uuid.uuid4().hex[:8].upper()}")
-        }
+            'date': statement_data.get('date'),
+            'transactions': statement_data.get('transactions', []),
+            'metadata': document.get_metadata()
+        })
         
-        results['bank_statements'].append(statement_info)
+        # Also add to manual review to show in the UI
+        results['manual_review'].append({
+            'file_path': document.file_path,
+            'reason': 'Bank statement requires manual matching to invoices',
+            'metadata': document.get_metadata()
+        })
         
-        # Try to match transactions with existing invoices (simplified matching)
-        matched_invoices = []
-        
-        # Add to manual review only if there are no matches or it seems complex
-        if len(matched_invoices) == 0:
-            results['manual_review'].append({
-                'file_path': document.file_path,
-                'reason': f'{bank_name} statement from {statement_date} needs manual review',
-                'metadata': document.get_metadata()
-            })
-        
-        logger.info(f"Processed {bank_name} statement dated {statement_date} with {len(transactions)} transactions")
+        logger.info(f"Processed bank statement dated {statement_data.get('date')}")
         
         # In a real implementation, you would:
         # 1. Match transactions to existing invoices based on amount, date, etc.
@@ -562,61 +377,12 @@ class FileProcessor:
             except ValueError:
                 pass
         
-        # Generate a customer name based on the filename - improved algorithm
-        customer_parts = []
+        # Generate a customer name based on the filename
+        possible_customer_name = re.sub(r'[._-]', ' ', os.path.splitext(filename)[0])
+        possible_customer_name = re.sub(r'(?:invoice|factuur|bank|statement|afschrift|expense|uitgave|income|inkomst).*', '', possible_customer_name, flags=re.IGNORECASE)
+        possible_customer_name = possible_customer_name.strip()
         
-        # Generic terms that should not be treated as customer names in Dutch and English
-        generic_terms = ['invoice', 'factuur', 'bank', 'statement', 'afschrift', 'expense', 
-                         'uitgave', 'income', 'inkomst', 'detail', 'datum', 'date', 'auto',
-                         'document', 'pdf', 'scan', 'doc', 'file', 'bestand', 'kopie', 'copy',
-                         'rekening', 'account', 'betaling', 'payment', 'hs', 'nr', 'no',
-                         'tax', 'btw', 'vat', 'bill', 'receipt', 'invoice number', 'factuurnummer',
-                         'customer', 'klant', 'client', 'bedrijf', 'company', 'ltd', 'bv', 'inc',
-                         'limited', 'corporation', 'incorporated', 'service', 'dienst']
-        
-        # First check for a specific company name pattern in the filename
-        # Example: bedrijfsnaam_factuur.pdf or telenet-factuur-123.pdf
-        possible_customer_name = ""
-        name_match = re.search(r'^([a-zA-Z0-9\s&\-\.]+?)[-_\s]+(factuur|invoice|rekening)', filename, re.IGNORECASE)
-        if name_match:
-            possible_name = name_match.group(1).strip()
-            if possible_name.lower() not in generic_terms and len(possible_name) > 2:
-                possible_customer_name = possible_name
-        
-        # If we don't have a name yet, try another approach
-        if not possible_customer_name:
-            # Extract parts from the filename (split by common separators)
-            parts = re.split(r'[_\.\-\s]', os.path.splitext(filename)[0])
-            
-            # Use a more sophisticated approach to identify the most likely company name
-            for i, part in enumerate(parts):
-                lower_part = part.lower()
-                
-                # Skip parts that are generic terms
-                if lower_part in generic_terms:
-                    continue
-                    
-                # Skip parts that are just numbers or dates
-                if re.match(r'^\d+$', part) or re.match(r'\d{4}', part):
-                    continue
-                
-                # Skip very short parts unless they might be acronyms (all caps)
-                if len(part) < 3 and not (part.isupper() and len(part) > 1):
-                    continue
-                
-                # If the part looks like a potential company name, add it
-                if part[0].isupper() or (i == 0 and len(part) > 2):  # First part or capitalized
-                    customer_parts.append(part)
-            
-            # If we found potential parts, join them
-            if customer_parts:
-                possible_customer_name = ' '.join(customer_parts).strip()
-            else:
-                # If no good name found, use auto-detected
-                possible_customer_name = "Auto-detected Customer"
-        
-        # Default if we couldn't extract anything meaningful
-        if len(possible_customer_name) < 3 or possible_customer_name.lower() in generic_terms:
+        if len(possible_customer_name) < 3:  # Too short to be a real name
             possible_customer_name = "Auto-detected Customer"
         
         # Check if it looks like an invoice
@@ -632,44 +398,16 @@ class FileProcessor:
                 # Default type
                 info['invoice_type'] = 'expense'
             
-            # Extract invoice number from the filename with enhanced patterns
-            invoice_patterns = [
-                r'(?:invoice|factuur|factuurnr|invoice\s*#|inv)[:\s-]*([A-Za-z0-9][-/A-Za-z0-9]{2,20})', # General invoice format
-                r'([A-Za-z]{2,6}[-/]?[0-9]{2,8})', # Common format like INV-12345
-                r'(?:VF|VFI)[-\s]?([0-9]{5,7})', # VirtFusion format
-                r'#([0-9]{4,8})', # Simple number with hash
-                r'bc[0-9]{2}[-\s]([0-9]{3})', # Format from image: bc62-496
-                r'facture[:\s]([0-9]{4,8})' # French format
-            ]
-            
-            found_invoice_number = False
-            for pattern in invoice_patterns:
-                invoice_match = re.search(pattern, filename, re.IGNORECASE)
-                if invoice_match:
-                    info['invoice_number'] = invoice_match.group(1).strip()
-                    found_invoice_number = True
-                    break
-            
-            # Special case for VirtFusion
-            if ('virtfusion' in filename.lower() or 'vf13814' in filename.lower()):
-                info['invoice_number'] = 'VF13814'
-                info['customer_name'] = "VirtFusion Ltd"
-                info['customer_vat_number'] = "GB397097932"
-                info['customer_address'] = "71-75 Shelton Street, London, WC2H 9JQ, United Kingdom"
-                info['customer_email'] = "info@virtfusion.com"
-                info['amount_incl_vat'] = 100.00
-                info['vat_rate'] = 21.0
-                found_invoice_number = True
-                
-            # If still no invoice number found, generate one
-            if not found_invoice_number:
+            # Extract a placeholder invoice number from the filename or generate one
+            invoice_num_match = re.search(r'([A-Za-z0-9]{2,10}[-/][0-9]{2,8})', filename)
+            if invoice_num_match:
+                info['invoice_number'] = invoice_num_match.group(1)
+            else:
                 info['invoice_number'] = f"AUTO-{uuid.uuid4().hex[:8].upper()}"
             
-            # Set amount and VAT rate if not already set
-            if 'amount_incl_vat' not in info or not info['amount_incl_vat']:
-                info['amount_incl_vat'] = amount
-            if 'vat_rate' not in info or not info['vat_rate']:
-                info['vat_rate'] = vat_rate
+            # Set amount and VAT rate
+            info['amount_incl_vat'] = amount
+            info['vat_rate'] = vat_rate
             
             # Extract date or use current
             date_match = re.search(r'(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4})', filename)
@@ -678,103 +416,35 @@ class FileProcessor:
             else:
                 info['date'] = datetime.now().strftime('%Y-%m-%d')
             
-            # Additional logic for specific invoice patterns
-            
-            # Check for Hostio Solutions invoices (pattern: Invoice-YYYY-HS-NNNN.pdf)
-            hs_invoice_match = re.search(r'Invoice-\d{4}-HS-\d+', filename, re.IGNORECASE)
-            if hs_invoice_match:
-                # These are Hostio Solutions invoices
-                info['customer_name'] = "Hostio Solutions"
-                # Extract invoice number
-                hs_number_match = re.search(r'(HS-\d+)', filename, re.IGNORECASE)
-                if hs_number_match:
-                    info['invoice_number'] = hs_number_match.group(1)
-            # Check for G-number Microsoft invoices
-            elif re.search(r'G0\d{8}', filename, re.IGNORECASE):
-                info['customer_name'] = "Microsoft"
-            # Otherwise use the extracted customer name
-            else:
-                info['customer_name'] = possible_customer_name.title()
-                
+            # Set customer info
+            info['customer_name'] = possible_customer_name.title()
             info['customer_address'] = "Automatisch gedetecteerd"
             
-            # Look for potential VAT number in various formats
-            # Belgian format: BE0123456789 or BE 0123.456.789
-            # UK format: GB123456789 or GB 123 4567 89
-            vat_patterns = [
-                r'(BE\d{10}|BE \d{4}\.\d{3}\.\d{3})', # Belgian
-                r'(GB\s*\d{9})', # UK 9 digits
-                r'(GB\s*\d{12})', # UK 12 digits
-                r'(GB\s*\d{3}\s*\d{4}\s*\d{2})', # UK with spaces
-                r'(VAT(?:IN)?[:\s]+([A-Z]{2}\d{8,12}))', # Generic VATIN format
-                r'(Tax ID[:/]VATIN[:\s]+([A-Z0-9]+))', # Format from VirtFusion
-                r'(BTW[:\s]+([A-Z0-9\.]+))', # Dutch BTW format
-                r'([A-Z]{2}[0-9]{6,12})' # Generic EU format
-            ]
-
-            found_vat = False
-            for pattern in vat_patterns:
-                vat_match = re.search(pattern, filename, re.IGNORECASE)
-                if vat_match:
-                    # Use the first capturing group or the second if the first is a descriptive prefix
-                    vat_number = vat_match.group(2) if len(vat_match.groups()) > 1 else vat_match.group(1)
-                    # Clean up the VAT number
-                    info['customer_vat_number'] = re.sub(r'[^A-Z0-9]', '', vat_number.upper())
-                    found_vat = True
-                    break
-            
-            # If no VAT number found in filename
-            if not found_vat:
-                # Try to identify VirtFusion specifically
-                if 'virtfusion' in filename.lower() or 'vf13814' in filename.lower():
-                    info['customer_name'] = "VirtFusion Ltd"
-                    info['customer_vat_number'] = "GB397097932"
-                    info['customer_address'] = "71-75 Shelton Street, London, WC2H 9JQ, United Kingdom"
-                else:
-                    info['customer_vat_number'] = ""
+            # Look for potential VAT number (Belgian format: BE0123456789)
+            vat_number_match = re.search(r'(BE\d{10}|BE \d{4}\.\d{3}\.\d{3})', filename, re.IGNORECASE)
+            if vat_number_match:
+                info['customer_vat_number'] = vat_number_match.group(1).upper().replace(' ', '').replace('.', '')
+            else:
+                info['customer_vat_number'] = ""
                 
-            # Set email based on customer name
-            customer_name_for_email = re.sub(r'[^a-z0-9]', '', info['customer_name'].lower())
-            info['customer_email'] = f"info@{customer_name_for_email}.com"
+            info['customer_email'] = f"info@{re.sub(r'[^a-z0-9]', '', possible_customer_name.lower())}.com"
             
         # Check if it looks like a bank statement
-        elif 'bank' in lower_filename or 'statement' in lower_filename or 'afschrift' in lower_filename or 'ing-bankieren' in lower_filename:
+        elif 'bank' in lower_filename or 'statement' in lower_filename or 'afschrift' in lower_filename:
             info['is_bank_statement'] = True
             
-            # Identify specific bank statement types
-            if 'ing' in lower_filename or 'ing-bankieren' in lower_filename:
-                info['bank_name'] = "ING Bank"
-            else:
-                info['bank_name'] = "Unknown Bank"
-                
             # Extract date or use current
-            date_match = re.search(r'(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{2}-[a-z]+-\d{4})', filename, re.IGNORECASE)
+            date_match = re.search(r'(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4})', filename)
             if date_match:
-                date_str = date_match.group(1)
-                # Handle possible format with month name (e.g., "05-november-2024")
-                if re.search(r'\d{2}-[a-z]+-\d{4}', date_str, re.IGNORECASE):
-                    # Convert month name to number
-                    month_map = {
-                        'januari': '01', 'februari': '02', 'maart': '03', 'april': '04',
-                        'mei': '05', 'juni': '06', 'juli': '07', 'augustus': '08',
-                        'september': '09', 'oktober': '10', 'november': '11', 'december': '12'
-                    }
-                    day, month_name, year = date_str.split('-')
-                    month_num = month_map.get(month_name.lower(), '01')  # Default to January if not found
-                    info['date'] = f"{year}-{month_num}-{day.zfill(2)}"
-                else:
-                    info['date'] = self._normalize_date(date_str)
+                info['date'] = self._normalize_date(date_match.group(1))
             else:
                 info['date'] = datetime.now().strftime('%Y-%m-%d')
-            
-            # Improved bank statement metadata
-            info['statement_number'] = f"BS-{uuid.uuid4().hex[:8].upper()}"
-            
-            # Simulate a few transactions for demo purposes (this would be populated with real data in production)
+                
+            # Simulate a few transactions for demo purposes
             info['transactions'] = [
-                {'date': info['date'], 'description': f'Transaction from {info["bank_name"]}', 'amount': 125.50},
-                {'date': info['date'], 'description': f'Payment to vendor', 'amount': -45.20},
-                {'date': info['date'], 'description': f'Monthly fee', 'amount': -12.50}
+                {'date': info['date'], 'description': 'Demo transaction 1', 'amount': 125.50},
+                {'date': info['date'], 'description': 'Demo transaction 2', 'amount': -45.20},
+                {'date': info['date'], 'description': 'Demo transaction 3', 'amount': 67.00}
             ]
         
         return info

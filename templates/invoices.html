@@ -82,7 +82,7 @@
                                 <td>
                                     {{ invoice.invoice_number }}
                                     {% if invoice.file_path %}
-                                        <span class="badge bg-success ms-1" title="Origineel document beschikbaar"><i class="fas fa-file-alt"></i></span>
+                                        <span class="badge bg-info ms-1" title="Bestand bijgevoegd"><i class="fas fa-paperclip"></i></span>
                                     {% endif %}
                                 </td>
                                 <td>{{ invoice.customer_name }}</td>
@@ -105,15 +105,9 @@
                                         <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-secondary" title="Bewerken">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        {% if invoice.file_path %}
-                                        <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-success" title="Origineel bekijken" target="_blank">
-                                            <i class="fas fa-file-alt"></i>
-                                        </a>
-                                        {% else %}
                                         <a href="{{ url_for('generate_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-info" title="PDF downloaden">
                                             <i class="fas fa-file-pdf"></i>
                                         </a>
-                                        {% endif %}
                                         <button type="button" class="btn btn-sm btn-outline-danger" 
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#deleteInvoiceModal" 

@@ -8,14 +8,10 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Create Flask app
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "your-default-secret-key-here")
+app.secret_key = os.environ.get("SESSION_SECRET")
 
 # Import routes after app creation to avoid circular imports
 from routes import *
-from routes_document import document_bp  # Import the document blueprint
-
-# Register the document blueprint
-app.register_blueprint(document_bp)
 
 # Initialize sample data if needed (for development only)
 def init_app():
