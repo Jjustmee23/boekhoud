@@ -128,6 +128,10 @@ def save_uploaded_file(file, prefix="invoice"):
     Returns:
         str: Path to the saved file relative to the static directory
     """
+    # Make sure the upload directory exists
+    upload_folder = os.path.join('static', 'uploads')
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
     if not file:
         return None
         

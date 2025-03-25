@@ -66,6 +66,15 @@ class AIDocumentProcessor:
         Returns structured data based on document type
         """
         try:
+            logger.info(f"Analyzing document: {file_path}")
+            # Check if file exists
+            if not os.path.exists(file_path):
+                logger.error(f"File does not exist: {file_path}")
+                return {
+                    'error': f"File does not exist: {file_path}",
+                    'file_path': file_path
+                }
+                
             # Extract text based on file type
             file_ext = os.path.splitext(file_path)[1].lower()
             

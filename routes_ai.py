@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, render_template, flash, redirect,
 import os
 import logging
 import json
+from datetime import datetime
 from werkzeug.utils import secure_filename
 
 from ai_document_processor import AIDocumentProcessor
@@ -17,8 +18,6 @@ ai_bp = Blueprint('ai', __name__)
 
 # Initialize the AI processor
 ai_processor = AIDocumentProcessor()
-
-from datetime import datetime
 
 @ai_bp.route('/ai/analyze', methods=['GET', 'POST'])
 def ai_analyze_document():
@@ -48,7 +47,9 @@ def ai_analyze_document():
                 
                 # Analyze the document
                 try:
-                    analysis_result = ai_processor.analyze_document(file_path)
+                    # Get the full file path for processing
+                    full_file_path = os.path.join('static', file_path)
+                    analysis_result = ai_processor.analyze_document(full_file_path)
                     
                     # Store the result in the session for processing
                     results.append({
