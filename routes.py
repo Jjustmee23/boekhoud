@@ -130,7 +130,8 @@ def invoices_list():
         filter_type=invoice_type,
         filter_start_date=start_date,
         filter_end_date=end_date,
-        format_currency=format_currency
+        format_currency=format_currency,
+        now=datetime.now()
     )
 
 @app.route('/invoices/new', methods=['GET', 'POST'])
@@ -187,7 +188,8 @@ def new_invoice():
         'invoice_form.html',
         customers=customers_data,
         vat_rates=get_vat_rates(),
-        invoice={'date': datetime.now().strftime('%Y-%m-%d'), 'type': 'income'}
+        invoice={'date': datetime.now().strftime('%Y-%m-%d'), 'type': 'income'},
+        now=datetime.now()
     )
 
 @app.route('/invoices/<invoice_id>')
@@ -203,7 +205,8 @@ def view_invoice(invoice_id):
         'invoice_detail.html',
         invoice=invoice,
         customer=customer,
-        format_currency=format_currency
+        format_currency=format_currency,
+        now=datetime.now()
     )
 
 @app.route('/invoices/<invoice_id>/edit', methods=['GET', 'POST'])
@@ -325,7 +328,8 @@ def customers_list():
     return render_template(
         'customers.html',
         customers=customers_data,
-        format_currency=format_currency
+        format_currency=format_currency,
+        now=datetime.now()
     )
 
 @app.route('/customers/new', methods=['GET', 'POST'])
@@ -342,7 +346,8 @@ def new_customer():
             flash('Name, address and email are required', 'danger')
             return render_template(
                 'customer_form.html',
-                customer=request.form
+                customer=request.form,
+                now=datetime.now()
             )
         
         # Add customer
@@ -365,11 +370,12 @@ def new_customer():
         # If we get here, there was an error
         return render_template(
             'customer_form.html',
-            customer=request.form
+            customer=request.form,
+            now=datetime.now()
         )
     
     # GET request - show the form
-    return render_template('customer_form.html')
+    return render_template('customer_form.html', now=datetime.now())
 
 @app.route('/customers/<customer_id>')
 def view_customer(customer_id):
@@ -399,7 +405,8 @@ def view_customer(customer_id):
         invoices=customer_invoices,
         total_income=total_income,
         total_expense=total_expense,
-        format_currency=format_currency
+        format_currency=format_currency,
+        now=datetime.now()
     )
 
 @app.route('/customers/<customer_id>/edit', methods=['GET', 'POST'])
@@ -422,7 +429,8 @@ def edit_customer(customer_id):
             return render_template(
                 'customer_form.html',
                 customer=request.form,
-                edit_mode=True
+                edit_mode=True,
+                now=datetime.now()
             )
         
         # Update customer
