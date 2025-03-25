@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Document Review{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Document Verwerking Resultaten</h1>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <div class="mb-4">
+                <a href="{{ url_for('document.upload_documents') }}" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i> Upload Meer Documenten
+                </a>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary ms-2">
+                    <i class="fas fa-home me-2"></i> Terug naar Dashboard
+                </a>
+            </div>
+            
+            <!-- Processing Summary -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Verwerking Samenvatting</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ processed_files|length }}</h3>
+                                    <p class="mb-0">Automatisch Verwerkt</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-dark">
+                                <div class="card-body text-center">
+                                    <h3>{{ manual_review_files|length }}</h3>
+                                    <p class="mb-0">Wacht op Controle</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ duplicate_files|length }}</h3>
+                                    <p class="mb-0">Dubbele Documenten</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ processed_files|length + manual_review_files|length + duplicate_files|length }}</h3>
+                                    <p class="mb-0">Totaal Documenten</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Processed Files Section -->
+            {% if processed_files %}
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i> Automatisch Verwerkte Documenten
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Bestandsnaam</th>
+                                    <th>Type</th>
+                                    <th>Datum</th>
+                                    <th>Leverancier/Klant</th>
+                                    <th>Bedrag</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for file in processed_files %}
+                                <tr>
+                                    <td>
+                                        <a href="/{{ file.file_path }}" target="_blank">
+                                            {{ file.file_name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if file.document_data.document_type == 'invoice' %}
+                                            {% if file.document_data.invoice_type == 'income' %}
+                                                <span class="badge bg-primary">Verkoopfactuur</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Aankoopfactuur</span>
+                                            {% endif %}
+                                        {% elif file.document_data.document_type == 'bank_statement' %}
+                                            <span class="badge bg-info">Bankafschrift</span>
+                                        {% else %}
+                                            <span class="badge bg-dark">Onbekend</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ file.document_data.date }}</td>
+                                    <td>
+                                        {% if file.document_data.document_type == 'invoice' %}
+                                            {% if file.document_data.invoice_type == 'income' %}
+                                                {{ file.document_data.buyer.name }}
+                                            {% else %}
+                                                {{ file.document_data.seller.name }}
+                                            {% endif %}
+                                        {% elif file.document_data.document_type == 'bank_statement' %}
+                                            {{ file.document_data.bank_name }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if file.document_data.document_type == 'invoice' and file.document_data.amount_incl_vat %}
+                                            € {{ "%.2f"|format(file.document_data.amount_incl_vat) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">Verwerkt</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Manual Review Files Section -->
+            {% if manual_review_files %}
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i> Documenten die Handmatige Controle Nodig Hebben
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for file in manual_review_files %}
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between mb-2">
+                                <h5 class="mb-1">
+                                    <a href="/{{ file.file_path }}" target="_blank">{{ file.file_name }}</a>
+                                </h5>
+                                <small>
+                                    <span class="badge bg-warning text-dark">Wacht op Verwerking</span>
+                                </small>
+                            </div>
+                            <p class="mb-1"><strong>Reden:</strong> {{ file.reason }}</p>
+                            
+                            {% if file.document_data and file.document_data.document_type == 'invoice' %}
+                            <!-- Invoice Form -->
+                            <div class="card mt-2">
+                                <div class="card-body">
+                                    <form action="{{ url_for('document.process_document') }}" method="post">
+                                        <input type="hidden" name="document_type" value="invoice">
+                                        <input type="hidden" name="file_path" value="{{ file.file_path }}">
+                                        
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label">Factuurnummer</label>
+                                                <input type="text" name="invoice_number" class="form-control" 
+                                                    value="{{ file.document_data.invoice_number or '' }}">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Datum</label>
+                                                <input type="date" name="invoice_date" class="form-control" 
+                                                    value="{{ file.document_data.date or '' }}">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Type</label>
+                                                <select name="invoice_type" class="form-select">
+                                                    <option value="expense" {% if not file.document_data.invoice_type or file.document_data.invoice_type == 'expense' %}selected{% endif %}>Aankoopfactuur</option>
+                                                    <option value="income" {% if file.document_data.invoice_type == 'income' %}selected{% endif %}>Verkoopfactuur</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Klant/Leverancier</label>
+                                                <select name="customer_id" class="form-select" required>
+                                                    <option value="">-- Selecteer --</option>
+                                                    {% for customer in customers %}
+                                                    <option value="{{ customer.id }}" 
+                                                        {% if file.document_data.seller and file.document_data.seller.name and 
+                                                             customer.name == file.document_data.seller.name %}selected{% endif %}>
+                                                        {{ customer.name }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Bedrag (Incl. BTW)</label>
+                                                <input type="number" name="amount_incl_vat" class="form-control" step="0.01" min="0" required
+                                                    value="{{ file.document_data.amount_incl_vat or '' }}">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">BTW %</label>
+                                                <input type="number" name="vat_rate" class="form-control" step="0.01" min="0" max="100"
+                                                    value="{{ file.document_data.vat_rate or 21 }}">
+                                            </div>
+                                            <div class="col-12 text-end">
+                                                <button type="submit" class="btn btn-success">
+                                                    <i class="fas fa-save me-2"></i> Factuur Verwerken
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            {% elif file.document_data and file.document_data.document_type == 'bank_statement' %}
+                            <!-- Bank Statement Info -->
+                            <div class="card mt-2">
+                                <div class="card-body">
+                                    <form action="{{ url_for('document.process_document') }}" method="post">
+                                        <input type="hidden" name="document_type" value="bank_statement">
+                                        <input type="hidden" name="file_path" value="{{ file.file_path }}">
+                                        
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Bank</label>
+                                                <input type="text" name="bank_name" class="form-control" 
+                                                    value="{{ file.document_data.bank_name or '' }}">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Datum</label>
+                                                <input type="date" name="statement_date" class="form-control" 
+                                                    value="{{ file.document_data.statement_date or '' }}">
+                                            </div>
+                                            <div class="col-12 text-end">
+                                                <button type="submit" class="btn btn-success">
+                                                    <i class="fas fa-save me-2"></i> Bankafschrift Verwerken
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            {% else %}
+                            <!-- Unknown Document Type -->
+                            <div class="alert alert-info mt-2">
+                                <i class="fas fa-info-circle me-2"></i> Documenttype niet herkend. Open het document om handmatig te verwerken.
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Duplicate Files Section -->
+            {% if duplicate_files %}
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-copy me-2"></i> Dubbele Documenten
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for file in duplicate_files %}
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between mb-2">
+                                <h5 class="mb-1">
+                                    <a href="/{{ file.file_path }}" target="_blank">{{ file.file_name }}</a>
+                                </h5>
+                                <small>
+                                    <span class="badge bg-danger">Dubbel Document</span>
+                                </small>
+                            </div>
+                            
+                            <p class="mb-1">Dit document lijkt een duplicaat te zijn van een bestaande factuur.</p>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header bg-secondary text-white">
+                                            <h6 class="mb-0">Nieuw Document</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p><strong>Factuurnummer:</strong> {{ file.invoice_data.invoice_number }}</p>
+                                            <p><strong>Datum:</strong> {{ file.invoice_data.date }}</p>
+                                            <p><strong>Bedrag:</strong> € {{ "%.2f"|format(file.invoice_data.amount_incl_vat) }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0">Bestaande Factuur</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% set existing_invoice = None %}
+                                            {% for invoice in invoices %}
+                                                {% if invoice.id == file.existing_invoice_id %}
+                                                    {% set existing_invoice = invoice %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            
+                                            {% if existing_invoice %}
+                                                <p><strong>Factuurnummer:</strong> {{ existing_invoice.invoice_number }}</p>
+                                                <p><strong>Datum:</strong> {{ existing_invoice.date }}</p>
+                                                <p><strong>Bedrag:</strong> € {{ "%.2f"|format(existing_invoice.amount_incl_vat) }}</p>
+                                            {% else %}
+                                                <p>Bestaande factuur niet gevonden.</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 d-flex gap-2">
+                                <form action="{{ url_for('document.handle_duplicate') }}" method="post" class="d-inline">
+                                    <input type="hidden" name="action" value="link">
+                                    <input type="hidden" name="file_path" value="{{ file.file_path }}">
+                                    <input type="hidden" name="existing_invoice_id" value="{{ file.existing_invoice_id }}">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-link me-2"></i> Koppelen aan Bestaande Factuur
+                                    </button>
+                                </form>
+                                
+                                <form action="{{ url_for('document.handle_duplicate') }}" method="post" class="d-inline">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="file_path" value="{{ file.file_path }}">
+                                    <input type="hidden" name="existing_invoice_id" value="{{ file.existing_invoice_id }}">
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="fas fa-trash me-2"></i> Duplicaat Verwijderen
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if not processed_files and not manual_review_files and not duplicate_files %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> Geen documenten gevonden om te verwerken. Upload nieuwe documenten om te beginnen.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

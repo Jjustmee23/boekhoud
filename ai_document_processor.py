@@ -7,10 +7,6 @@ from typing import Dict, Any, List, Tuple
 import re
 from pathlib import Path
 import io
-
-import anthropic
-from anthropic import Anthropic
-import pytesseract
 from PIL import Image
 from pdf2image import convert_from_path
 
@@ -18,25 +14,14 @@ from pdf2image import convert_from_path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class AIDocumentProcessor:
+class DocumentProcessor:
     """
-    Uses AI (Claude) and OCR to extract information from documents
+    Uses rule-based extraction to process documents
     """
     
     def __init__(self):
-        """Initialize the AI document processor with Claude API"""
-        self.anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not self.anthropic_key:
-            logger.warning("ANTHROPIC_API_KEY not found in environment variables")
-        
-        if self.anthropic_key:
-            self.client = Anthropic(api_key=self.anthropic_key)
-            # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
-            self.model = "claude-3-5-sonnet-20241022"
-        else:
-            self.client = None
-            self.model = None
-            logger.info("Using rule-based document analysis as fallback (no Claude API key available)")
+        """Initialize the document processor"""
+        logger.info("Using rule-based document analysis system")
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
         """Extract text from PDF using OCR"""

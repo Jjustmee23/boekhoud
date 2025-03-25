@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Document Verwerking{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Document Verwerking</h3>
+                </div>
+                <div class="card-body">
+                    <p class="card-text mb-4">
+                        Upload facturen, bankafschriften of andere financiële documenten. Het systeem zal 
+                        deze automatisch analyseren en verwerken. Documenten met hoge betrouwbaarheid worden 
+                        direct verwerkt, andere documenten worden ter controle in de wachtrij geplaatst.
+                    </p>
+                    
+                    <form action="{{ url_for('document.upload_documents') }}" method="post" enctype="multipart/form-data" class="mb-4">
+                        <div class="mb-3">
+                            <label for="documents" class="form-label">Selecteer document(en)</label>
+                            <input type="file" class="form-control" id="documents" name="files[]" multiple required accept=".pdf,.png,.jpg,.jpeg">
+                            <div class="form-text">Ondersteunde formaten: PDF, PNG, JPG, JPEG</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="customer_id" class="form-label">Klant/Leverancier (optioneel)</label>
+                            <select class="form-select" id="customer_id" name="customer_id">
+                                <option value="">-- Automatisch detecteren --</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}">{{ customer.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Als u een klant/leverancier selecteert, worden alle documenten aan deze partij gekoppeld.</div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload me-2"></i> Documenten Uploaden
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center">
+                        <i class="fas fa-file-pdf fa-2x text-primary"></i>
+                        <i class="fas fa-file-invoice fa-2x text-success mx-3"></i>
+                        <i class="fas fa-receipt fa-2x text-info"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">Vertrouwelijkheid gegarandeerd</span>
+                        <a href="{{ url_for('document.review_documents') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-check-circle me-1"></i> Documenten Controleren
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Features Section -->
+            <div class="row mt-4 g-4">
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="fas fa-check-double text-success fa-2x mb-3"></i>
+                            <h5 class="card-title">Automatische Herkenning</h5>
+                            <p class="card-text">Het systeem herkent automatisch facturen en bankafschriften.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="fas fa-fingerprint text-info fa-2x mb-3"></i>
+                            <h5 class="card-title">Duplicaat Detectie</h5>
+                            <p class="card-text">Voorkomt dubbele verwerking van dezelfde facturen.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="fas fa-search-dollar text-warning fa-2x mb-3"></i>
+                            <h5 class="card-title">BTW Berekening</h5>
+                            <p class="card-text">Accurate berekening van BTW-bedragen voor uw boekhouding.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

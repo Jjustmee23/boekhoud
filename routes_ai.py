@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
-from ai_document_processor import AIDocumentProcessor
+from document_processor import DocumentProcessor
 from models import add_customer, add_invoice
 from utils import allowed_file, save_uploaded_file
 
@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 # Create blueprint
 ai_bp = Blueprint('ai', __name__)
 
-# Initialize the AI processor
-ai_processor = AIDocumentProcessor()
+# Initialize the document processor
+processor = DocumentProcessor(confidence_threshold=0.9)
 
 @ai_bp.route('/ai/analyze', methods=['GET', 'POST'])
 def ai_analyze_document():
@@ -49,7 +49,7 @@ def ai_analyze_document():
                 try:
                     # Get the full file path for processing
                     full_file_path = os.path.join('static', file_path)
-                    analysis_result = ai_processor.analyze_document(full_file_path)
+                    analysis_result = processor.process_document(full_file_path)
                     
                     # Store the result in the session for processing
                     results.append({
@@ -60,7 +60,7 @@ def ai_analyze_document():
                     
                     # If high confidence and it's an invoice, create automatically
                     if (analysis_result.get('document_type') == 'invoice' and 
-                            analysis_result.get('confidence', 0) > 0.85 and
+                            analysis_result.get('confidence', 0) > 0.9 and
                             not analysis_result.get('error')):
                         process_result = process_invoice_result(analysis_result)
                         if process_result['success']:

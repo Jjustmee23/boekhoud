@@ -313,7 +313,8 @@ class FileProcessor:
             'new_customers': [],  # Newly created customers
             'manual_review': [],  # Files needing manual review
             'errors': [],  # Processing errors
-            'bank_statements': []  # Processed bank statements
+            'bank_statements': [],  # Processed bank statements
+            'duplicate_items': []  # Duplicate documents detected
         }
         
         # First save all files
@@ -370,6 +371,15 @@ class FileProcessor:
         
         return results
 
+    def _check_duplicate_invoice(self, invoice_data):
+        """Check if this invoice appears to be a duplicate"""
+        is_duplicate, existing_invoice_id = check_duplicate_invoice(
+            invoice_number=invoice_data.get('invoice_number'),
+            date=invoice_data.get('date'),
+            amount_incl_vat=invoice_data.get('amount_incl_vat')
+        )
+        return is_duplicate, existing_invoice_id
+    
     def _process_invoice_document(self, document, customer_id, results):
         """Process an invoice document"""
         # Extract data from document
@@ -377,17 +387,32 @@ class FileProcessor:
         customer_data = document.get_customer_data()
         file_path = document.file_path
         
+        # Check for duplicate invoices
+        is_duplicate, existing_invoice_id = self._check_duplicate_invoice(invoice_data)
+        if is_duplicate:
+            # Add to duplicate list
+            results['duplicate_items'] = results.get('duplicate_items', [])
+            results['duplicate_items'].append({
+                'file_path': file_path,
+                'invoice_data': invoice_data,
+                'existing_invoice_id': existing_invoice_id,
+                'options': ['link', 'delete']
+            })
+            return
+        
         # Use provided customer_id or try to find/create one
         if not customer_id:
-            # Try to find an existing customer by VAT number
+            # Try to find an existing customer by VAT number or name
             customers = get_customers()
             matching_customer = None
+            confidence_score = 0
             
             # First try to match by VAT number if available
             if customer_data.get('vat_number') and customer_data.get('vat_number').strip():
                 for c in customers:
                     if c.get('vat_number') and c.get('vat_number').strip() and c.get('vat_number').strip() == customer_data.get('vat_number').strip():
                         matching_customer = c
+                        confidence_score = 1.0  # 100% confidence with VAT match
                         break
             
             # If no match by VAT, try to match by name with basic fuzzy matching

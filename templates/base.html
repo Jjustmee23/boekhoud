@@ -57,8 +57,8 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if '/ai/analyze' in request.path %}active{% endif %}" href="{{ url_for('ai.ai_analyze_document') }}">
-                            <i class="fas fa-robot"></i> AI Document Herkenning
+                        <a class="nav-link {% if '/document/upload' in request.path %}active{% endif %}" href="{{ url_for('document.upload_documents') }}">
+                            <i class="fas fa-file-alt"></i> Document Verwerking
                         </a>
                     </li>
                 </ul>

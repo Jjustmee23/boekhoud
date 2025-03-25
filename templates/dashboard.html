@@ -11,14 +11,14 @@
         <div class="card-body">
             <div class="d-flex align-items-center">
                 <div class="me-3">
-                    <i class="fas fa-robot fa-3x"></i>
+                    <i class="fas fa-file-alt fa-3x"></i>
                 </div>
                 <div>
-                    <h5 class="card-title">AI Document Herkenning</h5>
-                    <p class="card-text mb-0">Upload facturen en bankafschriften voor automatische verwerking met AI. Het systeem herkent automatisch de informatie en maakt facturen en klanten aan.</p>
+                    <h5 class="card-title">Document Verwerking</h5>
+                    <p class="card-text mb-0">Upload facturen en bankafschriften voor automatische verwerking. Het systeem herkent automatisch de informatie en maakt facturen en klanten aan bij voldoende zekerheid.</p>
                 </div>
                 <div class="ms-auto">
-                    <a href="{{ url_for('ai.ai_analyze_document') }}" class="btn btn-light">
+                    <a href="{{ url_for('document.upload_documents') }}" class="btn btn-light">
                         <i class="fas fa-arrow-right me-2"></i> Nu proberen
                     </a>
                 </div>
