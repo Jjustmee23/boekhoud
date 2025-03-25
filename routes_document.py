@@ -15,6 +15,65 @@ document_bp = Blueprint('document', __name__)
 # Create document processor
 document_processor = DocumentProcessor(confidence_threshold=0.9)
 
+# Function to automatically process high-confidence documents
+def auto_process_document(document_data, file_path):
+    """
+    Automatically process a document with high confidence
+    
+    Returns:
+        tuple: (success, message)
+    """
+    try:
+        document_type = document_data.get('document_type')
+        
+        if document_type == 'invoice':
+            # Get invoice data
+            invoice_number = document_data.get('invoice_number')
+            invoice_date = document_data.get('date')
+            customer_id = document_data.get('customer_id')
+            invoice_type = document_data.get('invoice_type', 'expense')
+            amount_incl_vat = document_data.get('amount_incl_vat')
+            vat_rate = document_data.get('vat_rate', 21)
+            
+            # Validate required fields
+            if not customer_id or not invoice_date or not amount_incl_vat:
+                return False, 'Onvoldoende gegevens voor automatische verwerking'
+            
+            # Convert amount to float if needed
+            if isinstance(amount_incl_vat, str):
+                amount_incl_vat = float(amount_incl_vat.replace(',', '.'))
+            
+            if isinstance(vat_rate, str):
+                vat_rate = float(vat_rate.replace(',', '.'))
+            
+            # Create invoice
+            from models import add_invoice
+            invoice, message, is_duplicate = add_invoice(
+                customer_id=customer_id,
+                date=invoice_date,
+                invoice_type=invoice_type,
+                amount_incl_vat=amount_incl_vat,
+                vat_rate=vat_rate,
+                invoice_number=invoice_number,
+                file_path=file_path,
+                check_duplicate=True
+            )
+            
+            if invoice:
+                return True, f'Factuur succesvol aangemaakt: {invoice_number}'
+            else:
+                return False, f'Fout bij aanmaken factuur: {message}'
+                
+        elif document_type == 'bank_statement':
+            # Process bank statement (placeholder for now)
+            return True, 'Bankafschrift verwerkt'
+        
+        return False, 'Onbekend documenttype'
+        
+    except Exception as e:
+        logger.error(f'Error auto-processing document: {str(e)}')
+        return False, f'Fout bij automatische verwerking: {str(e)}'
+
 @document_bp.route('/document/upload', methods=['GET', 'POST'])
 def upload_documents():
     """Handle document upload and processing"""
@@ -123,16 +182,69 @@ def review_documents():
     duplicate_files = session.get('duplicate_files', [])
     manual_review_files = session.get('manual_review_files', [])
     
+    # Auto-process documents that don't need review
+    auto_processed = []
+    remaining_processed = []
+    
+    # Auto-process files with high confidence scores (>= 90%)
+    for doc in processed_files:
+        file_path = doc.get('file_path')
+        document_data = doc.get('document_data')
+        
+        if document_data and file_path:
+            # Try to auto-process this document
+            success, message = auto_process_document(document_data, file_path)
+            
+            if success:
+                auto_processed.append({
+                    'file_name': os.path.basename(file_path),
+                    'message': message,
+                    'document_type': document_data.get('document_type')
+                })
+            else:
+                # If auto-processing failed, add to manual review instead
+                manual_review_files.append({
+                    'file_path': file_path,
+                    'file_name': os.path.basename(file_path),
+                    'document_data': document_data,
+                    'reason': message,
+                    'confidence': document_data.get('matching_confidence', 0)
+                })
+        else:
+            # Missing data, keep for manual view
+            remaining_processed.append(doc)
+    
+    # Clear auto-processed files from session and update
+    session['processed_files'] = remaining_processed
+    session['duplicate_files'] = duplicate_files
+    session['manual_review_files'] = manual_review_files
+    
     # Get customers and invoices for reference
     customers = get_customers()
     invoices = get_invoices()
     
+    # If any files were auto-processed, show a success message
+    if auto_processed:
+        invoice_count = sum(1 for doc in auto_processed if doc.get('document_type') == 'invoice')
+        bank_count = sum(1 for doc in auto_processed if doc.get('document_type') == 'bank_statement')
+        
+        if invoice_count > 0 or bank_count > 0:
+            message = f"Automatisch verwerkt: {len(auto_processed)} document(en): "
+            if invoice_count > 0:
+                message += f"{invoice_count} facturen"
+            if bank_count > 0:
+                if invoice_count > 0:
+                    message += " en "
+                message += f"{bank_count} bankafschriften"
+            flash(message, 'success')
+    
     from datetime import datetime
     return render_template(
         'document_review.html',
-        processed_files=processed_files,
+        processed_files=remaining_processed,
         duplicate_files=duplicate_files,
         manual_review_files=manual_review_files,
+        auto_processed=auto_processed,
         customers=customers,
         invoices=invoices,
         now=datetime.now()

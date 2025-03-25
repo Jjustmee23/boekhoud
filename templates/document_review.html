@@ -38,7 +38,7 @@
                         <div class="col-md-3">
                             <div class="card bg-success text-white">
                                 <div class="card-body text-center">
-                                    <h3>{{ processed_files|length }}</h3>
+                                    <h3>{{ processed_files|length + (auto_processed|default([])|length) }}</h3>
                                     <p class="mb-0">Automatisch Verwerkt</p>
                                 </div>
                             </div>

@@ -908,22 +908,65 @@ def bulk_upload():
                 # Invalid file type
                 flash(f'Ongeldig bestandstype: {file.filename}', 'danger')
         
+        # Copy the auto_process_document function from routes_document.py
+        from routes_document import auto_process_document
+        
+        # Auto-process documents that don't need review
+        auto_processed = []
+        remaining_processed = []
+        
+        # Auto-process files with high confidence scores (>= 90%)
+        for doc in processed_files:
+            file_path = doc.get('file_path')
+            document_data = doc.get('document_data')
+            
+            if document_data and file_path:
+                # Try to auto-process this document
+                success, message = auto_process_document(document_data, file_path)
+                
+                if success:
+                    auto_processed.append({
+                        'file_name': os.path.basename(file_path),
+                        'message': message,
+                        'document_type': document_data.get('document_type')
+                    })
+                else:
+                    # If auto-processing failed, add to manual review instead
+                    manual_review_files.append({
+                        'file_path': file_path,
+                        'file_name': os.path.basename(file_path),
+                        'document_data': document_data,
+                        'reason': message,
+                        'confidence': document_data.get('matching_confidence', 0)
+                    })
+            else:
+                # Missing data, keep for manual view
+                remaining_processed.append(doc)
+        
         # Save results to session for review page
-        session['processed_files'] = processed_files
+        session['processed_files'] = remaining_processed
         session['duplicate_files'] = duplicate_files
         session['manual_review_files'] = manual_review_files
         
         # Create summary counts for flash message
         total_files = len(processed_files) + len(duplicate_files) + len(manual_review_files)
-        invoices = sum(1 for f in processed_files if f.get('document_data', {}).get('document_type') == 'invoice')
-        bank_statements = sum(1 for f in processed_files if f.get('document_data', {}).get('document_type') == 'bank_statement')
+        auto_processed_count = len(auto_processed)
         
         # Flash appropriate message
-        if total_files > 0:
-            flash(f"Verwerkt: {total_files} bestanden: "
-                  f"{invoices} facturen, "
-                  f"{bank_statements} bankafschriften, "
-                  f"{len(manual_review_files)} handmatige controle nodig", 'success')
+        if total_files > 0 or auto_processed_count > 0:
+            # Count auto-processed types
+            auto_invoices = sum(1 for doc in auto_processed if doc.get('document_type') == 'invoice')
+            auto_bank_statements = sum(1 for doc in auto_processed if doc.get('document_type') == 'bank_statement')
+            
+            # Count remaining types
+            remain_invoices = sum(1 for f in remaining_processed if f.get('document_data', {}).get('document_type') == 'invoice')
+            remain_bank_statements = sum(1 for f in remaining_processed if f.get('document_data', {}).get('document_type') == 'bank_statement')
+            
+            flash(f"Verwerkt: {total_files + auto_processed_count} bestanden: "
+                  f"{auto_invoices + remain_invoices} facturen, "
+                  f"{auto_bank_statements + remain_bank_statements} bankafschriften, "
+                  f"{len(manual_review_files)} handmatige controle nodig, "
+                  f"{auto_processed_count} automatisch verwerkt", 'success')
         else:
             flash('Geen bestanden zijn verwerkt', 'warning')
         
