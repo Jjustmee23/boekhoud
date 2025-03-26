@@ -134,13 +134,13 @@
                 customerCheckboxes.forEach(checkbox => {
                     checkbox.checked = isChecked;
                 });
-                updateBulkActionButton();
+                updateBulkActionsBar();
             });
             
             // Individual checkbox change events
             customerCheckboxes.forEach(checkbox => {
                 checkbox.addEventListener('change', function() {
-                    updateBulkActionButton();
+                    updateBulkActionsBar();
                     // Update "select all" checkbox state
                     selectAllCheckbox.checked = Array.from(customerCheckboxes).every(cb => cb.checked);
                     selectAllCheckbox.indeterminate = !selectAllCheckbox.checked && 
@@ -151,7 +151,7 @@
             // Bulk action select change
             if (bulkActionSelect) {
                 bulkActionSelect.addEventListener('change', function() {
-                    updateBulkActionButton();
+                    updateBulkActionsBar();
                     
                     // If "change_type" is selected, add an extra select field
                     if (this.value === 'change_type') {
@@ -192,7 +192,7 @@
             }
             
             // Function to update the bulk actions bar visibility and button state
-            function updateBulkActionButton() {
+            function updateBulkActionsBar() {
                 const bulkActionsBar = document.getElementById('bulk-actions-bar');
                 const hasSelection = Array.from(customerCheckboxes).some(cb => cb.checked);
                 const hasAction = bulkActionSelect && bulkActionSelect.value;
@@ -215,7 +215,7 @@
             }
             
             // Initial update
-            updateBulkActionButton();
+            updateBulkActionsBar();
         }
     
         // Handle delete customer modal
