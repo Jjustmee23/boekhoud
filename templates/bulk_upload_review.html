@@ -134,9 +134,9 @@
                                                     <select class="form-select" id="vat_rate_{{ loop.index0 }}" 
                                                             name="vat_rate_{{ loop.index0 }}">
                                                         <option value="">-- BTW --</option>
-                                                        {% for rate, label in vat_rates.items() %}
-                                                        <option value="{{ rate }}" {% if rate|string == preview.vat_rate|string %}selected{% endif %}>
-                                                            {{ label }}
+                                                        {% for rate in vat_rates %}
+                                                        <option value="{{ rate.value }}" {% if rate.value|string == preview.vat_rate|string %}selected{% endif %}>
+                                                            {{ rate.name }}
                                                         </option>
                                                         {% endfor %}
                                                     </select>

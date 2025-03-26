@@ -1398,16 +1398,23 @@ def bulk_upload_process():
                 continue
                 
             # Maak een nieuwe factuur aan
-            new_invoice = add_invoice(
-                customer_id=data['customer_id'],
+            new_invoice_obj = Invoice(
+                invoice_number=invoice_number,
+                customer_id=uuid.UUID(data['customer_id']),
                 date=invoice_date,
                 invoice_type=data['invoice_type'],
                 amount_incl_vat=amount_incl_vat,
                 vat_rate=vat_rate,
-                invoice_number=invoice_number,
-                file_path=data['file_path'],
-                check_duplicate=False
+                amount_excl_vat=amount_incl_vat / (1 + (vat_rate / 100)),
+                vat_amount=amount_incl_vat - (amount_incl_vat / (1 + (vat_rate / 100))),
+                file_path=data['file_path']
             )
+            
+            db.session.add(new_invoice_obj)
+            db.session.commit()
+            
+            # Gebruik de aangemaakte factuur
+            new_invoice = new_invoice_obj
             
             # Voeg toe aan resultaten
             customer = Customer.query.get(data['customer_id'])
