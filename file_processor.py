@@ -411,6 +411,10 @@ class FileProcessor:
                 self._parse_hostio_invoice(text, info)
                 # For Hostio invoices, we always set type to expense as we buy from them
                 info['invoice_type'] = 'expense'
+            elif self._is_virtfusion_invoice(text):
+                self._parse_virtfusion_invoice(text, info)
+                # For VirtFusion invoices, we always set type to expense as we buy from them
+                info['invoice_type'] = 'expense'
             else:
                 # Try to determine if this is an income or expense invoice
                 self._determine_invoice_type(text, lower_text, info)
@@ -433,6 +437,117 @@ class FileProcessor:
         """Detect if this is a Hostio Solutions invoice"""
         return 'Hostio Solutions' in text and 'Invoice #' in text
         
+    def _is_virtfusion_invoice(self, text):
+        """Detect if this is a VirtFusion invoice"""
+        return 'VirtFusion Ltd' in text and 'INVOICE' in text
+        
+    def _parse_virtfusion_invoice(self, text, info):
+        """Parse VirtFusion Ltd specific invoice format"""
+        logger.info("Parsing VirtFusion invoice...")
+        
+        # Extract company information (supplier)
+        info['customer_name'] = 'VirtFusion Ltd'
+        info['supplier_name'] = 'VirtFusion Ltd'
+        
+        # Set address information
+        info['customer_street'] = '71-75 Shelton Street'
+        info['supplier_street'] = '71-75 Shelton Street'
+        info['customer_postal_city'] = 'London, WC2H 9JQ'
+        info['supplier_postal_city'] = 'London, WC2H 9JQ'
+        info['customer_country'] = 'United Kingdom'
+        info['supplier_country'] = 'United Kingdom'
+        
+        # Extract invoice number - format: VF13814
+        invoice_num_patterns = [
+            r'Invoice\s*#?:?\s*(VF\d+)', # Look for VF12345 format
+            r'Reference\s*#?:?\s*(VF\d+)',
+            r'Order\s*#?:?\s*(VF\d+)'
+        ]
+        
+        for pattern in invoice_num_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                invoice_num = match.group(1)
+                info['invoice_number'] = invoice_num
+                logger.info(f"Detected VirtFusion invoice number: {invoice_num}")
+                break
+        
+        # If no invoice number found yet, try using the filename
+        if not info.get('invoice_number') and os.path.basename(self.file_path):
+            filename = os.path.basename(self.file_path)
+            match = re.search(r'(VF\d+)', filename, re.IGNORECASE)
+            if match:
+                invoice_num = match.group(1)
+                info['invoice_number'] = invoice_num
+                logger.info(f"Detected invoice number from filename: {invoice_num}")
+                
+        # Extract invoice date
+        date_patterns = [
+            r'Invoice\s+Date:?\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
+            r'Date:?\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
+            r'Date\s+of\s+Issue:?\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})'
+        ]
+        
+        for pattern in date_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                date_str = match.group(1)
+                try:
+                    info['date'] = self._normalize_date(date_str)
+                    logger.info(f"Detected VirtFusion invoice date: {date_str}")
+                    break
+                except:
+                    pass
+        
+        # Extract amount due
+        amount_patterns = [
+            r'Amount\s+Due:?\s*[£$€](\d+\.\d+)',
+            r'Total\s+Due:?\s*[£$€](\d+\.\d+)',
+            r'Total:?\s*[£$€](\d+\.\d+)',
+            r'[£$€](\d+\.\d+)\s+GBP'
+        ]
+        
+        for pattern in amount_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                try:
+                    amount = float(match.group(1))
+                    info['amount_incl_vat'] = amount
+                    logger.info(f"Detected VirtFusion amount: £{amount}")
+                    break
+                except:
+                    pass
+        
+        # This is always an expense invoice (from VirtFusion to us)
+        info['invoice_type'] = 'expense'
+        
+        # Find our company details in the invoice
+        if 'danny verheyen' in text.lower() or 'nexon solutions' in text.lower():
+            # This is addressed to us
+            logger.info("This is an invoice TO our company FROM VirtFusion")
+            
+            info['customer_name'] = 'nexon solutions'
+            info['customer_vat_number'] = 'BE0537664664'
+            info['own_vat_number'] = 'BE0537664664'
+            
+            # Try to extract VAT number for VirtFusion
+            vat_patterns = [
+                r'VAT\s*Number:?\s*([A-Z0-9]+)',
+                r'VAT:?\s*([A-Z0-9]+)',
+                r'VAT\s*ID:?\s*([A-Z0-9]+)'
+            ]
+            
+            for pattern in vat_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    vat_number = match.group(1).strip()
+                    info['supplier_vat_number'] = vat_number
+                    logger.info(f"Detected VirtFusion VAT number: {vat_number}")
+                    break
+                    
+        # Set default VAT rate for UK services
+        info['vat_rate'] = 0.0  # Usually 0% for international B2B services from UK
+
     def _parse_hostio_invoice(self, text, info):
         """Parse Hostio Solutions specific invoice format"""
         logger.info("Parsing Hostio Solutions invoice...")
