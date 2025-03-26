@@ -88,49 +88,74 @@
                     <!-- Verwerkte facturen tab -->
                     <div class="tab-pane fade show active" id="processed" role="tabpanel" aria-labelledby="processed-tab">
                         {% if invoices %}
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Factuurnummer</th>
-                                            <th>Datum</th>
-                                            <th>Type</th>
-                                            <th class="text-end">Excl. BTW</th>
-                                            <th class="text-end">BTW</th>
-                                            <th class="text-end">Incl. BTW</th>
-                                            <th class="text-center">Acties</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for invoice in invoices %}
+                            <form id="processed-bulk-form" method="post" action="{{ url_for('bulk_action_customer_invoices', customer_id=customer.id) }}">
+                                <input type="hidden" name="invoice_status" value="processed">
+                                <div class="d-flex justify-content-between align-items-center p-3 border-bottom" id="processed-bulk-actions-bar" style="display: none !important; background-color: transparent;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="select-all-processed">
+                                        <label class="form-check-label" for="select-all-processed">Alles selecteren</label>
+                                    </div>
+                                    <div class="d-flex">
+                                        <select name="bulk_action" class="form-select form-select-sm me-2" style="width: auto;">
+                                            <option value="">-- Bulk actie --</option>
+                                            <option value="delete">Verwijderen</option>
+                                            <option value="export_pdf">PDF exporteren</option>
+                                            <option value="mark_unprocessed">Markeren als onverwerkt</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-primary" id="apply-processed-bulk-action" disabled>Toepassen</button>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
                                             <tr>
-                                                <td>{{ invoice.invoice_number }}</td>
-                                                <td>{{ invoice.date }}</td>
-                                                <td>
-                                                    {% if invoice.invoice_type == 'income' %}
-                                                        <span class="badge bg-success">Inkomsten</span>
-                                                    {% else %}
-                                                        <span class="badge bg-danger">Uitgaven</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td class="text-end">{{ format_currency(invoice.amount_excl_vat) }}</td>
-                                                <td class="text-end">{{ format_currency(invoice.vat_amount) }}</td>
-                                                <td class="text-end">{{ format_currency(invoice.amount_incl_vat) }}</td>
-                                                <td class="text-center">
-                                                    <div class="btn-group" role="group">
-                                                        <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="Bekijken">
-                                                            <i class="fas fa-eye"></i>
-                                                        </a>
-                                                        <a href="{{ url_for('generate_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-info" title="PDF downloaden">
-                                                            <i class="fas fa-file-pdf"></i>
-                                                        </a>
-                                                    </div>
-                                                </td>
+                                                <th style="width: 40px;"><span class="visually-hidden">Selecteren</span></th>
+                                                <th>Factuurnummer</th>
+                                                <th>Datum</th>
+                                                <th>Type</th>
+                                                <th class="text-end">Excl. BTW</th>
+                                                <th class="text-end">BTW</th>
+                                                <th class="text-end">Incl. BTW</th>
+                                                <th class="text-center">Acties</th>
                                             </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {% for invoice in invoices %}
+                                                <tr>
+                                                    <td class="text-center">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input processed-invoice-checkbox" type="checkbox" name="selected_ids[]" value="{{ invoice.id }}" id="processed-invoice-{{ invoice.id }}">
+                                                            <label class="form-check-label visually-hidden" for="processed-invoice-{{ invoice.id }}">Selecteer factuur {{ invoice.invoice_number }}</label>
+                                                        </div>
+                                                    </td>
+                                                    <td>{{ invoice.invoice_number }}</td>
+                                                    <td>{{ invoice.date }}</td>
+                                                    <td>
+                                                        {% if invoice.invoice_type == 'income' %}
+                                                            <span class="badge bg-success">Inkomsten</span>
+                                                        {% else %}
+                                                            <span class="badge bg-danger">Uitgaven</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="text-end">{{ format_currency(invoice.amount_excl_vat) }}</td>
+                                                    <td class="text-end">{{ format_currency(invoice.vat_amount) }}</td>
+                                                    <td class="text-end">{{ format_currency(invoice.amount_incl_vat) }}</td>
+                                                    <td class="text-center">
+                                                        <div class="btn-group" role="group">
+                                                            <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="Bekijken">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                            <a href="{{ url_for('generate_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-info" title="PDF downloaden">
+                                                                <i class="fas fa-file-pdf"></i>
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </form>
                         {% else %}
                             <div class="alert alert-info m-3">
                                 <i class="fas fa-info-circle"></i> Geen verwerkte facturen gevonden voor deze klant.
@@ -141,49 +166,73 @@
                     <!-- Onverwerkte facturen tab -->
                     <div class="tab-pane fade" id="unprocessed" role="tabpanel" aria-labelledby="unprocessed-tab">
                         {% if unprocessed_invoices %}
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Factuurnummer</th>
-                                            <th>Datum</th>
-                                            <th>Type</th>
-                                            <th class="text-end">Excl. BTW</th>
-                                            <th class="text-end">BTW</th>
-                                            <th class="text-end">Incl. BTW</th>
-                                            <th class="text-center">Acties</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for invoice in unprocessed_invoices %}
+                            <form id="unprocessed-bulk-form" method="post" action="{{ url_for('bulk_action_customer_invoices', customer_id=customer.id) }}">
+                                <input type="hidden" name="invoice_status" value="unprocessed">
+                                <div class="d-flex justify-content-between align-items-center p-3 border-bottom" id="unprocessed-bulk-actions-bar" style="display: none !important; background-color: transparent;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="select-all-unprocessed">
+                                        <label class="form-check-label" for="select-all-unprocessed">Alles selecteren</label>
+                                    </div>
+                                    <div class="d-flex">
+                                        <select name="bulk_action" class="form-select form-select-sm me-2" style="width: auto;">
+                                            <option value="">-- Bulk actie --</option>
+                                            <option value="delete">Verwijderen</option>
+                                            <option value="mark_processed">Markeren als verwerkt</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-primary" id="apply-unprocessed-bulk-action" disabled>Toepassen</button>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
                                             <tr>
-                                                <td>{{ invoice.invoice_number }}</td>
-                                                <td>{{ invoice.date }}</td>
-                                                <td>
-                                                    {% if invoice.invoice_type == 'income' %}
-                                                        <span class="badge bg-success">Inkomsten</span>
-                                                    {% else %}
-                                                        <span class="badge bg-danger">Uitgaven</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td class="text-end">{{ format_currency(invoice.amount_excl_vat) }}</td>
-                                                <td class="text-end">{{ format_currency(invoice.vat_amount) }}</td>
-                                                <td class="text-end">{{ format_currency(invoice.amount_incl_vat) }}</td>
-                                                <td class="text-center">
-                                                    <div class="btn-group" role="group">
-                                                        <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="Bekijken">
-                                                            <i class="fas fa-eye"></i>
-                                                        </a>
-                                                        <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-warning" title="Verwerken">
-                                                            <i class="fas fa-check"></i>
-                                                        </a>
-                                                    </div>
-                                                </td>
+                                                <th style="width: 40px;"><span class="visually-hidden">Selecteren</span></th>
+                                                <th>Factuurnummer</th>
+                                                <th>Datum</th>
+                                                <th>Type</th>
+                                                <th class="text-end">Excl. BTW</th>
+                                                <th class="text-end">BTW</th>
+                                                <th class="text-end">Incl. BTW</th>
+                                                <th class="text-center">Acties</th>
                                             </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {% for invoice in unprocessed_invoices %}
+                                                <tr>
+                                                    <td class="text-center">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input unprocessed-invoice-checkbox" type="checkbox" name="selected_ids[]" value="{{ invoice.id }}" id="unprocessed-invoice-{{ invoice.id }}">
+                                                            <label class="form-check-label visually-hidden" for="unprocessed-invoice-{{ invoice.id }}">Selecteer factuur {{ invoice.invoice_number }}</label>
+                                                        </div>
+                                                    </td>
+                                                    <td>{{ invoice.invoice_number }}</td>
+                                                    <td>{{ invoice.date }}</td>
+                                                    <td>
+                                                        {% if invoice.invoice_type == 'income' %}
+                                                            <span class="badge bg-success">Inkomsten</span>
+                                                        {% else %}
+                                                            <span class="badge bg-danger">Uitgaven</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="text-end">{{ format_currency(invoice.amount_excl_vat) }}</td>
+                                                    <td class="text-end">{{ format_currency(invoice.vat_amount) }}</td>
+                                                    <td class="text-end">{{ format_currency(invoice.amount_incl_vat) }}</td>
+                                                    <td class="text-center">
+                                                        <div class="btn-group" role="group">
+                                                            <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="Bekijken">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                            <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-warning" title="Verwerken">
+                                                                <i class="fas fa-check"></i>
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </form>
                         {% else %}
                             <div class="alert alert-info m-3">
                                 <i class="fas fa-info-circle"></i> Geen onverwerkte facturen gevonden voor deze klant.
@@ -225,4 +274,153 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Processed invoices bulk functionality
+        const selectAllProcessedCheckbox = document.getElementById('select-all-processed');
+        const processedInvoiceCheckboxes = document.querySelectorAll('.processed-invoice-checkbox');
+        const processedBulkActionSelect = document.querySelector('#processed-bulk-form select[name="bulk_action"]');
+        const applyProcessedBulkButton = document.getElementById('apply-processed-bulk-action');
+        const processedBulkForm = document.getElementById('processed-bulk-form');
+        
+        // Unprocessed invoices bulk functionality
+        const selectAllUnprocessedCheckbox = document.getElementById('select-all-unprocessed');
+        const unprocessedInvoiceCheckboxes = document.querySelectorAll('.unprocessed-invoice-checkbox');
+        const unprocessedBulkActionSelect = document.querySelector('#unprocessed-bulk-form select[name="bulk_action"]');
+        const applyUnprocessedBulkButton = document.getElementById('apply-unprocessed-bulk-action');
+        const unprocessedBulkForm = document.getElementById('unprocessed-bulk-form');
+        
+        // Function to update processed invoices bulk actions bar
+        function updateProcessedBulkActionsBar() {
+            const processedBulkActionsBar = document.getElementById('processed-bulk-actions-bar');
+            const hasSelection = Array.from(processedInvoiceCheckboxes).some(checkbox => checkbox.checked);
+            const hasAction = processedBulkActionSelect && processedBulkActionSelect.value;
+            
+            // Show/hide the bulk actions bar based on selection
+            if (processedBulkActionsBar) {
+                if (hasSelection) {
+                    processedBulkActionsBar.style.display = 'flex !important';
+                    // Remove the !important from the none display
+                    processedBulkActionsBar.setAttribute('style', 'display: flex; background-color: transparent;');
+                } else {
+                    processedBulkActionsBar.setAttribute('style', 'display: none; background-color: transparent;');
+                }
+            }
+            
+            // Enable/disable the apply button
+            if (applyProcessedBulkButton) {
+                applyProcessedBulkButton.disabled = !(hasSelection && hasAction);
+            }
+        }
+        
+        // Function to update unprocessed invoices bulk actions bar
+        function updateUnprocessedBulkActionsBar() {
+            const unprocessedBulkActionsBar = document.getElementById('unprocessed-bulk-actions-bar');
+            const hasSelection = Array.from(unprocessedInvoiceCheckboxes).some(checkbox => checkbox.checked);
+            const hasAction = unprocessedBulkActionSelect && unprocessedBulkActionSelect.value;
+            
+            // Show/hide the bulk actions bar based on selection
+            if (unprocessedBulkActionsBar) {
+                if (hasSelection) {
+                    unprocessedBulkActionsBar.style.display = 'flex !important';
+                    // Remove the !important from the none display
+                    unprocessedBulkActionsBar.setAttribute('style', 'display: flex; background-color: transparent;');
+                } else {
+                    unprocessedBulkActionsBar.setAttribute('style', 'display: none; background-color: transparent;');
+                }
+            }
+            
+            // Enable/disable the apply button
+            if (applyUnprocessedBulkButton) {
+                applyUnprocessedBulkButton.disabled = !(hasSelection && hasAction);
+            }
+        }
+        
+        // Setup processed invoices select all functionality
+        if (selectAllProcessedCheckbox) {
+            selectAllProcessedCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                processedInvoiceCheckboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                });
+                updateProcessedBulkActionsBar();
+            });
+        }
+        
+        // Setup unprocessed invoices select all functionality
+        if (selectAllUnprocessedCheckbox) {
+            selectAllUnprocessedCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                unprocessedInvoiceCheckboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                });
+                updateUnprocessedBulkActionsBar();
+            });
+        }
+        
+        // Handle individual processed checkbox changes
+        processedInvoiceCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Update "Select All" checkbox
+                if (selectAllProcessedCheckbox) {
+                    selectAllProcessedCheckbox.checked = Array.from(processedInvoiceCheckboxes).every(cb => cb.checked);
+                }
+                updateProcessedBulkActionsBar();
+            });
+        });
+        
+        // Handle individual unprocessed checkbox changes
+        unprocessedInvoiceCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Update "Select All" checkbox
+                if (selectAllUnprocessedCheckbox) {
+                    selectAllUnprocessedCheckbox.checked = Array.from(unprocessedInvoiceCheckboxes).every(cb => cb.checked);
+                }
+                updateUnprocessedBulkActionsBar();
+            });
+        });
+        
+        // Handle bulk action select changes
+        if (processedBulkActionSelect) {
+            processedBulkActionSelect.addEventListener('change', updateProcessedBulkActionsBar);
+        }
+        
+        if (unprocessedBulkActionSelect) {
+            unprocessedBulkActionSelect.addEventListener('change', updateUnprocessedBulkActionsBar);
+        }
+        
+        // Confirm bulk delete action for processed invoices
+        if (processedBulkForm) {
+            processedBulkForm.addEventListener('submit', function(event) {
+                const action = processedBulkActionSelect.value;
+                if (action === 'delete') {
+                    const selectedCount = Array.from(processedInvoiceCheckboxes).filter(cb => cb.checked).length;
+                    if (!confirm(`Weet u zeker dat u ${selectedCount} facturen wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.`)) {
+                        event.preventDefault();
+                    }
+                }
+            });
+        }
+        
+        // Confirm bulk delete action for unprocessed invoices
+        if (unprocessedBulkForm) {
+            unprocessedBulkForm.addEventListener('submit', function(event) {
+                const action = unprocessedBulkActionSelect.value;
+                if (action === 'delete') {
+                    const selectedCount = Array.from(unprocessedInvoiceCheckboxes).filter(cb => cb.checked).length;
+                    if (!confirm(`Weet u zeker dat u ${selectedCount} facturen wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.`)) {
+                        event.preventDefault();
+                    }
+                }
+            });
+        }
+        
+        // Initial action bar updates
+        updateProcessedBulkActionsBar();
+        updateUnprocessedBulkActionsBar();
+    });
+</script>
 {% endblock %}
