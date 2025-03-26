@@ -28,6 +28,10 @@ class Customer(db.Model):
     city = db.Column(db.String(50))
     country = db.Column(db.String(50), default='België')
     customer_type = db.Column(db.String(20), default='business')  # business, individual, supplier
+    
+    # Workspace relationship
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'))
+    workspace = db.relationship('Workspace', back_populates='customers')
     default_vat_rate = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, onupdate=datetime.now)
@@ -80,7 +84,7 @@ class Invoice(db.Model):
     __tablename__ = 'invoices'
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    invoice_number = db.Column(db.String(20), unique=True, nullable=False)
+    invoice_number = db.Column(db.String(20), nullable=False)
     customer_id = db.Column(UUID(as_uuid=True), db.ForeignKey('customers.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
     invoice_type = db.Column(db.String(10), nullable=False)  # income, expense
@@ -93,8 +97,17 @@ class Invoice(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, onupdate=datetime.now)
     
+    # Workspace relationship
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'))
+    workspace = db.relationship('Workspace', back_populates='invoices')
+    
     # Relationship to customer
     customer = db.relationship('Customer', back_populates='invoices')
+    
+    # Make invoice_number unique per workspace
+    __table_args__ = (
+        sa.UniqueConstraint('invoice_number', 'workspace_id', name='uix_invoice_number_workspace'),
+    )
     
     def to_dict(self):
         return {
@@ -400,16 +413,43 @@ def calculate_vat_report(year, quarter=None, month=None):
     }
 
 # User Model
+class Workspace(db.Model):
+    __tablename__ = 'workspaces'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    
+    # Relationships
+    users = db.relationship('User', back_populates='workspace')
+    customers = db.relationship('Customer', back_populates='workspace')
+    invoices = db.relationship('Invoice', back_populates='workspace')
+    
+    def __repr__(self):
+        return f'<Workspace {self.name}>'
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    username = db.Column(db.String(64), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
     is_super_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
+    password_change_required = db.Column(db.Boolean, default=False)
+    
+    # Workspace relationship
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'))
+    workspace = db.relationship('Workspace', back_populates='users')
+    
+    # Make username and email unique per workspace
+    __table_args__ = (
+        sa.UniqueConstraint('username', 'workspace_id', name='uix_user_username_workspace'),
+        sa.UniqueConstraint('email', 'workspace_id', name='uix_user_email_workspace'),
+    )
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
