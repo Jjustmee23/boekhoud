@@ -364,25 +364,66 @@ class FileProcessor:
         
     def _parse_hostio_invoice(self, text, info):
         """Parse Hostio Solutions specific invoice format"""
+        logger.info("Parsing Hostio Solutions invoice...")
+        
         # Extract invoice number (format: 2024-HS-1430)
         if 'Invoice #' in text:
             parts = text.split('Invoice #')
             if len(parts) > 1:
                 invoice_num = parts[1].strip().split('\n')[0]
                 info['invoice_number'] = invoice_num
+                logger.info(f"Detected invoice number: {invoice_num}")
                 
-        # Extract invoice date
+        # Extract invoice date - try multiple patterns
+        date_extracted = False
+        
+        # Try exact matches first
         if 'Invoice Date:' in text:
             parts = text.split('Invoice Date:')
             if len(parts) > 1:
                 date_str = parts[1].strip().split('\n')[0]
                 info['date'] = self._normalize_date(date_str)
+                date_extracted = True
+                logger.info(f"Detected invoice date (method 1): {date_str}")
                 
-        # Extract amount (format: €19.00 EUR)
+        # If that fails, try regex patterns
+        if not date_extracted:
+            date_patterns = [
+                r'Invoice\s+Date:\s*(\d{1,2}-\d{1,2}-\d{4})',  # 18-10-2024
+                r'Due\s+Date:\s*\d{1,2}-\d{1,2}-\d{4}.*?Invoice\s+Date:\s*(\d{1,2}-\d{1,2}-\d{4})'  # Look for invoice date after due date
+            ]
+            
+            for pattern in date_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    date_str = match.group(1).strip()
+                    info['date'] = self._normalize_date(date_str)
+                    date_extracted = True
+                    logger.info(f"Detected invoice date (method 2): {date_str}")
+                    break
+        
+        # Try scanning line by line if we still don't have a date
+        if not date_extracted:
+            lines = text.split('\n')
+            for line in lines:
+                if 'invoice date' in line.lower() and re.search(r'\d{1,2}-\d{1,2}-\d{4}', line):
+                    date_match = re.search(r'(\d{1,2}-\d{1,2}-\d{4})', line)
+                    if date_match:
+                        date_str = date_match.group(1)
+                        info['date'] = self._normalize_date(date_str)
+                        date_extracted = True
+                        logger.info(f"Detected invoice date (method 3): {date_str}")
+                        break
+                
+        # Extract amount (format: €19.00 EUR) - try multiple patterns
         amount_patterns = [
             r'€(\d+\.\d+)\s*EUR',  # €19.00 EUR
             r'Total\s+€(\d+\.\d+)', # Total €19.00
-            r'Total\s+(\d+\.\d+)\s*EUR' # Total 19.00 EUR
+            r'Total\s+(\d+\.\d+)\s*EUR', # Total 19.00 EUR
+            r'Sub\s+Total\s+€(\d+\.\d+)', # Sub Total €19.00
+            r'Total\s+€?(\d+\.\d+)\s*EUR', # Total €19.00 EUR or Total 19.00 EUR
+            r'[\n\r]€(\d+\.\d+)', # Line starting with €19.00
+            r'Total\s+[\n\r]€(\d+\.\d+)' # Total then line break then €19.00
         ]
         
         for pattern in amount_patterns:
@@ -391,9 +432,26 @@ class FileProcessor:
                 try:
                     amount = float(amount_match.group(1))
                     info['amount_incl_vat'] = amount
+                    logger.info(f"Detected amount: €{amount}")
                     break
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Error parsing amount: {str(e)}")
+        
+        # Try a different approach by looking for lines with EUR in them
+        if 'amount_incl_vat' not in info:
+            lines = text.split('\n')
+            for line in lines:
+                if 'EUR' in line and '€' in line:
+                    # Try to extract the number
+                    amount_match = re.search(r'€(\d+\.\d+)', line)
+                    if amount_match:
+                        try:
+                            amount = float(amount_match.group(1))
+                            info['amount_incl_vat'] = amount
+                            logger.info(f"Detected amount (method 2): €{amount}")
+                            break
+                        except:
+                            pass
         
         # Extract customer information
         if 'Invoiced To' in text:
