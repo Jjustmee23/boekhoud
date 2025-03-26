@@ -14,7 +14,7 @@ from utils import (
     get_vat_rates, date_to_quarter, get_quarters, get_months, get_years,
     save_uploaded_file, allowed_file
 )
-from file_processor import FileProcessor
+from file_processor import FileProcessor, InvoiceDocument
 
 # Dashboard routes
 @app.route('/')
@@ -147,9 +147,101 @@ def new_invoice():
         vat_rate = request.form.get('vat_rate')
         invoice_number = request.form.get('invoice_number')  # Optional
         
+        # Handle file upload first - so we can extract info if needed
+        file_path = None
+        extracted_data = {}
+        
+        if 'invoice_file' in request.files:
+            file = request.files['invoice_file']
+            if file and file.filename and allowed_file(file.filename):
+                # Save the file first
+                file_path = save_uploaded_file(file)
+                if file_path:
+                    # Try to extract data from the file
+                    processor = FileProcessor()
+                    file_info = processor._extract_info_from_filename(file.filename)
+                    
+                    # Create document based on file type
+                    if 'invoice' in file_info.get('document_type', '').lower():
+                        doc = InvoiceDocument(file_path, file_info)
+                        extracted_data = doc.get_invoice_data()
+                        
+                        # Also get customer data if available
+                        customer_data = doc.get_customer_data()
+                        if customer_data.get('name') and not customer_id:
+                            # Try to find customer by name or VAT number
+                            found_customer = None
+                            customers_list = get_customers()
+                            
+                            if customer_data.get('vat_number'):
+                                # Try to find by VAT number first
+                                for c in customers_list:
+                                    if c.get('vat_number') == customer_data.get('vat_number'):
+                                        found_customer = c
+                                        break
+                            
+                            if not found_customer:
+                                # Try to find by name
+                                for c in customers_list:
+                                    if c.get('name').lower() == customer_data.get('name').lower():
+                                        found_customer = c
+                                        break
+                            
+                            if found_customer:
+                                customer_id = found_customer.get('id')
+                                extracted_data['customer_id'] = customer_id
+                                flash(f'Klant "{found_customer.get("name")}" automatisch gevonden', 'info')
+                else:
+                    flash('Failed to upload file', 'warning')
+            elif file and file.filename:
+                flash('Only PDF, PNG, JPG and JPEG files are allowed', 'warning')
+        
+        # Use extracted data if form fields are empty
+        if not date and extracted_data.get('date'):
+            date = extracted_data.get('date')
+        
+        if not invoice_type and extracted_data.get('invoice_type'):
+            invoice_type = extracted_data.get('invoice_type')
+        
+        if not invoice_number and extracted_data.get('invoice_number'):
+            invoice_number = extracted_data.get('invoice_number')
+        
+        if not amount_incl_vat and extracted_data.get('amount_incl_vat'):
+            amount_incl_vat = extracted_data.get('amount_incl_vat')
+        
+        if not vat_rate and extracted_data.get('vat_rate'):
+            vat_rate = extracted_data.get('vat_rate')
+        
+        if not customer_id and extracted_data.get('customer_id'):
+            customer_id = extracted_data.get('customer_id')
+            
+        # Check if we have extracted data but missing some required fields
+        if extracted_data and not all([customer_id, date, invoice_type, amount_incl_vat, vat_rate]):
+            flash('Factuurgegevens gedeeltelijk geëxtraheerd uit het bestand. Vul de ontbrekende velden in.', 'info')
+            customers_data = get_customers()
+            
+            # Prepare invoice data with extracted information
+            invoice_data = {
+                'customer_id': customer_id or '',
+                'date': date or datetime.now().strftime('%Y-%m-%d'),
+                'type': invoice_type or 'expense',
+                'invoice_number': invoice_number or '',
+                'amount_incl_vat': amount_incl_vat or '',
+                'vat_rate': vat_rate or '21.0',
+                'file_path': file_path
+            }
+            
+            return render_template(
+                'invoice_form.html',
+                customers=customers_data,
+                vat_rates=get_vat_rates(),
+                invoice=invoice_data,
+                now=datetime.now()
+            )
+            
         # Validate data
         if not all([customer_id, date, invoice_type, amount_incl_vat, vat_rate]):
-            flash('All fields are required', 'danger')
+            flash('Alle verplichte velden moeten worden ingevuld', 'danger')
             customers_data = get_customers()
             return render_template(
                 'invoice_form.html',
@@ -158,17 +250,6 @@ def new_invoice():
                 invoice={'date': datetime.now().strftime('%Y-%m-%d'), 'type': 'income'},
                 now=datetime.now()
             )
-        
-        # Handle file upload
-        file_path = None
-        if 'invoice_file' in request.files:
-            file = request.files['invoice_file']
-            if file and file.filename and allowed_file(file.filename):
-                file_path = save_uploaded_file(file)
-                if not file_path:
-                    flash('Failed to upload file', 'warning')
-            elif file and file.filename:
-                flash('Only PDF, PNG, JPG and JPEG files are allowed', 'warning')
         
         # Add invoice
         try:
