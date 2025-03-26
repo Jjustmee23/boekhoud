@@ -1,5 +1,6 @@
 import os
 import logging
+import tempfile
 from datetime import datetime
 from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session
@@ -15,6 +16,7 @@ from utils import (
     save_uploaded_file, allowed_file
 )
 from file_processor import FileProcessor, InvoiceDocument
+from werkzeug.utils import secure_filename
 
 # Dashboard routes
 @app.route('/')
@@ -982,6 +984,94 @@ def bulk_upload():
         selected_customer=selected_customer,
         now=datetime.now()
     )
+
+@app.route('/extract-invoice-data', methods=['POST'])
+def extract_invoice_data():
+    """API endpoint for extracting data from an uploaded invoice file"""
+    # Check if we have a file in the request
+    if 'invoice_file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'})
+    
+    file = request.files['invoice_file']
+    if not file or not file.filename:
+        return jsonify({'success': False, 'error': 'No file selected'})
+    
+    if not allowed_file(file.filename):
+        return jsonify({'success': False, 'error': 'File type not allowed'})
+    
+    # Save file to temp location
+    temp_dir = tempfile.mkdtemp()
+    file_path = os.path.join(temp_dir, secure_filename(file.filename))
+    file.save(file_path)
+    
+    try:
+        # Extract data from file
+        processor = FileProcessor()
+        file_info = processor._extract_info_from_filename(file.filename)
+        
+        extracted_data = {}
+        customer_id = None
+        
+        # Create document based on file type
+        if 'invoice' in file_info.get('document_type', '').lower():
+            doc = InvoiceDocument(file_path, file_info)
+            invoice_data = doc.get_invoice_data()
+            extracted_data.update(invoice_data)
+            
+            # Check if we can find a matching customer
+            customer_data = doc.get_customer_data()
+            if customer_data.get('name'):
+                found_customer = None
+                customers_list = get_customers()
+                
+                # Try to find by VAT number first
+                if customer_data.get('vat_number'):
+                    for c in customers_list:
+                        if c.get('vat_number') == customer_data.get('vat_number'):
+                            found_customer = c
+                            break
+                
+                # If not found by VAT, try by name
+                if not found_customer:
+                    for c in customers_list:
+                        if c.get('name') and customer_data.get('name') and c.get('name').lower() == customer_data.get('name').lower():
+                            found_customer = c
+                            break
+                
+                if found_customer:
+                    customer_id = found_customer.get('id')
+                    extracted_data['customer_id'] = customer_id
+        
+        # If we have any data, return success
+        if extracted_data:
+            # Make values JSON serializable
+            for key, value in extracted_data.items():
+                if isinstance(value, (int, float, str, bool)) or value is None:
+                    continue
+                extracted_data[key] = str(value)
+            
+            return jsonify({
+                'success': True,
+                'date': extracted_data.get('date'),
+                'invoice_number': extracted_data.get('invoice_number'),
+                'invoice_type': extracted_data.get('invoice_type'),
+                'amount_incl_vat': extracted_data.get('amount_incl_vat'),
+                'vat_rate': extracted_data.get('vat_rate'),
+                'customer_id': customer_id
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Could not extract data from file'})
+    
+    except Exception as e:
+        logging.error(f"Error extracting invoice data: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        # Clean up temp file
+        try:
+            os.remove(file_path)
+            os.rmdir(temp_dir)
+        except:
+            pass
 
 @app.route('/bulk-upload/results')
 def bulk_upload_results():
