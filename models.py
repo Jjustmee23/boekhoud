@@ -441,8 +441,8 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     password_change_required = db.Column(db.Boolean, default=False)
     
-    # Workspace relationship
-    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'))
+    # Workspace relationship (nullable for super_admin users who can access all workspaces)
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'), nullable=True)
     workspace = db.relationship('Workspace', back_populates='users')
     
     # Make username and email unique per workspace

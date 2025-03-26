@@ -88,8 +88,7 @@ def migrate_database():
                     UPDATE users 
                     SET workspace_id = {default_workspace_id};
                     
-                    ALTER TABLE users 
-                    ALTER COLUMN workspace_id SET NOT NULL;
+                    -- Don't make workspace_id NOT NULL - super admins need NULL workspace_id
                     
                     -- Make username and email unique per workspace
                     CREATE UNIQUE INDEX IF NOT EXISTS uix_user_username_workspace
