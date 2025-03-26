@@ -468,6 +468,13 @@ def edit_invoice(invoice_id):
                 invoice.amount_incl_vat = amount_incl_vat_float
                 invoice.vat_rate = vat_rate_float
                 invoice.vat_amount = float(vat_amount)
+                
+                # Haal mark_as_processed op uit het formulier (voor "Mark as Processed" checkbox)
+                mark_as_processed = 'mark_as_processed' in request.form
+                
+                # Als de factuur onbewerkt was of het vinkje voor 'verwerkt' aanstaat, markeer als verwerkt
+                if invoice.status == 'unprocessed' or mark_as_processed:
+                    invoice.status = 'processed'
                 invoice.file_path = file_path
                 
                 # Save changes to database
@@ -807,12 +814,17 @@ def view_customer(customer_id):
             flash('Klant niet gevonden', 'danger')
             return redirect(url_for('customers_list'))
         
-        # Query customer invoices
+        # Query customer invoices - all and separate processed/unprocessed
         customer_invoices_query = Invoice.query.filter_by(customer_id=customer.id).all()
+        
+        # Filter processed and unprocessed invoices
+        processed_invoices = [invoice.to_dict() for invoice in customer_invoices_query 
+                              if invoice.status == 'processed' or invoice.status is None]
+        unprocessed_invoices = [invoice.to_dict() for invoice in customer_invoices_query 
+                               if invoice.status == 'unprocessed']
         
         # Convert to dictionary format for the template
         customer_data = customer.to_dict()
-        customer_invoices = [invoice.to_dict() for invoice in customer_invoices_query]
         
         # Calculate total income and expense
         total_income = sum(
@@ -829,7 +841,8 @@ def view_customer(customer_id):
         return render_template(
             'customer_detail.html',
             customer=customer_data,
-            invoices=customer_invoices,
+            invoices=processed_invoices,
+            unprocessed_invoices=unprocessed_invoices,
             total_income=total_income,
             total_expense=total_expense,
             format_currency=format_currency,
@@ -1407,7 +1420,8 @@ def bulk_upload_process():
                 vat_rate=vat_rate,
                 amount_excl_vat=amount_incl_vat / (1 + (vat_rate / 100)),
                 vat_amount=amount_incl_vat - (amount_incl_vat / (1 + (vat_rate / 100))),
-                file_path=data['file_path']
+                file_path=data['file_path'],
+                status='unprocessed'  # Markeer als onbewerkt
             )
             
             db.session.add(new_invoice_obj)

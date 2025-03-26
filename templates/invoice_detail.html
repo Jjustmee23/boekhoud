@@ -49,6 +49,15 @@
                                     <span class="badge bg-danger">Uitgaven</span>
                                 {% endif %}
                             </dd>
+                            
+                            <dt class="col-sm-5">Status:</dt>
+                            <dd class="col-sm-7">
+                                {% if invoice.status == 'unprocessed' %}
+                                    <span class="badge bg-warning">Onbewerkt</span>
+                                {% else %}
+                                    <span class="badge bg-info">Verwerkt</span>
+                                {% endif %}
+                            </dd>
                         </dl>
                     </div>
                     <div class="col-md-6">

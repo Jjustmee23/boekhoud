@@ -87,6 +87,7 @@ class Invoice(db.Model):
     vat_rate = db.Column(db.Float, nullable=False)
     vat_amount = db.Column(db.Float, nullable=False)
     file_path = db.Column(db.String(255))
+    status = db.Column(db.String(20), default='processed')  # processed, unprocessed
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, onupdate=datetime.now)
     
@@ -105,6 +106,7 @@ class Invoice(db.Model):
             'vat_rate': self.vat_rate,
             'vat_amount': self.vat_amount,
             'file_path': self.file_path,
+            'status': self.status,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
