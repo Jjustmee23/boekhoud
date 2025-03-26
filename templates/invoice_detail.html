@@ -15,15 +15,12 @@
             </a>
             {% if invoice.file_path %}
             <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id) }}" class="btn btn-outline-info" target="_blank">
-                <i class="fas fa-file-pdf"></i> Factuur bekijken
-            </a>
-            <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id, download=1) }}" class="btn btn-outline-secondary">
-                <i class="fas fa-download"></i> Downloaden
+                <i class="fas fa-file-pdf"></i> Originele factuur
             </a>
             {% else %}
-            <span class="btn btn-outline-warning disabled">
-                <i class="fas fa-exclamation-triangle"></i> Geen factuurbestand
-            </span>
+            <a href="{{ url_for('generate_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-outline-info">
+                <i class="fas fa-file-pdf"></i> PDF genereren
+            </a>
             {% endif %}
             <button type="button" class="btn btn-outline-danger" 
                     data-bs-toggle="modal" 
