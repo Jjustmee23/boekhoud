@@ -4,6 +4,8 @@ from decimal import Decimal
 from app import db
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Legacy in-memory storage (will be deprecated)
 customers = {}  # id -> customer
