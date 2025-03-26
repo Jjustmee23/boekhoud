@@ -54,6 +54,19 @@
                         </div>
                         {% endif %}
                         
+                        {% if current_user.is_super_admin %}
+                        <div class="mb-3">
+                            <label for="workspace_id" class="form-label">Werkruimte</label>
+                            <select class="form-select" id="workspace_id" name="workspace_id">
+                                <option value="">-- Super Admin (geen werkruimte) --</option>
+                                {% for workspace in workspaces %}
+                                <option value="{{ workspace.id }}" {% if user.workspace_id == workspace.id %}selected{% endif %}>{{ workspace.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Laat leeg voor super admin (toegang tot alle werkruimtes)</small>
+                        </div>
+                        {% endif %}
+                        
                         <h4 class="mt-4 mb-3">Wachtwoord wijzigen</h4>
                         <div class="mb-3">
                             <label for="new_password" class="form-label">Nieuw wachtwoord</label>

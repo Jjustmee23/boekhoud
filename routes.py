@@ -2257,3 +2257,152 @@ def delete_user(user_id):
         flash('Kan de gebruiker niet verwijderen. Er moet minimaal één super admin behouden blijven.', 'danger')
     
     return redirect(url_for('admin'))
+
+# Workspace management routes
+@app.route('/admin/workspace/create', methods=['POST'])
+@login_required
+def create_workspace():
+    # Only super admins can create workspaces
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    name = request.form.get('name')
+    description = request.form.get('description', '')
+    
+    # Validate input
+    if not name:
+        flash('Werkruimte naam is verplicht', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Check if workspace name already exists
+    existing_workspace = Workspace.query.filter_by(name=name).first()
+    if existing_workspace:
+        flash('Een werkruimte met deze naam bestaat al', 'danger')
+        return redirect(url_for('admin'))
+    
+    try:
+        # Create new workspace
+        workspace = Workspace(name=name, description=description)
+        db.session.add(workspace)
+        db.session.commit()
+        flash(f'Werkruimte "{name}" is aangemaakt', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error creating workspace: {str(e)}")
+        flash('Er is een fout opgetreden bij het aanmaken van de werkruimte', 'danger')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/workspace/<int:workspace_id>/edit', methods=['POST'])
+@login_required
+def edit_workspace(workspace_id):
+    # Only super admins can edit workspaces
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    workspace = Workspace.query.get(workspace_id)
+    if not workspace:
+        flash('Werkruimte niet gevonden', 'danger')
+        return redirect(url_for('admin'))
+    
+    name = request.form.get('name')
+    description = request.form.get('description', '')
+    
+    # Validate input
+    if not name:
+        flash('Werkruimte naam is verplicht', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Check if new name already exists (if name changed)
+    if name != workspace.name:
+        existing_workspace = Workspace.query.filter_by(name=name).first()
+        if existing_workspace:
+            flash('Een werkruimte met deze naam bestaat al', 'danger')
+            return redirect(url_for('admin'))
+    
+    try:
+        # Update workspace
+        workspace.name = name
+        workspace.description = description
+        db.session.commit()
+        flash(f'Werkruimte "{name}" is bijgewerkt', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating workspace: {str(e)}")
+        flash('Er is een fout opgetreden bij het bijwerken van de werkruimte', 'danger')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/workspace/<int:workspace_id>/delete', methods=['POST'])
+@login_required
+def delete_workspace(workspace_id):
+    # Only super admins can delete workspaces
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    workspace = Workspace.query.get(workspace_id)
+    if not workspace:
+        flash('Werkruimte niet gevonden', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Check if workspace has users
+    if User.query.filter_by(workspace_id=workspace_id).count() > 0:
+        flash('Deze werkruimte kan niet worden verwijderd omdat er nog gebruikers aan gekoppeld zijn', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Check if workspace has customers or invoices
+    if Customer.query.filter_by(workspace_id=workspace_id).count() > 0 or Invoice.query.filter_by(workspace_id=workspace_id).count() > 0:
+        flash('Deze werkruimte kan niet worden verwijderd omdat er nog klanten of facturen aan gekoppeld zijn', 'danger')
+        return redirect(url_for('admin'))
+    
+    try:
+        # Delete workspace
+        db.session.delete(workspace)
+        db.session.commit()
+        flash(f'Werkruimte "{workspace.name}" is verwijderd', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting workspace: {str(e)}")
+        flash('Er is een fout opgetreden bij het verwijderen van de werkruimte', 'danger')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/user/<int:user_id>/assign-workspace', methods=['POST'])
+@login_required
+def assign_workspace_to_user(user_id):
+    # Only super admins can assign users to workspaces
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    user = User.query.get(user_id)
+    if not user:
+        flash('Gebruiker niet gevonden', 'danger')
+        return redirect(url_for('admin'))
+    
+    workspace_id = request.form.get('workspace_id')
+    if workspace_id:
+        workspace_id = int(workspace_id)
+        workspace = Workspace.query.get(workspace_id)
+        if not workspace:
+            flash('Werkruimte niet gevonden', 'danger')
+            return redirect(url_for('admin'))
+    else:
+        # Setting to None for super admins
+        workspace_id = None
+    
+    try:
+        # Assign user to workspace
+        user.workspace_id = workspace_id
+        db.session.commit()
+        workspace_name = workspace.name if workspace_id else "Geen (Super Admin)"
+        flash(f'Gebruiker {user.username} is toegewezen aan werkruimte: {workspace_name}', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error assigning workspace to user: {str(e)}")
+        flash('Er is een fout opgetreden bij het toewijzen van de werkruimte', 'danger')
+    
+    return redirect(url_for('admin'))
