@@ -297,19 +297,22 @@
         
         // Voeg event listeners toe voor validatie
         {% for preview in file_previews %}
-        let inputElem = document.getElementById('amount_incl_vat_{{ loop.index0 }}');
-        if (inputElem) {
-            inputElem.addEventListener('input', function() {
-                validateForm({{ loop.index0 }});
-            });
-        }
-        
-        let selectElem = document.getElementById('customer_id_{{ loop.index0 }}');
-        if (selectElem) {
-            selectElem.addEventListener('change', function() {
-                validateForm({{ loop.index0 }});
-            });
-        }
+        (function(index) {
+            // Gebruik functie scoping om duplicatie van variabelen te voorkomen
+            var inputElem = document.getElementById('amount_incl_vat_' + index);
+            if (inputElem) {
+                inputElem.addEventListener('input', function() {
+                    validateForm(index);
+                });
+            }
+            
+            var selectElem = document.getElementById('customer_id_' + index);
+            if (selectElem) {
+                selectElem.addEventListener('change', function() {
+                    validateForm(index);
+                });
+            }
+        })({{ loop.index0 }});
         {% endfor %}
         
         // Event listeners voor de actie knoppen
