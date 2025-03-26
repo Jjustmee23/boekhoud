@@ -12,40 +12,43 @@
         </div>
         <div class="card-body">
             <p class="card-text">
-                Upload multiple files at once. The system will automatically process and categorize them:
+                Upload multiple files at once. Na het uploaden kunt u:
             </p>
             <ul>
-                <li>Invoices will be recognized and associated with customers</li>
-                <li>If an invoice is from an unknown customer, a new customer will be created</li>
-                <li>Bank statements will be identified for later matching with invoices</li>
-                <li>Files that can't be automatically processed will be marked for manual review</li>
+                <li>Ieder document bekijken en factuurgegevens handmatig invoeren of aanpassen</li>
+                <li>Facturen toewijzen aan de juiste klant of leverancier</li>
+                <li>BTW-tarieven en factuurbedragen aanpassen voordat ze worden verwerkt</li>
+                <li>Factuurnummers toevoegen of automatisch laten genereren</li>
             </ul>
             
             <form action="{{ url_for('bulk_upload') }}" method="POST" enctype="multipart/form-data">
                 <div class="mb-3">
-                    <label for="customer_id" class="form-label">Associate with Customer (Optional)</label>
+                    <label for="customer_id" class="form-label">Klant/Leverancier (Optioneel)</label>
                     <select name="customer_id" id="customer_id" class="form-select">
-                        <option value="">-- Auto-detect or Create New --</option>
+                        <option value="">-- Per document specificeren --</option>
                         {% for customer in customers %}
-                        <option value="{{ customer.id }}" {% if selected_customer and selected_customer == customer.id|string %}selected{% endif %}>{{ customer.name }}</option>
+                        <option value="{{ customer.id }}" {% if selected_customer and selected_customer == customer.id|string %}selected{% endif %}>
+                            {{ customer.name }} ({{ customer.customer_type|capitalize }})
+                        </option>
                         {% endfor %}
                     </select>
                     <small class="form-text text-muted">
-                        If selected, all invoices will be associated with this customer. Leave blank for auto-detection.
+                        Indien geselecteerd, worden alle documenten aan deze klant/leverancier gekoppeld.
+                        Laat leeg om per document aan te geven.
                     </small>
                 </div>
                 
                 <div class="mb-3">
-                    <label for="files" class="form-label">Select Files</label>
+                    <label for="files" class="form-label">Selecteer bestanden</label>
                     <input type="file" name="files[]" id="files" class="form-control" multiple required>
                     <small class="form-text text-muted">
-                        Select multiple files by holding Ctrl (or Cmd on Mac) while clicking.
-                        Supported formats: PDF, PNG, JPG, JPEG
+                        Selecteer meerdere bestanden door Ctrl (of Cmd op Mac) ingedrukt te houden tijdens het klikken.
+                        Ondersteunde formaten: PDF, PNG, JPG, JPEG
                     </small>
                 </div>
                 
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-upload me-2"></i> Upload and Process
+                    <i class="fas fa-upload me-2"></i> Uploaden en Bekijken
                 </button>
             </form>
         </div>
@@ -53,20 +56,20 @@
     
     <div class="card mb-4">
         <div class="card-header bg-info text-white">
-            <h5 class="card-title mb-0">File Naming Tips</h5>
+            <h5 class="card-title mb-0">Tips voor bestandsnamen</h5>
         </div>
         <div class="card-body">
-            <p>To help with automatic recognition, consider using these naming patterns:</p>
+            <p>Om de automatische herkenning te helpen, overweeg deze naamgevingspatronen:</p>
             <ul>
-                <li><strong>Invoices:</strong> Include "invoice" or "factuur" in the filename</li>
-                <li><strong>Income/Sales:</strong> Add "income" or "inkomst" for sales invoices</li>
-                <li><strong>Expenses:</strong> Add "expense" or "uitgave" for purchase invoices</li>
-                <li><strong>Bank Statements:</strong> Include "bank", "statement" or "afschrift" in the filename</li>
+                <li><strong>Facturen:</strong> Voeg "invoice", "factuur" of "rekening" toe in de bestandsnaam</li>
+                <li><strong>Verkopen:</strong> Voeg "verkoop", "sales" of "inkomst" toe voor verkoopfacturen</li>
+                <li><strong>Inkopen:</strong> Voeg "inkoop", "purchase" of "uitgave" toe voor inkoopfacturen</li>
+                <li><strong>Bankafschriften:</strong> Voeg "bank", "statement" of "afschrift" toe in de bestandsnaam</li>
             </ul>
             <p class="mb-0">
                 <small class="text-muted">
-                    The system will attempt to extract information from the files regardless of naming, 
-                    but consistent naming helps improve automatic recognition.
+                    Het systeem zal proberen informatie uit de bestanden te halen ongeacht de naamgeving,
+                    maar consistente naamgeving verbetert de automatische herkenning.
                 </small>
             </p>
         </div>

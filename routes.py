@@ -6,7 +6,7 @@ from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session
 from app import app, db
 from models import (
-    Customer, Invoice, get_next_invoice_number,
+    Customer, Invoice, get_next_invoice_number, check_duplicate_invoice, add_invoice,
     calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary
 )
 from utils import (
