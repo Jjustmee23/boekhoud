@@ -29,6 +29,26 @@
                             <input type="email" class="form-control" id="email" name="email" value="{{ current_user.email }}" required>
                         </div>
                         
+                        <div class="mb-3">
+                            <label class="form-label">Werkruimte</label>
+                            {% if current_user.workspace %}
+                                <input type="text" class="form-control" value="{{ current_user.workspace.name }}" readonly>
+                                {% if current_user.workspace.description %}
+                                <small class="text-muted">{{ current_user.workspace.description }}</small>
+                                {% endif %}
+                            {% elif current_user.is_super_admin %}
+                                <input type="text" class="form-control" value="Super Admin (Alle werkruimtes)" readonly>
+                                <small class="text-muted">Je hebt toegang tot alle werkruimtes als super beheerder</small>
+                            {% else %}
+                                <input type="text" class="form-control" value="Geen werkruimte toegewezen" readonly>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Rol</label>
+                            <input type="text" class="form-control" value="{% if current_user.is_super_admin %}Super Beheerder{% elif current_user.is_admin %}Werkruimte Beheerder{% else %}Gebruiker{% endif %}" readonly>
+                        </div>
+                        
                         <h4 class="mt-4 mb-3">Wachtwoord wijzigen</h4>
                         <div class="mb-3">
                             <label for="current_password" class="form-label">Huidig wachtwoord</label>

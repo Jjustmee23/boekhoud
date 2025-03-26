@@ -26,6 +26,7 @@
                             <th>ID</th>
                             <th>Gebruikersnaam</th>
                             <th>E-mail</th>
+                            <th>Werkruimte</th>
                             <th>Beheerder</th>
                             <th>Super Admin</th>
                             <th>Aangemaakt op</th>
@@ -38,6 +39,15 @@
                             <td>{{ user.id }}</td>
                             <td>{{ user.username }}</td>
                             <td>{{ user.email }}</td>
+                            <td>
+                                {% if user.is_super_admin %}
+                                <span class="badge bg-danger">Super Admin</span>
+                                {% elif user.workspace %}
+                                <span class="badge bg-info">{{ user.workspace.name }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Geen</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if user.is_admin %}
                                 <span class="badge bg-success">Ja</span>
@@ -118,6 +128,21 @@
                     </div>
                 </div>
                 <div class="row">
+                    {% if current_user.is_super_admin %}
+                    <div class="col-md-4 mb-3">
+                        <label for="workspace_id" class="form-label">Werkruimte</label>
+                        <select class="form-select" id="workspace_id" name="workspace_id">
+                            <option value="">-- Super Admin (geen werkruimte) --</option>
+                            {% for workspace in workspaces %}
+                            <option value="{{ workspace.id }}">{{ workspace.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Laat leeg voor super admin (toegang tot alle werkruimtes)</small>
+                    </div>
+                    {% else %}
+                    <!-- Voor gewone beheerders alleen hun eigen werkruimte -->
+                    <input type="hidden" name="workspace_id" value="{{ current_user.workspace_id }}">
+                    {% endif %}
                     <div class="col-md-4 mb-3">
                         <div class="form-check mt-4">
                             <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin">
@@ -136,13 +161,119 @@
                         </div>
                     </div>
                     {% endif %}
-                    <div class="col-md-4 mb-3 d-flex align-items-end">
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="password_change_required" name="password_change_required" checked>
+                            <label class="form-check-label" for="password_change_required">
+                                Wachtwoord wijziging verplicht bij eerste login
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-8 mb-3 d-flex align-items-end justify-content-end">
                         <button type="submit" class="btn btn-primary">Gebruiker toevoegen</button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
+    
+    {% if current_user.is_super_admin %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-success text-white">
+            <h2 class="h5 mb-0">Werkruimte beheer</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive mb-4">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Naam</th>
+                            <th>Beschrijving</th>
+                            <th>Aangemaakt op</th>
+                            <th>Gebruikers</th>
+                            <th>Klanten</th>
+                            <th>Facturen</th>
+                            <th>Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for workspace in workspaces %}
+                        <tr>
+                            <td>{{ workspace.id }}</td>
+                            <td>{{ workspace.name }}</td>
+                            <td>{{ workspace.description or '-' }}</td>
+                            <td>{{ workspace.created_at.strftime('%d-%m-%Y %H:%M') }}</td>
+                            <td><span class="badge bg-primary rounded-pill">{{ workspace.users|length }}</span></td>
+                            <td><span class="badge bg-info rounded-pill">{{ workspace.customers|length }}</span></td>
+                            <td><span class="badge bg-secondary rounded-pill">{{ workspace.invoices|length }}</span></td>
+                            <td>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editWorkspaceModal-{{ workspace.id }}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Edit Workspace Modal -->
+                                <div class="modal fade" id="editWorkspaceModal-{{ workspace.id }}" tabindex="-1" aria-labelledby="editWorkspaceModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="editWorkspaceModalLabel">Werkruimte bewerken</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <form action="{{ url_for('edit_workspace', workspace_id=workspace.id) }}" method="POST">
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label for="workspace_name_{{ workspace.id }}" class="form-label">Naam</label>
+                                                        <input type="text" class="form-control" id="workspace_name_{{ workspace.id }}" name="name" value="{{ workspace.name }}" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="workspace_description_{{ workspace.id }}" class="form-label">Beschrijving</label>
+                                                        <textarea class="form-control" id="workspace_description_{{ workspace.id }}" name="description" rows="3">{{ workspace.description or '' }}</textarea>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                                                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Add Workspace Form -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="h6 mb-0">Nieuwe werkruimte aanmaken</h3>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('create_workspace') }}" method="POST" class="row g-3">
+                        <div class="col-md-5">
+                            <label for="new_workspace_name" class="form-label">Naam</label>
+                            <input type="text" class="form-control" id="new_workspace_name" name="name" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label for="new_workspace_description" class="form-label">Beschrijving</label>
+                            <input type="text" class="form-control" id="new_workspace_description" name="description">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">Toevoegen</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-info text-white">
@@ -164,6 +295,10 @@
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             Facturen
                             <span class="badge bg-primary rounded-pill">{{ invoice_count }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Werkruimtes
+                            <span class="badge bg-primary rounded-pill">{{ workspaces|length }}</span>
                         </li>
                     </ul>
                 </div>

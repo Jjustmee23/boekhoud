@@ -2113,12 +2113,28 @@ def admin():
         return redirect(url_for('dashboard'))
     
     from models import get_users
-    users = get_users()
-    customer_count = Customer.query.count()
-    invoice_count = Invoice.query.count()
+    
+    # Filter users based on workspace for regular admins
+    if current_user.is_super_admin:
+        # Super admins can see all users
+        users = get_users()
+        # Get all workspaces for super admin
+        workspaces = Workspace.query.all()
+        # Get counts across all workspaces
+        customer_count = Customer.query.count()
+        invoice_count = Invoice.query.count()
+    else:
+        # Regular admins can only see users in their workspace
+        users = User.query.filter_by(workspace_id=current_user.workspace_id).all()
+        # Only their workspace
+        workspaces = [current_user.workspace] if current_user.workspace else []
+        # Get counts for their workspace only
+        customer_count = Customer.query.filter_by(workspace_id=current_user.workspace_id).count()
+        invoice_count = Invoice.query.filter_by(workspace_id=current_user.workspace_id).count()
     
     return render_template('admin.html', 
                            users=users, 
+                           workspaces=workspaces,
                            customer_count=customer_count, 
                            invoice_count=invoice_count, 
                            now=datetime.now())
