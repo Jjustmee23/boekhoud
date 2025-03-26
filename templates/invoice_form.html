@@ -16,14 +16,19 @@
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label for="customer_id" class="form-label">Klant <span class="text-danger">*</span></label>
-                    <select name="customer_id" id="customer_id" class="form-select" required>
-                        <option value="">-- Selecteer een klant --</option>
-                        {% for customer in customers %}
-                            <option value="{{ customer.id }}" {% if invoice.customer_id == customer.id %}selected{% endif %}>
-                                {{ customer.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
+                    <div class="input-group">
+                        <select name="customer_id" id="customer_id" class="form-select" required>
+                            <option value="">-- Selecteer een klant --</option>
+                            {% for customer in customers %}
+                                <option value="{{ customer.id }}" {% if invoice.customer_id == customer.id %}selected{% endif %}>
+                                    {{ customer.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#newCustomerModal">
+                            <i class="fas fa-plus"></i> Nieuw
+                        </button>
+                    </div>
                 </div>
                 <div class="col-md-6">
                     <label for="date" class="form-label">Datum <span class="text-danger">*</span></label>
@@ -100,6 +105,56 @@
 </div>
 {% endblock %}
 
+<!-- Modal voor nieuwe klant -->
+<div class="modal fade" id="newCustomerModal" tabindex="-1" aria-labelledby="newCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newCustomerModalLabel">Nieuwe Klant Toevoegen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quickCustomerForm">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="modal_name" class="form-label">Naam <span class="text-danger">*</span></label>
+                            <input type="text" id="modal_name" name="name" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="modal_address" class="form-label">Adres <span class="text-danger">*</span></label>
+                            <textarea id="modal_address" name="address" class="form-control" rows="3" required></textarea>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="modal_vat_number" class="form-label">BTW Nummer</label>
+                            <input type="text" id="modal_vat_number" name="vat_number" class="form-control" placeholder="BE0123456789">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modal_email" class="form-label">E-mail <span class="text-danger">*</span></label>
+                            <input type="email" id="modal_email" name="email" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="alert alert-success d-none" id="customerSuccessMessage">
+                        Klant succesvol toegevoegd!
+                    </div>
+                    <div class="alert alert-danger d-none" id="customerErrorMessage">
+                        Er is een fout opgetreden bij het toevoegen van de klant.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                <button type="button" class="btn btn-primary" id="saveCustomerBtn">
+                    <i class="fas fa-save"></i> Opslaan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -126,6 +181,77 @@
         // Update on change
         amountInclVat.addEventListener('input', calculateExclVat);
         vatRate.addEventListener('change', calculateExclVat);
+        
+        // Quick customer add functionality
+        const saveCustomerBtn = document.getElementById('saveCustomerBtn');
+        const customerSuccessMessage = document.getElementById('customerSuccessMessage');
+        const customerErrorMessage = document.getElementById('customerErrorMessage');
+        const customerSelect = document.getElementById('customer_id');
+        
+        saveCustomerBtn.addEventListener('click', function() {
+            // Reset messages
+            customerSuccessMessage.classList.add('d-none');
+            customerErrorMessage.classList.add('d-none');
+            
+            // Get form data
+            const name = document.getElementById('modal_name').value;
+            const address = document.getElementById('modal_address').value;
+            const vatNumber = document.getElementById('modal_vat_number').value;
+            const email = document.getElementById('modal_email').value;
+            
+            // Simple validation
+            if (!name || !address || !email) {
+                customerErrorMessage.textContent = 'Vul alle verplichte velden in.';
+                customerErrorMessage.classList.remove('d-none');
+                return;
+            }
+            
+            // Prepare request data
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('address', address);
+            formData.append('vat_number', vatNumber);
+            formData.append('email', email);
+            
+            // Send AJAX request
+            fetch('{{ url_for("new_customer") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    customerSuccessMessage.classList.remove('d-none');
+                    
+                    // Add new customer to dropdown
+                    const option = document.createElement('option');
+                    option.value = data.customer.id;
+                    option.textContent = data.customer.name;
+                    option.selected = true;
+                    customerSelect.appendChild(option);
+                    
+                    // Reset form
+                    document.getElementById('quickCustomerForm').reset();
+                    
+                    // Close modal after 1.5 seconds
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('newCustomerModal'));
+                        modal.hide();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    customerErrorMessage.textContent = data.message || 'Er is een fout opgetreden.';
+                    customerErrorMessage.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                // Show error message
+                customerErrorMessage.textContent = 'Er is een fout opgetreden bij het verzenden van het verzoek.';
+                customerErrorMessage.classList.remove('d-none');
+                console.error('Error:', error);
+            });
+        });
     });
 </script>
 {% endblock %}

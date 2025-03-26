@@ -430,14 +430,20 @@ def new_customer():
         vat_number = request.form.get('vat_number')
         email = request.form.get('email')
         
+        # Check if request is coming from an AJAX call
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'json' in request.headers.get('Accept', '')
+        
         # Validate data
         if not all([name, address, email]):
-            flash('Name, address and email are required', 'danger')
-            return render_template(
-                'customer_form.html',
-                customer=request.form,
-                now=datetime.now()
-            )
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Naam, adres en e-mail zijn verplicht'})
+            else:
+                flash('Naam, adres en e-mail zijn verplicht', 'danger')
+                return render_template(
+                    'customer_form.html',
+                    customer=request.form,
+                    now=datetime.now()
+                )
         
         # Add customer
         try:
@@ -449,22 +455,37 @@ def new_customer():
             )
             
             if customer:
-                flash('Customer added successfully', 'success')
-                return redirect(url_for('customers_list'))
+                if is_ajax:
+                    return jsonify({'success': True, 'customer': customer})
+                else:
+                    flash('Klant is succesvol toegevoegd', 'success')
+                    return redirect(url_for('customers_list'))
             else:
-                flash('Failed to add customer', 'danger')
+                if is_ajax:
+                    return jsonify({'success': False, 'message': 'Kan klant niet toevoegen'})
+                else:
+                    flash('Kan klant niet toevoegen', 'danger')
         except ValueError as e:
-            flash(f'Invalid input: {str(e)}', 'danger')
+            if is_ajax:
+                return jsonify({'success': False, 'message': f'Ongeldige invoer: {str(e)}'})
+            else:
+                flash(f'Ongeldige invoer: {str(e)}', 'danger')
         
         # If we get here, there was an error
-        return render_template(
-            'customer_form.html',
-            customer=request.form,
-            now=datetime.now()
-        )
+        if not is_ajax:
+            return render_template(
+                'customer_form.html',
+                customer=request.form,
+                now=datetime.now()
+            )
+        # For AJAX request, error responses are already handled above
     
     # GET request - show the form
-    return render_template('customer_form.html', now=datetime.now())
+    return render_template(
+        'customer_form.html',
+        customer={},
+        now=datetime.now()
+    )
 
 @app.route('/customers/<customer_id>')
 def view_customer(customer_id):
