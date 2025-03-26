@@ -53,6 +53,7 @@ function setupInvoiceCalculations() {
     const amountInclVat = document.getElementById('amount_incl_vat');
     const amountExclVat = document.getElementById('amount_excl_vat');
     const vatRate = document.getElementById('vat_rate');
+    const customerSelect = document.getElementById('customer_id');
     
     if (amountInclVat && amountExclVat && vatRate) {
         // Calculate amount excluding VAT when inputs change
@@ -74,6 +75,31 @@ function setupInvoiceCalculations() {
         // Update on change
         amountInclVat.addEventListener('input', calculateExclVat);
         vatRate.addEventListener('change', calculateExclVat);
+    }
+    
+    // Auto-fill VAT rate when customer is selected
+    if (customerSelect && vatRate) {
+        customerSelect.addEventListener('change', function() {
+            // Get selected option
+            const selectedOption = this.options[this.selectedIndex];
+            // Get data-vat-rate attribute (default VAT rate for the customer)
+            const defaultVatRate = selectedOption.getAttribute('data-default-vat-rate');
+            
+            // Set VAT rate if available
+            if (defaultVatRate && defaultVatRate !== 'null' && defaultVatRate !== 'undefined') {
+                vatRate.value = defaultVatRate;
+                // Trigger calculation update
+                if (typeof calculateExclVat === 'function') {
+                    calculateExclVat();
+                }
+            }
+        });
+        
+        // Trigger change event if a customer is already selected on page load
+        if (customerSelect.value) {
+            const event = new Event('change');
+            customerSelect.dispatchEvent(event);
+        }
     }
 }
 
