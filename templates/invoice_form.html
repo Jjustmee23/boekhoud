@@ -20,7 +20,7 @@
                         <select name="customer_id" id="customer_id" class="form-select" required>
                             <option value="">-- Selecteer een klant --</option>
                             {% for customer in customers %}
-                                <option value="{{ customer.id }}" {% if invoice.customer_id == customer.id %}selected{% endif %}>
+                                <option value="{{ customer.id }}" data-default-vat-rate="{{ customer.default_vat_rate }}" {% if invoice.customer_id == customer.id %}selected{% endif %}>
                                     {{ customer.name }}
                                 </option>
                             {% endfor %}
@@ -217,128 +217,108 @@
 
 {% block scripts %}
 <script>
-    // VAT calculation script
     document.addEventListener('DOMContentLoaded', function() {
-        const amountInclVat = document.getElementById('amount_incl_vat');
-        const amountExclVat = document.getElementById('amount_excl_vat');
-        const vatRate = document.getElementById('vat_rate');
-        
-        // Calculate amount excluding VAT based on amount including VAT and VAT rate
-        function calculateExclVat() {
-            const inclVatValue = parseFloat(amountInclVat.value.replace(/[^0-9.]/g, '')) || 0;
-            const vatRateValue = parseFloat(vatRate.value) || 0;
-        
-            if (inclVatValue > 0) {
-                const exclVatValue = inclVatValue / (1 + (vatRateValue / 100));
-                amountExclVat.value = exclVatValue.toFixed(2);
-            } else {
-                amountExclVat.value = "0.00";
-            }
-        }
-        
-        // Initial calculation
-        calculateExclVat();
-        
-        // Update on change
-        amountInclVat.addEventListener('input', calculateExclVat);
-        vatRate.addEventListener('change', calculateExclVat);
-    });
+        // Initialize invoice calculations (BTW-tarieven, etc.)
+        setupInvoiceCalculations();
 
-    // Customer modal script
-    document.addEventListener('DOMContentLoaded', function() {
         // Setup the customer modal button
         const saveCustomerBtn = document.getElementById('saveCustomerBtn');
-        if (!saveCustomerBtn) return;
-        
-        const customerSuccessMessage = document.getElementById('customerSuccessMessage');
-        const customerErrorMessage = document.getElementById('customerErrorMessage');
-        const customerSelect = document.getElementById('customer_id');
-        
-        saveCustomerBtn.addEventListener('click', function() {
-            // Reset messages
-            customerSuccessMessage.classList.add('d-none');
-            customerErrorMessage.classList.add('d-none');
+        if (saveCustomerBtn) {
+            const customerSuccessMessage = document.getElementById('customerSuccessMessage');
+            const customerErrorMessage = document.getElementById('customerErrorMessage');
+            const customerSelect = document.getElementById('customer_id');
             
-            // Get form data
-            const companyName = document.getElementById('modal_company_name').value;
-            const firstName = document.getElementById('modal_first_name').value;
-            const lastName = document.getElementById('modal_last_name').value;
-            const vatNumber = document.getElementById('modal_vat_number').value;
-            const email = document.getElementById('modal_email').value;
-            const phone = document.getElementById('modal_phone').value;
-            const street = document.getElementById('modal_street').value;
-            const houseNumber = document.getElementById('modal_house_number').value;
-            const postalCode = document.getElementById('modal_postal_code').value;
-            const city = document.getElementById('modal_city').value;
-            const country = document.getElementById('modal_country').value;
-            const customerType = document.getElementById('modal_customer_type').value;
-            const defaultVatRate = document.getElementById('modal_default_vat_rate').value;
-            
-            // Simple validation
-            if (!companyName || !email || !street || !houseNumber || !postalCode || !city) {
-                customerErrorMessage.textContent = 'Vul alle verplichte velden in.';
-                customerErrorMessage.classList.remove('d-none');
-                return;
-            }
-            
-            // Prepare request data
-            const formData = new FormData();
-            formData.append('company_name', companyName);
-            formData.append('first_name', firstName);
-            formData.append('last_name', lastName);
-            formData.append('vat_number', vatNumber);
-            formData.append('email', email);
-            formData.append('phone', phone);
-            formData.append('street', street);
-            formData.append('house_number', houseNumber);
-            formData.append('postal_code', postalCode);
-            formData.append('city', city);
-            formData.append('country', country);
-            formData.append('customer_type', customerType);
-            formData.append('default_vat_rate', defaultVatRate);
-            
-            // Send AJAX request
-            fetch('{{ url_for("new_customer") }}', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    customerSuccessMessage.classList.remove('d-none');
-                    
-                    // Add new customer to dropdown
-                    const option = document.createElement('option');
-                    option.value = data.customer.id;
-                    option.textContent = data.customer.name;
-                    option.selected = true;
-                    customerSelect.appendChild(option);
-                    
-                    // Reset form
-                    document.getElementById('quickCustomerForm').reset();
-                    
-                    // Close modal after 1.5 seconds
-                    setTimeout(() => {
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('newCustomerModal'));
-                        if (modal) modal.hide();
-                    }, 1500);
-                } else {
-                    // Show error message
-                    customerErrorMessage.textContent = data.message || 'Er is een fout opgetreden.';
+            saveCustomerBtn.addEventListener('click', function() {
+                // Reset messages
+                customerSuccessMessage.classList.add('d-none');
+                customerErrorMessage.classList.add('d-none');
+                
+                // Get form data
+                const companyName = document.getElementById('modal_company_name').value;
+                const firstName = document.getElementById('modal_first_name').value;
+                const lastName = document.getElementById('modal_last_name').value;
+                const vatNumber = document.getElementById('modal_vat_number').value;
+                const email = document.getElementById('modal_email').value;
+                const phone = document.getElementById('modal_phone').value;
+                const street = document.getElementById('modal_street').value;
+                const houseNumber = document.getElementById('modal_house_number').value;
+                const postalCode = document.getElementById('modal_postal_code').value;
+                const city = document.getElementById('modal_city').value;
+                const country = document.getElementById('modal_country').value;
+                const customerType = document.getElementById('modal_customer_type').value;
+                const defaultVatRate = document.getElementById('modal_default_vat_rate').value;
+                
+                // Simple validation
+                if (!companyName || !email || !street || !houseNumber || !postalCode || !city) {
+                    customerErrorMessage.textContent = 'Vul alle verplichte velden in.';
                     customerErrorMessage.classList.remove('d-none');
+                    return;
                 }
-            })
-            .catch(error => {
-                // Show error message
-                customerErrorMessage.textContent = 'Er is een fout opgetreden bij het verzenden van het verzoek.';
-                customerErrorMessage.classList.remove('d-none');
-                console.error('Error:', error);
+                
+                // Prepare request data
+                const formData = new FormData();
+                formData.append('company_name', companyName);
+                formData.append('first_name', firstName);
+                formData.append('last_name', lastName);
+                formData.append('vat_number', vatNumber);
+                formData.append('email', email);
+                formData.append('phone', phone);
+                formData.append('street', street);
+                formData.append('house_number', houseNumber);
+                formData.append('postal_code', postalCode);
+                formData.append('city', city);
+                formData.append('country', country);
+                formData.append('customer_type', customerType);
+                formData.append('default_vat_rate', defaultVatRate);
+                
+                // Send AJAX request
+                fetch('{{ url_for("new_customer") }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        customerSuccessMessage.classList.remove('d-none');
+                        
+                        // Add new customer to dropdown with data-default-vat-rate attribute
+                        const option = document.createElement('option');
+                        option.value = data.customer.id;
+                        option.textContent = data.customer.name;
+                        option.setAttribute('data-default-vat-rate', data.customer.default_vat_rate || '');
+                        option.selected = true;
+                        customerSelect.appendChild(option);
+                        
+                        // Reset form
+                        document.getElementById('quickCustomerForm').reset();
+                        
+                        // Trigger change event to update VAT rate if needed
+                        const event = new Event('change');
+                        customerSelect.dispatchEvent(event);
+                        
+                        // Close modal after 1.5 seconds
+                        setTimeout(() => {
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('newCustomerModal'));
+                            if (modal) modal.hide();
+                        }, 1500);
+                    } else {
+                        // Show error message
+                        customerErrorMessage.textContent = data.message || 'Er is een fout opgetreden.';
+                        customerErrorMessage.classList.remove('d-none');
+                    }
+                })
+                .catch(error => {
+                    // Show error message
+                    customerErrorMessage.textContent = 'Er is een fout opgetreden bij het verzenden van het verzoek.';
+                    customerErrorMessage.classList.remove('d-none');
+                    console.error('Error:', error);
+                });
             });
-        });
+        }
     });
 </script>
 {% endblock %}
