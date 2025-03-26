@@ -75,14 +75,43 @@ class InvoiceDocument(Document):
         
     def get_customer_data(self):
         """Return customer data for creating a customer."""
-        # Only return customer data if we find a customer name and VAT number
+        # Only return customer data if we find a customer name
         if self.invoice_data.get('customer_name'):
-            return {
+            # Build a complete customer data structure based on all extracted info
+            customer_data = {
                 'name': self.invoice_data.get('customer_name', ''),
-                'address': self.invoice_data.get('customer_address', ''),
+                'group': self.invoice_data.get('customer_group', ''),
+                'street': self.invoice_data.get('customer_street', ''),
+                'postal_city': self.invoice_data.get('customer_postal_city', ''),
+                'country': self.invoice_data.get('customer_country', ''),
                 'vat_number': self.invoice_data.get('customer_vat_number', ''),
+                'iban': self.invoice_data.get('customer_iban', ''),
+                'bic': self.invoice_data.get('customer_bic', ''),
                 'email': self.invoice_data.get('customer_email', '')
             }
+            
+            # For backwards compatibility with existing code
+            if 'customer_address' in self.invoice_data:
+                # Only use the address if street/postal_city are not set
+                if not customer_data['street'] and not customer_data['postal_city']:
+                    address_lines = self.invoice_data['customer_address'].split('\n')
+                    if len(address_lines) >= 1:
+                        customer_data['street'] = address_lines[0]
+                    if len(address_lines) >= 2:
+                        customer_data['postal_city'] = address_lines[1]
+                        
+            # Add all fields in a readable address field for display purposes
+            address_parts = []
+            if customer_data['street']:
+                address_parts.append(customer_data['street'])
+            if customer_data['postal_city']:
+                address_parts.append(customer_data['postal_city'])
+            if customer_data['country']:
+                address_parts.append(customer_data['country'])
+                
+            customer_data['address'] = '\n'.join(address_parts)
+            
+            return customer_data
         return None
         
 class BankStatementDocument(Document):
@@ -415,12 +444,71 @@ class FileProcessor:
                         logger.info(f"Detected invoice date (method 3): {date_str}")
                         break
         
-        # Also store your own VAT number if found
-        if 'BE0537.664.664' in text or 'BE 0537.664.664' in text:
-            logger.info("Found company VAT number: BE0537664664")
-            # If we're identifying a customer, don't use our own VAT number
-            if not info.get('customer_vat_number'):
+        # Extract Hostio company information (supplier)
+        info['customer_name'] = 'Hostio Solutions'
+        
+        # Extract group information
+        if 'Access2.IT Group B.V.' in text:
+            info['customer_group'] = 'Access2.IT Group B.V.'
+            logger.info("Detected customer group: Access2.IT Group B.V.")
+        
+        # Extract address details
+        address_extracted = False
+        lines = text.split('\n')
+        for i, line in enumerate(lines):
+            if 'Curaçaostraat 11' in line:
+                info['customer_street'] = 'Curaçaostraat 11'
+                logger.info("Detected customer street: Curaçaostraat 11")
+                
+                # Next line likely has the postal code and city
+                if i + 1 < len(lines) and '1339KL Almere' in lines[i+1]:
+                    info['customer_postal_city'] = '1339KL Almere'
+                    logger.info("Detected customer postal code and city: 1339KL Almere")
+                    
+                # Next line after that likely has the country
+                if i + 2 < len(lines) and 'Netherlands' in lines[i+2]:
+                    info['customer_country'] = 'Netherlands'
+                    logger.info("Detected customer country: Netherlands")
+                    
+                address_extracted = True
+                break
+        
+        # Extract IBAN information
+        for line in lines:
+            if 'IBAN:' in line:
+                iban_match = re.search(r'IBAN:\s*([\w\s]+)', line)
+                if iban_match:
+                    info['customer_iban'] = iban_match.group(1).strip()
+                    logger.info(f"Detected customer IBAN: {info['customer_iban']}")
+        
+        # Extract BIC information
+        for line in lines:
+            if 'BIC/Swift:' in line:
+                bic_match = re.search(r'BIC/Swift:\s*(\w+)', line)
+                if bic_match:
+                    info['customer_bic'] = bic_match.group(1).strip()
+                    logger.info(f"Detected customer BIC: {info['customer_bic']}")
+        
+        # Extract VAT Number
+        for line in lines:
+            if 'VAT Number:' in line and not 'BE0537' in line:
+                vat_match = re.search(r'VAT Number:\s*([A-Za-z0-9]+)', line)
+                if vat_match:
+                    info['customer_vat_number'] = vat_match.group(1).strip()
+                    logger.info(f"Detected customer VAT number: {info['customer_vat_number']}")
+        
+        # Check if this is an invoice to our company
+        if 'nexon solutions' in text.lower() and 'BE0537.664.664' in text:
+            logger.info("This is an invoice TO our company FROM Hostio Solutions")
+            info['invoice_type'] = 'expense'
+            
+            # Store our own VAT number if found
+            if 'BE0537.664.664' in text or 'BE 0537.664.664' in text:
+                logger.info("Found company VAT number: BE0537664664")
                 info['own_vat_number'] = 'BE0537664664'
+        else:
+            logger.info("This is an invoice FROM our company TO another client")
+            info['invoice_type'] = 'income'
                 
         # Dump the full text for debugging
         logger.debug(f"Full invoice text for amount detection:\n{text}")
