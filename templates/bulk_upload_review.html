@@ -234,10 +234,18 @@
     }
     
     function validateForm(index) {
+        // Controleer console.log om te debuggen
+        console.log('Valideren voor index', index);
+        
+        // Form elementen gebruiken loop.index0 (beginnend bij 0)
         const amountInput = document.getElementById(`amount_incl_vat_${index}`);
         const customerSelect = document.getElementById(`customer_id_${index}`);
         const vatRateSelect = document.getElementById(`vat_rate_${index}`);
+        
+        // Status badge gebruikt loop.index (beginnend bij 1)
         const statusBadge = document.getElementById(`statusBadge${index+1}`);
+        
+        // Validatie bericht gebruikt loop.index0 (beginnend bij 0)
         const validationMsg = document.getElementById(`validationMsg${index}`);
         
         if (!amountInput || !customerSelect || !statusBadge || !validationMsg) {
@@ -289,16 +297,16 @@
         
         // Voeg event listeners toe voor validatie
         {% for preview in file_previews %}
-        const amountInput = document.getElementById('amount_incl_vat_{{ loop.index0 }}');
-        if (amountInput) {
-            amountInput.addEventListener('input', function() {
+        let inputElem = document.getElementById('amount_incl_vat_{{ loop.index0 }}');
+        if (inputElem) {
+            inputElem.addEventListener('input', function() {
                 validateForm({{ loop.index0 }});
             });
         }
         
-        const customerSelect = document.getElementById('customer_id_{{ loop.index0 }}');
-        if (customerSelect) {
-            customerSelect.addEventListener('change', function() {
+        let selectElem = document.getElementById('customer_id_{{ loop.index0 }}');
+        if (selectElem) {
+            selectElem.addEventListener('change', function() {
                 validateForm({{ loop.index0 }});
             });
         }
