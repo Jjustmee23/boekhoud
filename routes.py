@@ -2166,10 +2166,31 @@ def admin_create_user():
         flash('Gebruikersnaam of e-mailadres is al in gebruik', 'danger')
         return redirect(url_for('admin'))
     
+    # Handle workspace assignment
+    workspace_id = None
+    if current_user.is_super_admin:
+        # Super admins can assign to any workspace or none (for other super admins)
+        workspace_id = request.form.get('workspace_id')
+        if workspace_id:
+            workspace_id = int(workspace_id)
+    else:
+        # Regular admins can only create users in their workspace
+        workspace_id = current_user.workspace_id
+    
+    # Required password change
+    password_change_required = 'password_change_required' in request.form
+    
     # Create user
     try:
         from models import create_user
-        create_user(username, email, password, is_admin, is_super_admin)
+        user = create_user(username, email, password, is_admin, is_super_admin)
+        
+        # Update workspace and password change flag
+        if user:
+            user.workspace_id = workspace_id
+            user.password_change_required = password_change_required
+            db.session.commit()
+            
         flash(f'Gebruiker {username} is aangemaakt', 'success')
     except Exception as e:
         logging.error(f"Error creating user: {str(e)}")
@@ -2219,9 +2240,16 @@ def edit_user(user_id):
                     workspaces = Workspace.query.all()
                 return render_template('edit_user.html', user=user, workspaces=workspaces, now=datetime.now())
         
+        # Process workspace assignment for super admins
+        workspace_id = None
+        if current_user.is_super_admin:
+            workspace_id = request.form.get('workspace_id')
+            if workspace_id:
+                workspace_id = int(workspace_id)
+        
         # Update user
         try:
-            update_user(user_id, email, new_password if new_password else None, is_admin, is_super_admin)
+            update_user(user_id, email, new_password if new_password else None, is_admin, is_super_admin, workspace_id)
             flash(f'Gebruiker {user.username} is bijgewerkt', 'success')
             return redirect(url_for('admin'))
         except Exception as e:
