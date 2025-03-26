@@ -22,17 +22,18 @@
                         <input type="text" name="company_name" id="company_name" class="form-control" value="{{ customer.company_name }}" required>
                     </div>
                     <div class="col-md-6">
-                        <label for="vat_number" class="form-label">BTW-nummer</label>
+                        <label for="vat_number" class="form-label">BTW-nummer <span id="vat_required" class="text-danger" style="display:none">*</span></label>
                         <input type="text" name="vat_number" id="vat_number" class="form-control" value="{{ customer.vat_number }}" placeholder="BE0123456789">
                         <small class="form-text text-muted">Formaat: BE0123456789</small>
                     </div>
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label for="customer_type" class="form-label">Type klant</label>
-                        <select name="customer_type" id="customer_type" class="form-select">
+                        <label for="customer_type" class="form-label">Type</label>
+                        <select name="customer_type" id="customer_type" class="form-select" onchange="toggleVatNumberRequired()">
                             <option value="business" {% if customer.customer_type == 'business' %}selected{% endif %}>Bedrijf</option>
                             <option value="individual" {% if customer.customer_type == 'individual' %}selected{% endif %}>Particulier</option>
+                            <option value="supplier" {% if customer.customer_type == 'supplier' %}selected{% endif %}>Leverancier</option>
                         </select>
                     </div>
                     <div class="col-md-6">
@@ -115,4 +116,31 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Controleer de BTW-nummer verplichting wanneer de pagina laadt
+        toggleVatNumberRequired();
+    });
+
+    function toggleVatNumberRequired() {
+        const customerType = document.getElementById('customer_type').value;
+        const vatNumberInput = document.getElementById('vat_number');
+        const vatRequiredLabel = document.getElementById('vat_required');
+        
+        if (customerType === 'business' || customerType === 'supplier') {
+            vatNumberInput.setAttribute('required', '');
+            vatRequiredLabel.style.display = 'inline';
+        } else {
+            vatNumberInput.removeAttribute('required');
+            vatRequiredLabel.style.display = 'none';
+            // Voor particulieren, maak het BTW-veld leeg als er nog niks is ingevuld
+            if (customerType === 'individual' && vatNumberInput.value === '') {
+                vatNumberInput.value = '';
+            }
+        }
+    }
+</script>
 {% endblock %}
