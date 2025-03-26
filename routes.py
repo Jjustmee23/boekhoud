@@ -304,189 +304,323 @@ def new_invoice():
 
 @app.route('/invoices/<invoice_id>')
 def view_invoice(invoice_id):
-    invoice = get_invoice(invoice_id)
-    if not invoice:
-        flash('Invoice not found', 'danger')
+    try:
+        # Convert invoice_id from string to UUID if needed
+        if isinstance(invoice_id, str):
+            invoice_id = uuid.UUID(invoice_id)
+            
+        # Query the invoice from the database
+        invoice = Invoice.query.get(invoice_id)
+        if not invoice:
+            flash('Factuur niet gevonden', 'danger')
+            return redirect(url_for('invoices_list'))
+        
+        # Get the associated customer
+        customer = Customer.query.get(invoice.customer_id)
+        if not customer:
+            flash('Klant niet gevonden', 'danger')
+            return redirect(url_for('invoices_list'))
+        
+        # Convert to dictionary format for the template
+        invoice_dict = invoice.to_dict()
+        customer_dict = customer.to_dict()
+        
+        return render_template(
+            'invoice_detail.html',
+            invoice=invoice_dict,
+            customer=customer_dict,
+            format_currency=format_currency,
+            now=datetime.now()
+        )
+    except ValueError:
+        flash('Ongeldige factuur-ID', 'danger')
         return redirect(url_for('invoices_list'))
-    
-    customer = get_customer(invoice['customer_id'])
-    
-    return render_template(
-        'invoice_detail.html',
-        invoice=invoice,
-        customer=customer,
-        format_currency=format_currency,
-        now=datetime.now()
-    )
 
 @app.route('/invoices/<invoice_id>/edit', methods=['GET', 'POST'])
 def edit_invoice(invoice_id):
-    invoice = get_invoice(invoice_id)
-    if not invoice:
-        flash('Invoice not found', 'danger')
-        return redirect(url_for('invoices_list'))
-    
-    if request.method == 'POST':
-        # Get form data
-        customer_id = request.form.get('customer_id')
-        date = request.form.get('date')
-        invoice_type = request.form.get('type')
-        amount_incl_vat = request.form.get('amount_incl_vat')
-        vat_rate = request.form.get('vat_rate')
-        invoice_number = request.form.get('invoice_number')  # Optional
+    try:
+        # Convert invoice_id from string to UUID if needed
+        if isinstance(invoice_id, str):
+            invoice_id = uuid.UUID(invoice_id)
+            
+        # Query the invoice from the database
+        invoice = Invoice.query.get(invoice_id)
+        if not invoice:
+            flash('Factuur niet gevonden', 'danger')
+            return redirect(url_for('invoices_list'))
         
-        # Validate data
-        if not all([customer_id, date, invoice_type, amount_incl_vat, vat_rate]):
-            flash('All fields are required', 'danger')
-            customers_data = get_customers()
+        if request.method == 'POST':
+            # Get form data
+            customer_id = request.form.get('customer_id')
+            date_str = request.form.get('date')
+            invoice_type = request.form.get('type')
+            amount_incl_vat = request.form.get('amount_incl_vat')
+            vat_rate = request.form.get('vat_rate')
+            invoice_number = request.form.get('invoice_number')  # Optional
+            
+            # Validate data
+            if not all([customer_id, date_str, invoice_type, amount_incl_vat, vat_rate]):
+                flash('Alle velden zijn verplicht', 'danger')
+                customers_query = Customer.query.all()
+                customers_data = [customer.to_dict() for customer in customers_query]
+                return render_template(
+                    'invoice_form.html',
+                    invoice=invoice.to_dict(),
+                    customers=customers_data,
+                    vat_rates=get_vat_rates(),
+                    edit_mode=True,
+                    now=datetime.now()
+                )
+            
+            try:
+                # Convert customer_id to UUID
+                if isinstance(customer_id, str):
+                    customer_id = uuid.UUID(customer_id)
+                    
+                # Convert date string to date object
+                date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                
+                # Parse amounts
+                amount_incl_vat_float = float(amount_incl_vat)
+                vat_rate_float = float(vat_rate)
+                
+                # Calculate amounts
+                amount_incl_vat_decimal = Decimal(str(amount_incl_vat_float))
+                vat_rate_decimal = Decimal(str(vat_rate_float))
+                vat_amount = amount_incl_vat_decimal - (amount_incl_vat_decimal / (1 + vat_rate_decimal / 100))
+                amount_excl_vat = amount_incl_vat_decimal - vat_amount
+                
+                # Handle file upload
+                file_path = invoice.file_path  # Keep existing file path by default
+                if 'invoice_file' in request.files:
+                    file = request.files['invoice_file']
+                    if file and file.filename and allowed_file(file.filename):
+                        # Replace the old file with the new one
+                        new_file_path = save_uploaded_file(file)
+                        if new_file_path:
+                            file_path = new_file_path
+                        else:
+                            flash('Bestand uploaden mislukt', 'warning')
+                    elif file and file.filename:
+                        flash('Alleen PDF, PNG, JPG en JPEG bestanden zijn toegestaan', 'warning')
+                
+                # Check for duplicate invoice number if changed
+                if invoice_number and invoice_number != invoice.invoice_number:
+                    existing_invoice = Invoice.query.filter_by(invoice_number=invoice_number).first()
+                    if existing_invoice and existing_invoice.id != invoice_id:
+                        duplicate_id = existing_invoice.id
+                        flash(f'Factuur met dit nummer bestaat al. <a href="{url_for("view_invoice", invoice_id=duplicate_id)}">Bekijk dubbele factuur</a>', 'warning')
+                        customers_query = Customer.query.all()
+                        customers_data = [customer.to_dict() for customer in customers_query]
+                        return render_template(
+                            'invoice_form.html',
+                            invoice=invoice.to_dict(),
+                            customers=customers_data,
+                            vat_rates=get_vat_rates(),
+                            edit_mode=True,
+                            now=datetime.now()
+                        )
+                
+                # Check if customer exists
+                customer = Customer.query.get(customer_id)
+                if not customer:
+                    flash('Klant niet gevonden', 'danger')
+                    customers_query = Customer.query.all()
+                    customers_data = [customer.to_dict() for customer in customers_query]
+                    return render_template(
+                        'invoice_form.html',
+                        invoice=invoice.to_dict(),
+                        customers=customers_data,
+                        vat_rates=get_vat_rates(),
+                        edit_mode=True,
+                        now=datetime.now()
+                    )
+                
+                # Update invoice attributes
+                invoice.invoice_number = invoice_number
+                invoice.customer_id = customer_id
+                invoice.date = date
+                invoice.invoice_type = invoice_type
+                invoice.amount_excl_vat = float(amount_excl_vat)
+                invoice.amount_incl_vat = amount_incl_vat_float
+                invoice.vat_rate = vat_rate_float
+                invoice.vat_amount = float(vat_amount)
+                invoice.file_path = file_path
+                
+                # Save changes to database
+                db.session.commit()
+                
+                flash('Factuur succesvol bijgewerkt', 'success')
+                return redirect(url_for('view_invoice', invoice_id=invoice_id))
+                
+            except ValueError as e:
+                db.session.rollback()
+                flash(f'Ongeldige invoer: {str(e)}', 'danger')
+                logging.error(f"Error updating invoice: {str(e)}")
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Fout bij het bijwerken van de factuur: {str(e)}', 'danger')
+                logging.error(f"Error updating invoice: {str(e)}")
+            
+            # If we get here, there was an error
+            customers_query = Customer.query.all()
+            customers_data = [customer.to_dict() for customer in customers_query]
             return render_template(
                 'invoice_form.html',
-                invoice=invoice,
+                invoice=request.form,
                 customers=customers_data,
                 vat_rates=get_vat_rates(),
                 edit_mode=True,
                 now=datetime.now()
             )
         
-        # Handle file upload
-        file_path = invoice.get('file_path')  # Keep existing file path by default
-        if 'invoice_file' in request.files:
-            file = request.files['invoice_file']
-            if file and file.filename and allowed_file(file.filename):
-                # Replace the old file with the new one
-                new_file_path = save_uploaded_file(file)
-                if new_file_path:
-                    file_path = new_file_path
-                else:
-                    flash('Failed to upload file', 'warning')
-            elif file and file.filename:
-                flash('Only PDF, PNG, JPG and JPEG files are allowed', 'warning')
+        # GET request - show the form
+        customers_query = Customer.query.all()
+        customers_data = [customer.to_dict() for customer in customers_query]
         
-        # Update invoice
-        try:
-            updated_invoice, message, duplicate_id = update_invoice(
-                invoice_id=invoice_id,
-                customer_id=customer_id,
-                date=date,
-                invoice_type=invoice_type,
-                amount_incl_vat=float(amount_incl_vat),
-                vat_rate=float(vat_rate),
-                invoice_number=invoice_number if invoice_number else None,
-                file_path=file_path
-            )
-            
-            if updated_invoice:
-                flash(message, 'success')
-                return redirect(url_for('view_invoice', invoice_id=invoice_id))
-            else:
-                if duplicate_id:
-                    flash(f'{message}. <a href="{url_for("view_invoice", invoice_id=duplicate_id)}">View duplicate</a>', 'warning')
-                else:
-                    flash(message, 'danger')
-        except ValueError as e:
-            flash(f'Invalid input: {str(e)}', 'danger')
+        # Convert invoice to dictionary for template
+        invoice_dict = invoice.to_dict()
         
-        # If we get here, there was an error
-        customers_data = get_customers()
         return render_template(
             'invoice_form.html',
-            invoice=request.form,
+            invoice=invoice_dict,
             customers=customers_data,
             vat_rates=get_vat_rates(),
             edit_mode=True,
             now=datetime.now()
         )
-    
-    # GET request - show the form
-    customers_data = get_customers()
-    return render_template(
-        'invoice_form.html',
-        invoice=invoice,
-        customers=customers_data,
-        vat_rates=get_vat_rates(),
-        edit_mode=True,
-        now=datetime.now()
-    )
+    except ValueError:
+        flash('Ongeldige factuur-ID', 'danger')
+        return redirect(url_for('invoices_list'))
 
 @app.route('/invoices/<invoice_id>/delete', methods=['POST'])
 def delete_invoice_route(invoice_id):
-    success, message = delete_invoice(invoice_id)
-    if success:
-        flash(message, 'success')
-    else:
-        flash(message, 'danger')
+    try:
+        # Convert invoice_id from string to UUID if needed
+        if isinstance(invoice_id, str):
+            invoice_id = uuid.UUID(invoice_id)
+            
+        # Query the invoice from the database
+        invoice = Invoice.query.get(invoice_id)
+        if not invoice:
+            flash('Factuur niet gevonden', 'danger')
+            return redirect(url_for('invoices_list'))
+        
+        # Delete the invoice from the database
+        db.session.delete(invoice)
+        db.session.commit()
+        
+        flash('Factuur succesvol verwijderd', 'success')
+    except ValueError:
+        flash('Ongeldige factuur-ID', 'danger')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Fout bij het verwijderen van de factuur: {str(e)}', 'danger')
+        logging.error(f"Error deleting invoice: {str(e)}")
+    
     return redirect(url_for('invoices_list'))
 
 @app.route('/invoices/<invoice_id>/pdf')
 def generate_invoice_pdf(invoice_id):
-    invoice = get_invoice(invoice_id)
-    if not invoice:
-        flash('Invoice not found', 'danger')
+    try:
+        # Convert invoice_id from string to UUID if needed
+        if isinstance(invoice_id, str):
+            invoice_id = uuid.UUID(invoice_id)
+            
+        # Query the invoice from the database
+        invoice = Invoice.query.get(invoice_id)
+        if not invoice:
+            flash('Factuur niet gevonden', 'danger')
+            return redirect(url_for('invoices_list'))
+        
+        # Get the associated customer
+        customer = Customer.query.get(invoice.customer_id)
+        if not customer:
+            flash('Klant niet gevonden', 'danger')
+            return redirect(url_for('invoices_list'))
+        
+        # Convert to dictionary format for the PDF generation
+        invoice_dict = invoice.to_dict()
+        customer_dict = customer.to_dict()
+        
+        # Generate PDF
+        pdf_path = generate_pdf_invoice(invoice_dict, customer_dict)
+        
+        # Filename for download
+        filename = f"Factuur-{invoice.invoice_number}.pdf"
+        
+        # Send file and then delete it after sending
+        return send_file(
+            pdf_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+    except ValueError:
+        flash('Ongeldige factuur-ID', 'danger')
         return redirect(url_for('invoices_list'))
-    
-    customer = get_customer(invoice['customer_id'])
-    if not customer:
-        flash('Customer not found', 'danger')
-        return redirect(url_for('invoices_list'))
-    
-    # Generate PDF
-    pdf_path = generate_pdf_invoice(invoice, customer)
-    
-    # Filename for download
-    filename = f"Invoice-{invoice['invoice_number']}.pdf"
-    
-    # Send file and then delete it after sending
-    return send_file(
-        pdf_path,
-        as_attachment=True,
-        download_name=filename,
-        mimetype='application/pdf'
-    )
+    except Exception as e:
+        flash(f'Fout bij het genereren van PDF: {str(e)}', 'danger')
+        logging.error(f"Error generating PDF invoice: {str(e)}")
+        return redirect(url_for('view_invoice', invoice_id=invoice_id))
 
 @app.route('/invoices/<invoice_id>/attachment')
 def view_invoice_attachment(invoice_id):
-    invoice = get_invoice(invoice_id)
-    if not invoice:
-        flash('Invoice not found', 'danger')
+    try:
+        # Convert invoice_id from string to UUID if needed
+        if isinstance(invoice_id, str):
+            invoice_id = uuid.UUID(invoice_id)
+            
+        # Query the invoice from the database
+        invoice = Invoice.query.get(invoice_id)
+        if not invoice:
+            flash('Factuur niet gevonden', 'danger')
+            return redirect(url_for('invoices_list'))
+        
+        # Check if invoice has a file attached
+        if not invoice.file_path:
+            flash('Deze factuur heeft geen bijlage', 'warning')
+            return redirect(url_for('view_invoice', invoice_id=invoice_id))
+        
+        # Get the file extension to determine mime type
+        file_ext = os.path.splitext(invoice.file_path)[1].lower()
+        
+        # Set mime type based on extension
+        if file_ext in ['.jpg', '.jpeg']:
+            mime_type = 'image/jpeg'
+        elif file_ext == '.png':
+            mime_type = 'image/png'
+        elif file_ext == '.pdf':
+            mime_type = 'application/pdf'
+        else:
+            mime_type = 'application/octet-stream'  # Generic binary
+        
+        # Create the full file path
+        full_file_path = os.path.join('static', invoice.file_path)
+        
+        # Check if file exists
+        if not os.path.exists(full_file_path):
+            flash('Het bijgevoegde bestand kon niet worden gevonden', 'danger')
+            return redirect(url_for('view_invoice', invoice_id=invoice_id))
+        
+        # Get filename for download
+        filename = os.path.basename(invoice.file_path)
+        
+        # Send the file for viewing or download
+        download = request.args.get('download', '0') == '1'
+        return send_file(
+            full_file_path,
+            as_attachment=download,
+            download_name=filename,
+            mimetype=mime_type
+        )
+    except ValueError:
+        flash('Ongeldige factuur-ID', 'danger')
         return redirect(url_for('invoices_list'))
-    
-    # Check if invoice has a file attached
-    if not invoice.get('file_path'):
-        flash('This invoice has no file attached', 'warning')
+    except Exception as e:
+        flash(f'Fout bij het weergeven van de bijlage: {str(e)}', 'danger')
+        logging.error(f"Error viewing invoice attachment: {str(e)}")
         return redirect(url_for('view_invoice', invoice_id=invoice_id))
-    
-    # Get the file extension to determine mime type
-    file_ext = os.path.splitext(invoice['file_path'])[1].lower()
-    
-    # Set mime type based on extension
-    if file_ext in ['.jpg', '.jpeg']:
-        mime_type = 'image/jpeg'
-    elif file_ext == '.png':
-        mime_type = 'image/png'
-    elif file_ext == '.pdf':
-        mime_type = 'application/pdf'
-    else:
-        mime_type = 'application/octet-stream'  # Generic binary
-    
-    # Create the full file path
-    full_file_path = os.path.join('static', invoice['file_path'])
-    
-    # Check if file exists
-    if not os.path.exists(full_file_path):
-        flash('The attached file could not be found', 'danger')
-        return redirect(url_for('view_invoice', invoice_id=invoice_id))
-    
-    # Get filename for download
-    filename = os.path.basename(invoice['file_path'])
-    
-    # Send the file for viewing or download
-    download = request.args.get('download', '0') == '1'
-    return send_file(
-        full_file_path,
-        as_attachment=download,
-        download_name=filename,
-        mimetype=mime_type
-    )
 
 # Customer management routes
 @app.route('/customers')
