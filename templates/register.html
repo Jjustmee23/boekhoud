@@ -35,9 +35,68 @@
                             <label for="confirm_password" class="form-label">Bevestig wachtwoord</label>
                             <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
                         </div>
+                        
+                        <hr class="my-4">
+                        <h5>Werkruimte</h5>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="workspace_option" id="join_workspace" value="join" checked>
+                                <label class="form-check-label" for="join_workspace">
+                                    Sluit aan bij een bestaande werkruimte
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="workspace_option" id="create_workspace" value="create">
+                                <label class="form-check-label" for="create_workspace">
+                                    Maak een nieuwe werkruimte aan
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div id="join_workspace_section" class="mb-3">
+                            <label for="workspace_id" class="form-label">Selecteer werkruimte</label>
+                            <select class="form-select" id="workspace_id" name="workspace_id">
+                                {% for workspace in workspaces %}
+                                <option value="{{ workspace.id }}">{{ workspace.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div id="create_workspace_section" class="mb-3 d-none">
+                            <label for="workspace_name" class="form-label">Werkruimte naam</label>
+                            <input type="text" class="form-control" id="workspace_name" name="workspace_name">
+                            
+                            <label for="workspace_description" class="form-label mt-2">Werkruimte beschrijving</label>
+                            <textarea class="form-control" id="workspace_description" name="workspace_description" rows="2"></textarea>
+                        </div>
+                        
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">Registreren</button>
                         </div>
+                        
+                        <script>
+                            // Toggle workspace sections based on selection
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const joinWorkspaceRadio = document.getElementById('join_workspace');
+                                const createWorkspaceRadio = document.getElementById('create_workspace');
+                                const joinSection = document.getElementById('join_workspace_section');
+                                const createSection = document.getElementById('create_workspace_section');
+                                
+                                function toggleSections() {
+                                    if (joinWorkspaceRadio.checked) {
+                                        joinSection.classList.remove('d-none');
+                                        createSection.classList.add('d-none');
+                                    } else {
+                                        joinSection.classList.add('d-none');
+                                        createSection.classList.remove('d-none');
+                                    }
+                                }
+                                
+                                joinWorkspaceRadio.addEventListener('change', toggleSections);
+                                createWorkspaceRadio.addEventListener('change', toggleSections);
+                            });
+                        </script>
                     </form>
                     
                     <div class="text-center mt-3">

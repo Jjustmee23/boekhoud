@@ -20,6 +20,15 @@
                     
                     <form method="POST" action="{{ url_for('login') }}">
                         <div class="mb-3">
+                            <label for="workspace" class="form-label">Werkruimte</label>
+                            <select class="form-select" id="workspace" name="workspace_id" required>
+                                {% for workspace in workspaces %}
+                                <option value="{{ workspace.id }}">{{ workspace.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Selecteer uw werkruimte om in te loggen.</div>
+                        </div>
+                        <div class="mb-3">
                             <label for="username" class="form-label">Gebruikersnaam</label>
                             <input type="text" class="form-control" id="username" name="username" required autofocus>
                         </div>

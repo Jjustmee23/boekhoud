@@ -7,7 +7,7 @@ from flask import render_template, request, redirect, url_for, flash, send_file,
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 from models import (
-    Customer, Invoice, User, get_next_invoice_number, check_duplicate_invoice, add_invoice,
+    Customer, Invoice, User, Workspace, get_next_invoice_number, check_duplicate_invoice, add_invoice,
     calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary,
     get_users, get_user, create_user, update_user, delete_user
 )
@@ -29,21 +29,33 @@ def login():
         # Get form data
         username = request.form.get('username')
         password = request.form.get('password')
+        workspace_id = request.form.get('workspace_id')
         remember = request.form.get('remember', 'false') == 'true'
         
         # Validate input
-        if not username or not password:
-            flash('Gebruikersnaam en wachtwoord zijn verplicht', 'danger')
-            return render_template('login.html', now=datetime.now())
+        if not username or not password or not workspace_id:
+            flash('Gebruikersnaam, wachtwoord en werkruimte zijn verplicht', 'danger')
+            return render_template('login.html', workspaces=Workspace.query.all(), now=datetime.now())
         
-        # Find user
-        user = User.query.filter_by(username=username).first()
+        # Find user by username in the selected workspace
+        user = User.query.filter_by(username=username, workspace_id=workspace_id).first()
+        
+        # If not found in regular workspace, check if they're a super admin
+        if not user:
+            super_admin = User.query.filter_by(username=username, is_super_admin=True).first()
+            if super_admin and super_admin.check_password(password):
+                user = super_admin
         
         # Check if user exists and password is correct
         if user and user.check_password(password):
             # Log in user
             login_user(user, remember=remember)
             flash(f'Welkom terug, {user.username}!', 'success')
+            
+            # Check if password change is required (e.g., first login)
+            if user.password_change_required:
+                flash('Je moet je wachtwoord wijzigen voordat je verder kunt gaan.', 'warning')
+                return redirect(url_for('profile'))
             
             # Redirect to requested page or dashboard
             next_page = request.args.get('next')
@@ -52,11 +64,12 @@ def login():
             else:
                 return redirect(url_for('dashboard'))
         else:
-            flash('Ongeldige gebruikersnaam of wachtwoord', 'danger')
-            return render_template('login.html', now=datetime.now())
+            flash('Ongeldige gebruikersnaam, wachtwoord of werkruimte', 'danger')
+            return render_template('login.html', workspaces=Workspace.query.all(), now=datetime.now())
     
-    # GET request - show login form
-    return render_template('login.html', now=datetime.now())
+    # GET request - show login form with workspaces
+    workspaces = Workspace.query.all()
+    return render_template('login.html', workspaces=workspaces, now=datetime.now())
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -70,35 +83,65 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
+        workspace_option = request.form.get('workspace_option')
         
         # Validate input
-        if not all([username, email, password, confirm_password]):
+        if not all([username, email, password, confirm_password, workspace_option]):
             flash('Alle velden zijn verplicht', 'danger')
-            return render_template('register.html', now=datetime.now())
+            return render_template('register.html', workspaces=Workspace.query.all(), now=datetime.now())
         
         if password != confirm_password:
             flash('Wachtwoorden komen niet overeen', 'danger')
-            return render_template('register.html', now=datetime.now())
+            return render_template('register.html', workspaces=Workspace.query.all(), now=datetime.now())
         
-        # Check if username or email already exists
+        # Determine workspace
+        workspace_id = None
+        if workspace_option == 'join':
+            workspace_id = request.form.get('workspace_id')
+            if not workspace_id:
+                flash('Selecteer een werkruimte om bij aan te sluiten', 'danger')
+                return render_template('register.html', workspaces=Workspace.query.all(), now=datetime.now())
+        elif workspace_option == 'create':
+            workspace_name = request.form.get('workspace_name')
+            workspace_description = request.form.get('workspace_description')
+            if not workspace_name:
+                flash('Werkruimte naam is verplicht', 'danger')
+                return render_template('register.html', workspaces=Workspace.query.all(), now=datetime.now())
+            
+            # Check if workspace name already exists
+            existing_workspace = Workspace.query.filter_by(name=workspace_name).first()
+            if existing_workspace:
+                flash('Deze werkruimte naam is al in gebruik', 'danger')
+                return render_template('register.html', workspaces=Workspace.query.all(), now=datetime.now())
+            
+            # Create new workspace
+            new_workspace = Workspace(name=workspace_name, description=workspace_description)
+            db.session.add(new_workspace)
+            db.session.flush()  # This assigns an ID to new_workspace without committing
+            workspace_id = new_workspace.id
+        
+        # Check if username or email already exists in the selected workspace
         existing_user = User.query.filter(
-            (User.username == username) | (User.email == email)
+            (User.username == username) & (User.workspace_id == workspace_id) | 
+            (User.email == email) & (User.workspace_id == workspace_id)
         ).first()
         
         if existing_user:
             if existing_user.username == username:
-                flash('Deze gebruikersnaam is al in gebruik', 'danger')
+                flash('Deze gebruikersnaam is al in gebruik binnen deze werkruimte', 'danger')
             else:
-                flash('Dit e-mailadres is al in gebruik', 'danger')
-            return render_template('register.html', now=datetime.now())
+                flash('Dit e-mailadres is al in gebruik binnen deze werkruimte', 'danger')
+            return render_template('register.html', workspaces=Workspace.query.all(), now=datetime.now())
         
         # Create new user
-        new_user = User(username=username, email=email)
+        new_user = User(username=username, email=email, workspace_id=workspace_id)
         new_user.set_password(password)
         
-        # Set first user as admin
-        if User.query.count() == 0:
+        # Set first user of a workspace as admin
+        if User.query.filter_by(workspace_id=workspace_id).count() == 0:
             new_user.is_admin = True
+            # Password change required on first login
+            new_user.password_change_required = True
         
         # Save to database
         try:
@@ -110,10 +153,11 @@ def register():
             db.session.rollback()
             logging.error(f"Error creating user: {str(e)}")
             flash('Er is een fout opgetreden bij het aanmaken van je account.', 'danger')
-            return render_template('register.html', now=datetime.now())
+            return render_template('register.html', workspaces=Workspace.query.all(), now=datetime.now())
     
-    # GET request - show registration form
-    return render_template('register.html', now=datetime.now())
+    # GET request - show registration form with workspaces
+    workspaces = Workspace.query.all()
+    return render_template('register.html', workspaces=workspaces, now=datetime.now())
 
 @app.route('/logout')
 @login_required
