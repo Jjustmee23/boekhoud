@@ -441,10 +441,11 @@ class FileProcessor:
         if is_invoice:
             # Extract invoice number
             invoice_number_patterns = [
+                r'invoice\s*#(\d{4}-[A-Za-z]{2}-\d+)',  # Format like #2024-HS-1430
+                r'invoice\s*#\s*([A-Za-z0-9\-\_\/\.]+)',
                 r'factuurnr\.?\s*[:.\-]\s*([A-Za-z0-9\-\_\/\.]+)',
                 r'factuurnummer\s*[:.\-]\s*([A-Za-z0-9\-\_\/\.]+)',
                 r'invoice\s*number\s*[:.\-]\s*([A-Za-z0-9\-\_\/\.]+)',
-                r'invoice\s*#\s*([A-Za-z0-9\-\_\/\.]+)',
                 r'invoice\s*no\.?\s*[:.\-]?\s*([A-Za-z0-9\-\_\/\.]+)',
                 r'factuur\s*#\s*([A-Za-z0-9\-\_\/\.]+)',
                 r'factuurnummer\s*(\d+)',
@@ -465,10 +466,14 @@ class FileProcessor:
                 
             # Extract date
             date_patterns = [
-                r'datum\s*[:.\-]\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
-                r'date\s*[:.\-]\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
-                r'factuurdatum\s*[:.\-]\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
-                r'invoice\s*date\s*[:.\-]\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})'
+                r'invoice\s*date:?\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
+                r'factuurdatum:?\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
+                r'datum:?\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
+                r'date:?\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
+                r'invoice\s*date:?\s*([a-zA-Z]+\s+\d{1,2},?\s*\d{4})',
+                r'factuurdatum:?\s*([a-zA-Z]+\s+\d{1,2},?\s*\d{4})',
+                r'datum:?\s*([a-zA-Z]+\s+\d{1,2},?\s*\d{4})',
+                r'date:?\s*([a-zA-Z]+\s+\d{1,2},?\s*\d{4})'
             ]
             
             invoice_date = None
@@ -485,21 +490,23 @@ class FileProcessor:
                         
             # Extract amount
             amount_patterns = [
-                r'totaal\s*(?:incl\.?\s*btw)?\s*[:.\-€]\s*([0-9.,]+)',
-                r'total\s*(?:incl\.?\s*vat)?\s*[:.\-€]\s*([0-9.,]+)',
-                r'te\s*betalen\s*[:.\-€]\s*([0-9.,]+)',
-                r'amount\s*due\s*[:.\-€]\s*([0-9.,]+)',
-                r'totaal\s*bedrag\s*[:.\-€]\s*([0-9.,]+)',
-                r'total\s*amount\s*[:.\-€]\s*([0-9.,]+)',
-                r'eindtotaal\s*[:.\-€]\s*([0-9.,]+)',
-                r'€\s*([0-9.,]+)'
+                r'total\s*(?:incl\.?\s*vat)?\s*[:,.\-€]\s*([0-9.,€]+)\s*(?:eur|euro)?',
+                r'totaal\s*(?:incl\.?\s*btw)?\s*[:,.\-€]\s*([0-9.,€]+)\s*(?:eur|euro)?',
+                r'te\s*betalen\s*[:,.\-€]\s*([0-9.,€]+)\s*(?:eur|euro)?',
+                r'amount\s*due\s*[:,.\-€]\s*([0-9.,€]+)\s*(?:eur|euro)?',
+                r'totaal\s*bedrag\s*[:,.\-€]\s*([0-9.,€]+)\s*(?:eur|euro)?',
+                r'total\s*amount\s*[:,.\-€]\s*([0-9.,€]+)\s*(?:eur|euro)?',
+                r'eindtotaal\s*[:,.\-€]\s*([0-9.,€]+)\s*(?:eur|euro)?',
+                r'€\s*([0-9.,]+)\s*(?:eur|euro)?',
+                r'([0-9.]+,[0-9]{2})\s*(?:eur|euro)',
+                r'([0-9]+\.[0-9]{2})\s*(?:eur|euro)'
             ]
             
             amount_incl_vat = None
             for pattern in amount_patterns:
                 match = re.search(pattern, lower_text, re.IGNORECASE)
                 if match:
-                    amount_str = match.group(1).strip().replace('.', '').replace(',', '.')
+                    amount_str = match.group(1).strip().replace('€', '').replace('.', '').replace(',', '.')
                     try:
                         amount_incl_vat = float(amount_str)
                         info['amount_incl_vat'] = amount_incl_vat
@@ -577,6 +584,19 @@ class FileProcessor:
                     customer_name = match.group(1).strip()
                     info['customer_name'] = customer_name
                     break
+                    
+            # Special case: Look for "Invoiced To" section which is common in invoices
+            if not customer_name:
+                invoiced_to_match = re.search(r'invoiced\s+to\s*\n(.*?)(?:\n\n|\n[A-Z])', text, re.IGNORECASE | re.DOTALL)
+                if invoiced_to_match:
+                    customer_info = invoiced_to_match.group(1).strip()
+                    # The first line is usually the customer name
+                    lines = customer_info.split('\n')
+                    if lines:
+                        info['customer_name'] = lines[0].strip()
+                        # If there are more lines, use them as address
+                        if len(lines) > 1:
+                            info['customer_address'] = '\n'.join(lines[1:]).strip()
                     
             # Extract VAT number
             customer_vat = None

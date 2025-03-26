@@ -1051,6 +1051,19 @@ def extract_invoice_data():
                 if found_customer:
                     customer_id = found_customer.get('id')
                     extracted_data['customer_id'] = customer_id
+                # If no customer found but we have customer data, we'll create a new one
+                elif customer_data.get('name') and customer_data.get('vat_number'):
+                    # Create a new customer
+                    new_customer = add_customer(
+                        name=customer_data.get('name'),
+                        address=customer_data.get('address', 'Automatisch gedetecteerd'),
+                        vat_number=customer_data.get('vat_number'),
+                        email=customer_data.get('email', f"info@{re.sub(r'[^a-z0-9]', '', customer_data.get('name', '').lower())}.com")
+                    )
+                    customer_id = new_customer.get('id')
+                    extracted_data['customer_id'] = customer_id
+                    # Add a flag to show this was automatically created
+                    extracted_data['new_customer_created'] = True
         
         # If we have any data, return success
         if extracted_data:
