@@ -1318,7 +1318,7 @@ def bulk_upload_results():
     }
     
     # Get customers for displaying names instead of IDs
-    customers_dict = {c['id']: c for c in get_customers()}
+    customers_dict = {c['id']: c for c in [customer.to_dict() for customer in Customer.query.all()]}
     
     # Enrich invoice data with customer names
     for invoice in results.get('recognized_invoices', []):
