@@ -182,90 +182,97 @@
         amountInclVat.addEventListener('input', calculateExclVat);
         vatRate.addEventListener('change', calculateExclVat);
         
-        // Quick customer add functionality - setup when DOM is loaded
-        setupCustomerModal();
-        
-        function setupCustomerModal() {
-            // Get elements
-            const saveCustomerBtn = document.getElementById('saveCustomerBtn');
+        // Setup customer modal when the DOM is fully loaded
+        // Use window.onload to ensure all resources are loaded
+        window.onload = function() {
+            // Wait until modal is in the DOM
+            const newCustomerModal = document.getElementById('newCustomerModal');
+            if (!newCustomerModal) return;
             
-            // If button doesn't exist yet (modal not in DOM), exit
-            if (!saveCustomerBtn) return;
-            
-            // Get other elements
-            const customerSuccessMessage = document.getElementById('customerSuccessMessage');
-            const customerErrorMessage = document.getElementById('customerErrorMessage');
-            const customerSelect = document.getElementById('customer_id');
-            
-            // Add click event
-            saveCustomerBtn.addEventListener('click', function() {
-                // Reset messages
-                customerSuccessMessage.classList.add('d-none');
-                customerErrorMessage.classList.add('d-none');
-                
-                // Get form data
-                const name = document.getElementById('modal_name').value;
-                const address = document.getElementById('modal_address').value;
-                const vatNumber = document.getElementById('modal_vat_number').value;
-                const email = document.getElementById('modal_email').value;
-                
-                // Simple validation
-                if (!name || !address || !email) {
-                    customerErrorMessage.textContent = 'Vul alle verplichte velden in.';
-                    customerErrorMessage.classList.remove('d-none');
-                    return;
-                }
-                
-                // Prepare request data
-                const formData = new FormData();
-                formData.append('name', name);
-                formData.append('address', address);
-                formData.append('vat_number', vatNumber);
-                formData.append('email', email);
-                
-                // Send AJAX request
-                fetch('{{ url_for("new_customer") }}', {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'Accept': 'application/json'
+            // Add event listener for when modal is shown
+            newCustomerModal.addEventListener('shown.bs.modal', function() {
+                    const saveCustomerBtn = document.getElementById('saveCustomerBtn');
+                    if (!saveCustomerBtn) return;
+                    
+                    const customerSuccessMessage = document.getElementById('customerSuccessMessage');
+                    const customerErrorMessage = document.getElementById('customerErrorMessage');
+                    const customerSelect = document.getElementById('customer_id');
+                    
+                    // Add click event if not already added
+                    if (!saveCustomerBtn.hasListener) {
+                        saveCustomerBtn.hasListener = true;
+                        
+                        saveCustomerBtn.addEventListener('click', function() {
+                            // Reset messages
+                            customerSuccessMessage.classList.add('d-none');
+                            customerErrorMessage.classList.add('d-none');
+                            
+                            // Get form data
+                            const name = document.getElementById('modal_name').value;
+                            const address = document.getElementById('modal_address').value;
+                            const vatNumber = document.getElementById('modal_vat_number').value;
+                            const email = document.getElementById('modal_email').value;
+                            
+                            // Simple validation
+                            if (!name || !address || !email) {
+                                customerErrorMessage.textContent = 'Vul alle verplichte velden in.';
+                                customerErrorMessage.classList.remove('d-none');
+                                return;
+                            }
+                            
+                            // Prepare request data
+                            const formData = new FormData();
+                            formData.append('name', name);
+                            formData.append('address', address);
+                            formData.append('vat_number', vatNumber);
+                            formData.append('email', email);
+                            
+                            // Send AJAX request
+                            fetch('{{ url_for("new_customer") }}', {
+                                method: 'POST',
+                                body: formData,
+                                headers: {
+                                    'Accept': 'application/json'
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Show success message
+                                    customerSuccessMessage.classList.remove('d-none');
+                                    
+                                    // Add new customer to dropdown
+                                    const option = document.createElement('option');
+                                    option.value = data.customer.id;
+                                    option.textContent = data.customer.name;
+                                    option.selected = true;
+                                    customerSelect.appendChild(option);
+                                    
+                                    // Reset form
+                                    document.getElementById('quickCustomerForm').reset();
+                                    
+                                    // Close modal after 1.5 seconds
+                                    setTimeout(() => {
+                                        const modal = bootstrap.Modal.getInstance(document.getElementById('newCustomerModal'));
+                                        if (modal) modal.hide();
+                                    }, 1500);
+                                } else {
+                                    // Show error message
+                                    customerErrorMessage.textContent = data.message || 'Er is een fout opgetreden.';
+                                    customerErrorMessage.classList.remove('d-none');
+                                }
+                            })
+                            .catch(error => {
+                                // Show error message
+                                customerErrorMessage.textContent = 'Er is een fout opgetreden bij het verzenden van het verzoek.';
+                                customerErrorMessage.classList.remove('d-none');
+                                console.error('Error:', error);
+                            });
+                        });
                     }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Show success message
-                        customerSuccessMessage.classList.remove('d-none');
-                        
-                        // Add new customer to dropdown
-                        const option = document.createElement('option');
-                        option.value = data.customer.id;
-                        option.textContent = data.customer.name;
-                        option.selected = true;
-                        customerSelect.appendChild(option);
-                        
-                        // Reset form
-                        document.getElementById('quickCustomerForm').reset();
-                        
-                        // Close modal after 1.5 seconds
-                        setTimeout(() => {
-                            const modal = bootstrap.Modal.getInstance(document.getElementById('newCustomerModal'));
-                            if (modal) modal.hide();
-                        }, 1500);
-                    } else {
-                        // Show error message
-                        customerErrorMessage.textContent = data.message || 'Er is een fout opgetreden.';
-                        customerErrorMessage.classList.remove('d-none');
-                    }
-                })
-                .catch(error => {
-                    // Show error message
-                    customerErrorMessage.textContent = 'Er is een fout opgetreden bij het verzenden van het verzoek.';
-                    customerErrorMessage.classList.remove('d-none');
-                    console.error('Error:', error);
                 });
-            });
-        }
+            }
+        };
     });
 </script>
 {% endblock %}
