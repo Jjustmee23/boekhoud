@@ -209,22 +209,17 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        let monthlyChart = null;
-        let quarterlyChart = null;
-        
-        const currentYear = {{ current_year }};
         const yearSelector = document.getElementById('yearSelector');
+        const currentYear = {{ current_year }};
         
-        if (yearSelector) {
-            // Load initial charts
-            loadCharts(currentYear);
-            
-            // Year selector change event
-            yearSelector.addEventListener('change', function() {
-                const selectedYear = parseInt(this.value);
-                loadCharts(selectedYear);
-            });
-        }
+        // Load initial charts
+        loadCharts(currentYear);
+        
+        // Year selector change event
+        yearSelector.addEventListener('change', function() {
+            const selectedYear = parseInt(this.value);
+            loadCharts(selectedYear);
+        });
         
         function loadCharts(year) {
             // Load monthly data
@@ -232,23 +227,22 @@
                 .then(response => response.json())
                 .then(data => {
                     renderMonthlyChart(data);
-                })
-                .catch(error => console.error('Error loading monthly data:', error));
+                });
             
             // Load quarterly data
             fetch(`/dashboard/api/quarterly-data/${year}`)
                 .then(response => response.json())
                 .then(data => {
                     renderQuarterlyChart(data);
-                })
-                .catch(error => console.error('Error loading quarterly data:', error));
+                });
         }
         
+        // Chart variables for later destruction
+        let monthlyChart = null;
+        let quarterlyChart = null;
+        
         function renderMonthlyChart(data) {
-            const monthlyCanvas = document.getElementById('monthlyChart');
-            if (!monthlyCanvas) return;
-            
-            const ctx = monthlyCanvas.getContext('2d');
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
             
             // Destroy previous chart if exists
             if (monthlyChart) {
@@ -325,10 +319,7 @@
         }
         
         function renderQuarterlyChart(data) {
-            const quarterlyCanvas = document.getElementById('quarterlyChart');
-            if (!quarterlyCanvas) return;
-            
-            const ctx = quarterlyCanvas.getContext('2d');
+            const ctx = document.getElementById('quarterlyChart').getContext('2d');
             
             // Destroy previous chart if exists
             if (quarterlyChart) {
