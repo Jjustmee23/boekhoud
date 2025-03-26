@@ -223,14 +223,14 @@
         
         function loadCharts(year) {
             // Load monthly data
-            fetch(`/api/monthly-data/${year}`)
+            fetch(`{{ url_for('main.api_monthly_data', year=0) }}`.replace('0', year))
                 .then(response => response.json())
                 .then(data => {
                     renderMonthlyChart(data);
                 });
             
             // Load quarterly data
-            fetch(`/api/quarterly-data/${year}`)
+            fetch(`{{ url_for('main.api_quarterly_data', year=0) }}`.replace('0', year))
                 .then(response => response.json())
                 .then(data => {
                     renderQuarterlyChart(data);
