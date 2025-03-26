@@ -5,14 +5,14 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>{% if edit_mode %}Factuur Bewerken{% else %}Nieuwe Factuur{% endif %}</h1>
-    <a href="{{ url_for('invoices_list') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('invoice.invoices_list') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left"></i> Terug naar facturen
     </a>
 </div>
 
 <div class="card border-0">
     <div class="card-body">
-        <form method="post" action="{% if edit_mode %}{{ url_for('edit_invoice', invoice_id=invoice.id) }}{% else %}{{ url_for('new_invoice') }}{% endif %}" enctype="multipart/form-data">
+        <form method="post" action="{% if edit_mode %}{{ url_for('invoice.edit_invoice', invoice_id=invoice.id) }}{% else %}{{ url_for('invoice.new_invoice') }}{% endif %}" enctype="multipart/form-data">
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label for="customer_id" class="form-label">Klant <span class="text-danger">*</span></label>
@@ -81,7 +81,7 @@
                     <label for="invoice_file" class="form-label">Factuur Bestand (PDF)</label>
                     {% if invoice.file_path %}
                         <div class="mb-2">
-                            <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id) }}" target="_blank" class="btn btn-sm btn-primary">
+                            <a href="{{ url_for('invoice.view_invoice_attachment', invoice_id=invoice.id) }}" target="_blank" class="btn btn-sm btn-primary">
                                 <i class="fas fa-file-pdf"></i> Bekijk huidige factuur
                             </a>
                         </div>
@@ -96,7 +96,7 @@
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Opslaan
                 </button>
-                <a href="{{ url_for('invoices_list') }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('invoice.invoices_list') }}" class="btn btn-outline-secondary">
                     Annuleren
                 </a>
             </div>
