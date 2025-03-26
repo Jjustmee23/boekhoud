@@ -287,7 +287,9 @@ def dashboard():
 @app.route('/dashboard/api/monthly-data/<int:year>')
 def api_monthly_data(year):
     """API endpoint for monthly chart data"""
-    monthly_data = get_monthly_summary(year)
+    # Apply workspace filter for regular users, super admins see all data
+    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    monthly_data = get_monthly_summary(year, workspace_id)
     
     # Format data for Chart.js
     labels = [month['month_name'] for month in monthly_data]
@@ -305,7 +307,9 @@ def api_monthly_data(year):
 @app.route('/dashboard/api/quarterly-data/<int:year>')
 def api_quarterly_data(year):
     """API endpoint for quarterly chart data"""
-    quarterly_data = get_quarterly_summary(year)
+    # Apply workspace filter for regular users, super admins see all data
+    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    quarterly_data = get_quarterly_summary(year, workspace_id)
     
     # Format data for Chart.js
     labels = [f"Q{quarter['quarter']}" for quarter in quarterly_data]

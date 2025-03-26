@@ -509,8 +509,14 @@ def get_monthly_summary(year, workspace_id=None):
     
     return monthly_data
 
-def get_quarterly_summary(year):
-    """Get quarterly financial summary for a year"""
+def get_quarterly_summary(year, workspace_id=None):
+    """
+    Get quarterly financial summary for a year
+    
+    Args:
+        year: Year to get summary for
+        workspace_id: Optional workspace ID to filter by
+    """
     quarterly_data = []
     
     for quarter in range(1, 5):
@@ -525,10 +531,16 @@ def get_quarterly_summary(year):
             end_date = date(year, end_month + 1, 1) - timedelta(days=1)
         
         # Query invoices for this quarter
-        quarter_invoices = Invoice.query.filter(
+        query = Invoice.query.filter(
             Invoice.date >= start_date,
             Invoice.date <= end_date
-        ).all()
+        )
+        
+        # Apply workspace filter if provided
+        if workspace_id is not None:
+            query = query.filter_by(workspace_id=workspace_id)
+            
+        quarter_invoices = query.all()
         
         income = sum(inv.amount_excl_vat for inv in quarter_invoices if inv.invoice_type == 'income')
         expenses = sum(inv.amount_excl_vat for inv in quarter_invoices if inv.invoice_type == 'expense')
@@ -547,16 +559,27 @@ def get_quarterly_summary(year):
     
     return quarterly_data
 
-def get_customer_summary():
-    """Get financial summary by customer"""
+def get_customer_summary(workspace_id=None):
+    """
+    Get financial summary by customer
+    
+    Args:
+        workspace_id: Optional workspace ID to filter by
+    """
     customer_data = []
     
-    # Get all customers from the database
-    customers_query = Customer.query.all()
+    # Get customers filtered by workspace if provided
+    customers_query = Customer.query
+    if workspace_id is not None:
+        customers_query = customers_query.filter_by(workspace_id=workspace_id)
+    customers_query = customers_query.all()
     
     for customer in customers_query:
-        # Query invoices for this customer
-        customer_invoices = Invoice.query.filter_by(customer_id=customer.id).all()
+        # Query invoices for this customer, filtered by workspace if provided
+        query = Invoice.query.filter_by(customer_id=customer.id)
+        if workspace_id is not None:
+            query = query.filter_by(workspace_id=workspace_id)
+        customer_invoices = query.all()
         
         income = sum(inv.amount_excl_vat for inv in customer_invoices if inv.invoice_type == 'income')
         vat_collected = sum(inv.vat_amount for inv in customer_invoices if inv.invoice_type == 'income')
