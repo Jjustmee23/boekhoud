@@ -39,73 +39,69 @@
                 <div class="col-md-6">
                     <label for="type" class="form-label">Type <span class="text-danger">*</span></label>
                     <select name="type" id="type" class="form-select" required>
-                        <option value="income" {% if invoice.invoice_type == 'income' %}selected{% endif %}>Inkomsten</option>
-                        <option value="expense" {% if invoice.invoice_type == 'expense' %}selected{% endif %}>Uitgaven</option>
+                        <option value="income" {% if invoice.type == 'income' %}selected{% endif %}>Inkomsten</option>
+                        <option value="expense" {% if invoice.type == 'expense' %}selected{% endif %}>Uitgaven</option>
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <label for="vat_rate" class="form-label">BTW Tarief <span class="text-danger">*</span></label>
-                    <select name="vat_rate" id="vat_rate" class="form-select" required>
-                        {% for rate in vat_rates %}
-                            <option value="{{ rate.rate }}" {% if invoice.vat_rate == rate.rate %}selected{% endif %}>
-                                {{ rate.label }}
-                            </option>
-                        {% endfor %}
-                    </select>
+                    <label for="invoice_number" class="form-label">Factuurnummer</label>
+                    <input type="text" name="invoice_number" id="invoice_number" class="form-control" value="{{ invoice.invoice_number }}" placeholder="Bijv. INV-2023-001">
                 </div>
             </div>
             <div class="row mb-3">
-                <div class="col-md-6">
-                    <label for="invoice_number" class="form-label">Factuurnummer</label>
-                    <input type="text" name="invoice_number" id="invoice_number" class="form-control" value="{{ invoice.invoice_number }}">
-                    <small class="form-text text-muted">Laat leeg voor automatisch genereren</small>
-                </div>
-                <div class="col-md-6">
-                    <label for="invoice_file" class="form-label">Upload factuur</label>
-                    <input type="file" name="invoice_file" id="invoice_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
-                    <small class="form-text text-muted">Toegestane formaten: PDF, JPG, PNG (max 10MB)</small>
-                    {% if edit_mode and invoice.file_path %}
-                    <div class="mt-2">
-                        <small class="text-muted">Huidige bestand: {{ invoice.file_path.split('/')[-1] }}</small>
-                        <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id) }}" target="_blank" class="ms-2 small">Bekijken</a>
+                <div class="col-md-4">
+                    <label for="amount_incl_vat" class="form-label">Bedrag incl. BTW <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text">€</span>
+                        <input type="text" name="amount_incl_vat" id="amount_incl_vat" class="form-control" value="{{ invoice.amount_incl_vat }}" placeholder="0.00" required>
                     </div>
+                </div>
+                <div class="col-md-4">
+                    <label for="vat_rate" class="form-label">BTW-tarief <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <select name="vat_rate" id="vat_rate" class="form-select" required>
+                            {% for rate in vat_rates %}
+                                <option value="{{ rate.value }}" {% if invoice.vat_rate == rate.value %}selected{% endif %}>
+                                    {{ rate.name }} ({{ rate.value }}%)
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label for="amount_excl_vat" class="form-label">Bedrag excl. BTW</label>
+                    <div class="input-group">
+                        <span class="input-group-text">€</span>
+                        <input type="text" id="amount_excl_vat" class="form-control" readonly>
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <label for="invoice_file" class="form-label">Factuur Bestand (PDF)</label>
+                    {% if invoice.file_path %}
+                        <div class="mb-2">
+                            <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id) }}" target="_blank" class="btn btn-sm btn-primary">
+                                <i class="fas fa-file-pdf"></i> Bekijk huidige factuur
+                            </a>
+                        </div>
                     {% endif %}
+                    <input type="file" name="invoice_file" id="invoice_file" class="form-control" accept=".pdf">
                 </div>
             </div>
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <label for="amount_incl_vat" class="form-label">Bedrag (incl. BTW) <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <span class="input-group-text">€</span>
-                        <input type="number" name="amount_incl_vat" id="amount_incl_vat" class="form-control" step="0.01" min="0" value="{{ invoice.amount_incl_vat }}" required>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <label for="amount_excl_vat" class="form-label">Bedrag (excl. BTW)</label>
-                    <div class="input-group">
-                        <span class="input-group-text">€</span>
-                        <input type="number" id="amount_excl_vat" class="form-control" step="0.01" min="0" value="{{ invoice.amount_excl_vat }}" readonly>
-                    </div>
-                    <small class="form-text text-muted">Dit wordt automatisch berekend</small>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-12">
-                    <hr>
-                    <div class="d-flex justify-content-end">
-                        <button type="button" class="btn btn-secondary me-2" onclick="history.back()">Annuleren</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> {% if edit_mode %}Bijwerken{% else %}Opslaan{% endif %}
-                        </button>
-                    </div>
-                </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Opslaan
+                </button>
+                <a href="{{ url_for('invoices_list') }}" class="btn btn-outline-secondary">
+                    Annuleren
+                </a>
             </div>
         </form>
     </div>
 </div>
-{% endblock %}
 
-<!-- Modal voor nieuwe klant -->
+<!-- New Customer Modal -->
 <div class="modal fade" id="newCustomerModal" tabindex="-1" aria-labelledby="newCustomerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -138,35 +134,35 @@
                         </div>
                     </div>
                     <div class="alert alert-success d-none" id="customerSuccessMessage">
-                        Klant succesvol toegevoegd!
+                        <i class="fas fa-check-circle"></i> Klant is succesvol toegevoegd!
                     </div>
                     <div class="alert alert-danger d-none" id="customerErrorMessage">
-                        Er is een fout opgetreden bij het toevoegen van de klant.
+                        Er is een fout opgetreden.
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
-                <button type="button" class="btn btn-primary" id="saveCustomerBtn">
-                    <i class="fas fa-save"></i> Opslaan
-                </button>
+                <button type="button" class="btn btn-success" id="saveCustomerBtn">Klant Opslaan</button>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
 <script>
+    // VAT calculation script
     document.addEventListener('DOMContentLoaded', function() {
         const amountInclVat = document.getElementById('amount_incl_vat');
         const amountExclVat = document.getElementById('amount_excl_vat');
         const vatRate = document.getElementById('vat_rate');
         
-        // Calculate amount excluding VAT when inputs change
+        // Calculate amount excluding VAT based on amount including VAT and VAT rate
         function calculateExclVat() {
-            const inclVatValue = parseFloat(amountInclVat.value) || 0;
+            const inclVatValue = parseFloat(amountInclVat.value.replace(/[^0-9.]/g, '')) || 0;
             const vatRateValue = parseFloat(vatRate.value) || 0;
-            
+        
             if (inclVatValue > 0) {
                 const exclVatValue = inclVatValue / (1 + (vatRateValue / 100));
                 amountExclVat.value = exclVatValue.toFixed(2);
@@ -181,98 +177,85 @@
         // Update on change
         amountInclVat.addEventListener('input', calculateExclVat);
         vatRate.addEventListener('change', calculateExclVat);
+    });
+
+    // Customer modal script
+    document.addEventListener('DOMContentLoaded', function() {
+        // Setup the customer modal button
+        const saveCustomerBtn = document.getElementById('saveCustomerBtn');
+        if (!saveCustomerBtn) return;
         
-        // Setup customer modal when the DOM is fully loaded
-        // Use window.onload to ensure all resources are loaded
-        window.onload = function() {
-            // Wait until modal is in the DOM
-            const newCustomerModal = document.getElementById('newCustomerModal');
-            if (!newCustomerModal) return;
+        const customerSuccessMessage = document.getElementById('customerSuccessMessage');
+        const customerErrorMessage = document.getElementById('customerErrorMessage');
+        const customerSelect = document.getElementById('customer_id');
+        
+        saveCustomerBtn.addEventListener('click', function() {
+            // Reset messages
+            customerSuccessMessage.classList.add('d-none');
+            customerErrorMessage.classList.add('d-none');
             
-            // Add event listener for when modal is shown
-            newCustomerModal.addEventListener('shown.bs.modal', function() {
-                    const saveCustomerBtn = document.getElementById('saveCustomerBtn');
-                    if (!saveCustomerBtn) return;
-                    
-                    const customerSuccessMessage = document.getElementById('customerSuccessMessage');
-                    const customerErrorMessage = document.getElementById('customerErrorMessage');
-                    const customerSelect = document.getElementById('customer_id');
-                    
-                    // Add click event if not already added
-                    if (!saveCustomerBtn.hasListener) {
-                        saveCustomerBtn.hasListener = true;
-                        
-                        saveCustomerBtn.addEventListener('click', function() {
-                            // Reset messages
-                            customerSuccessMessage.classList.add('d-none');
-                            customerErrorMessage.classList.add('d-none');
-                            
-                            // Get form data
-                            const name = document.getElementById('modal_name').value;
-                            const address = document.getElementById('modal_address').value;
-                            const vatNumber = document.getElementById('modal_vat_number').value;
-                            const email = document.getElementById('modal_email').value;
-                            
-                            // Simple validation
-                            if (!name || !address || !email) {
-                                customerErrorMessage.textContent = 'Vul alle verplichte velden in.';
-                                customerErrorMessage.classList.remove('d-none');
-                                return;
-                            }
-                            
-                            // Prepare request data
-                            const formData = new FormData();
-                            formData.append('name', name);
-                            formData.append('address', address);
-                            formData.append('vat_number', vatNumber);
-                            formData.append('email', email);
-                            
-                            // Send AJAX request
-                            fetch('{{ url_for("new_customer") }}', {
-                                method: 'POST',
-                                body: formData,
-                                headers: {
-                                    'Accept': 'application/json'
-                                }
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    // Show success message
-                                    customerSuccessMessage.classList.remove('d-none');
-                                    
-                                    // Add new customer to dropdown
-                                    const option = document.createElement('option');
-                                    option.value = data.customer.id;
-                                    option.textContent = data.customer.name;
-                                    option.selected = true;
-                                    customerSelect.appendChild(option);
-                                    
-                                    // Reset form
-                                    document.getElementById('quickCustomerForm').reset();
-                                    
-                                    // Close modal after 1.5 seconds
-                                    setTimeout(() => {
-                                        const modal = bootstrap.Modal.getInstance(document.getElementById('newCustomerModal'));
-                                        if (modal) modal.hide();
-                                    }, 1500);
-                                } else {
-                                    // Show error message
-                                    customerErrorMessage.textContent = data.message || 'Er is een fout opgetreden.';
-                                    customerErrorMessage.classList.remove('d-none');
-                                }
-                            })
-                            .catch(error => {
-                                // Show error message
-                                customerErrorMessage.textContent = 'Er is een fout opgetreden bij het verzenden van het verzoek.';
-                                customerErrorMessage.classList.remove('d-none');
-                                console.error('Error:', error);
-                            });
-                        });
-                    }
-                });
+            // Get form data
+            const name = document.getElementById('modal_name').value;
+            const address = document.getElementById('modal_address').value;
+            const vatNumber = document.getElementById('modal_vat_number').value;
+            const email = document.getElementById('modal_email').value;
+            
+            // Simple validation
+            if (!name || !address || !email) {
+                customerErrorMessage.textContent = 'Vul alle verplichte velden in.';
+                customerErrorMessage.classList.remove('d-none');
+                return;
             }
-        };
+            
+            // Prepare request data
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('address', address);
+            formData.append('vat_number', vatNumber);
+            formData.append('email', email);
+            
+            // Send AJAX request
+            fetch('{{ url_for("new_customer") }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    customerSuccessMessage.classList.remove('d-none');
+                    
+                    // Add new customer to dropdown
+                    const option = document.createElement('option');
+                    option.value = data.customer.id;
+                    option.textContent = data.customer.name;
+                    option.selected = true;
+                    customerSelect.appendChild(option);
+                    
+                    // Reset form
+                    document.getElementById('quickCustomerForm').reset();
+                    
+                    // Close modal after 1.5 seconds
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('newCustomerModal'));
+                        if (modal) modal.hide();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    customerErrorMessage.textContent = data.message || 'Er is een fout opgetreden.';
+                    customerErrorMessage.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                // Show error message
+                customerErrorMessage.textContent = 'Er is een fout opgetreden bij het verzenden van het verzoek.';
+                customerErrorMessage.classList.remove('d-none');
+                console.error('Error:', error);
+            });
+        });
     });
 </script>
 {% endblock %}
