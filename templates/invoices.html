@@ -6,10 +6,10 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Facturen</h1>
     <div>
-        <a href="{{ url_for('upload.bulk_upload') }}" class="btn btn-info me-2">
+        <a href="{{ url_for('bulk_upload') }}" class="btn btn-info me-2">
             <i class="fas fa-upload"></i> Bulk Upload
         </a>
-        <a href="{{ url_for('invoice.new_invoice') }}" class="btn btn-primary">
+        <a href="{{ url_for('new_invoice') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Nieuwe Factuur
         </a>
     </div>
@@ -18,7 +18,7 @@
 <!-- Filters -->
 <div class="card border-0 mb-4">
     <div class="card-body">
-        <form action="{{ url_for('invoice.invoices_list') }}" method="get" class="row g-3">
+        <form action="{{ url_for('invoices_list') }}" method="get" class="row g-3">
             <div class="col-md-3">
                 <label for="customer_id" class="form-label">Klant</label>
                 <select name="customer_id" id="customer_id" class="form-select">
@@ -50,7 +50,7 @@
                 <button type="submit" class="btn btn-primary me-2">
                     <i class="fas fa-filter"></i> Filter
                 </button>
-                <a href="{{ url_for('invoice.invoices_list') }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('invoices_list') }}" class="btn btn-outline-secondary">
                     <i class="fas fa-undo"></i> Reset
                 </a>
             </div>
@@ -99,13 +99,13 @@
                                 <td class="text-end">{{ format_currency(invoice.amount_incl_vat) }}</td>
                                 <td class="text-center">
                                     <div class="btn-group" role="group">
-                                        <a href="{{ url_for('invoice.view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="Bekijken">
+                                        <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary" title="Bekijken">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="{{ url_for('invoice.edit_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-secondary" title="Bewerken">
+                                        <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-secondary" title="Bewerken">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="{{ url_for('invoice.generate_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-info" title="PDF downloaden">
+                                        <a href="{{ url_for('generate_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-info" title="PDF downloaden">
                                             <i class="fas fa-file-pdf"></i>
                                         </a>
                                         <button type="button" class="btn btn-sm btn-outline-danger" 
@@ -127,7 +127,7 @@
             <div class="alert alert-info m-3">
                 <i class="fas fa-info-circle"></i> Geen facturen gevonden.
                 {% if filter_customer_id or filter_type or filter_start_date or filter_end_date %}
-                    <a href="{{ url_for('invoice.invoices_list') }}" class="alert-link">Filters wissen</a> om alle facturen te zien.
+                    <a href="{{ url_for('invoices_list') }}" class="alert-link">Filters wissen</a> om alle facturen te zien.
                 {% endif %}
             </div>
         {% endif %}
@@ -170,7 +170,7 @@
                 const invoiceNumber = button.getAttribute('data-invoice-number');
                 
                 document.getElementById('deleteInvoiceNumber').textContent = invoiceNumber;
-                document.getElementById('deleteInvoiceForm').action = "{{ url_for('invoice.delete_invoice_route', invoice_id='__id__') }}".replace('__id__', invoiceId);
+                document.getElementById('deleteInvoiceForm').action = `/invoices/${invoiceId}/delete`;
             });
         }
     });

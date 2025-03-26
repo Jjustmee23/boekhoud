@@ -5,14 +5,14 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>{% if edit_mode %}Factuur Bewerken{% else %}Nieuwe Factuur{% endif %}</h1>
-    <a href="{{ url_for('invoice.invoices_list') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('invoices_list') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left"></i> Terug naar facturen
     </a>
 </div>
 
 <div class="card border-0">
     <div class="card-body">
-        <form method="post" action="{% if edit_mode %}{{ url_for('invoice.edit_invoice', invoice_id=invoice.id) }}{% else %}{{ url_for('invoice.new_invoice') }}{% endif %}" enctype="multipart/form-data">
+        <form method="post" action="{% if edit_mode %}{{ url_for('edit_invoice', invoice_id=invoice.id) }}{% else %}{{ url_for('new_invoice') }}{% endif %}" enctype="multipart/form-data">
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label for="customer_id" class="form-label">Klant <span class="text-danger">*</span></label>
@@ -81,22 +81,19 @@
                     <label for="invoice_file" class="form-label">Factuur Bestand (PDF)</label>
                     {% if invoice.file_path %}
                         <div class="mb-2">
-                            <a href="{{ url_for('invoice.view_invoice_attachment', invoice_id=invoice.id) }}" target="_blank" class="btn btn-sm btn-primary">
+                            <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id) }}" target="_blank" class="btn btn-sm btn-primary">
                                 <i class="fas fa-file-pdf"></i> Bekijk huidige factuur
                             </a>
                         </div>
                     {% endif %}
                     <input type="file" name="invoice_file" id="invoice_file" class="form-control" accept=".pdf">
-                    <small class="form-text text-muted">
-                        <i class="fas fa-info-circle"></i> Factuur wordt automatisch verwerkt direct na upload.
-                    </small>
                 </div>
             </div>
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Opslaan
                 </button>
-                <a href="{{ url_for('invoice.invoices_list') }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('invoices_list') }}" class="btn btn-outline-secondary">
                     Annuleren
                 </a>
             </div>
@@ -160,7 +157,6 @@
         const amountInclVat = document.getElementById('amount_incl_vat');
         const amountExclVat = document.getElementById('amount_excl_vat');
         const vatRate = document.getElementById('vat_rate');
-        const invoiceFile = document.getElementById('invoice_file');
         
         // Calculate amount excluding VAT based on amount including VAT and VAT rate
         function calculateExclVat() {
@@ -181,156 +177,6 @@
         // Update on change
         amountInclVat.addEventListener('input', calculateExclVat);
         vatRate.addEventListener('change', calculateExclVat);
-        
-        // Handle file upload for data extraction without submitting
-        if (invoiceFile) {
-            invoiceFile.addEventListener('change', function() {
-                if (this.files && this.files.length > 0) {
-                    // Create a loading overlay
-                    const loadingOverlay = document.createElement('div');
-                    loadingOverlay.style.position = 'fixed';
-                    loadingOverlay.style.top = '0';
-                    loadingOverlay.style.left = '0';
-                    loadingOverlay.style.width = '100%';
-                    loadingOverlay.style.height = '100%';
-                    loadingOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                    loadingOverlay.style.zIndex = '9999';
-                    loadingOverlay.style.display = 'flex';
-                    loadingOverlay.style.justifyContent = 'center';
-                    loadingOverlay.style.alignItems = 'center';
-                    
-                    const spinner = document.createElement('div');
-                    spinner.className = 'spinner-border text-light';
-                    spinner.setAttribute('role', 'status');
-                    spinner.innerHTML = '<span class="visually-hidden">Gegevens extraheren...</span>';
-                    
-                    loadingOverlay.appendChild(spinner);
-                    document.body.appendChild(loadingOverlay);
-                    
-                    // Create a FormData object and append only the file
-                    const formData = new FormData();
-                    formData.append('invoice_file', this.files[0]);
-                    
-                    // Send AJAX request to extract data
-                    fetch('/extract-invoice-data', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        // Remove loading overlay
-                        document.body.removeChild(loadingOverlay);
-                        
-                        if (data.success) {
-                            // Fill in form fields with extracted data
-                            if (data.customer_id) {
-                                const customerSelect = document.getElementById('customer_id');
-                                if (customerSelect) {
-                                    customerSelect.value = data.customer_id;
-                                }
-                            }
-                            if (data.date) {
-                                const dateInput = document.getElementById('date');
-                                if (dateInput) {
-                                    dateInput.value = data.date;
-                                }
-                            }
-                            if (data.invoice_type) {
-                                const typeSelect = document.getElementById('type');
-                                if (typeSelect) {
-                                    typeSelect.value = data.invoice_type;
-                                }
-                            }
-                            if (data.invoice_number) {
-                                const numberInput = document.getElementById('invoice_number');
-                                if (numberInput) {
-                                    numberInput.value = data.invoice_number;
-                                }
-                            }
-                            if (data.amount_incl_vat) {
-                                const amountInput = document.getElementById('amount_incl_vat');
-                                if (amountInput) {
-                                    amountInput.value = data.amount_incl_vat;
-                                    // Trigger calculation of amount excl VAT
-                                    amountInput.dispatchEvent(new Event('input'));
-                                }
-                            }
-                            if (data.vat_rate) {
-                                const vatRateSelect = document.getElementById('vat_rate');
-                                if (vatRateSelect) {
-                                    vatRateSelect.value = data.vat_rate;
-                                    // Trigger calculation of amount excl VAT
-                                    vatRateSelect.dispatchEvent(new Event('change'));
-                                }
-                            }
-                            
-                            // Show success notification
-                            const notification = document.createElement('div');
-                            notification.className = 'alert alert-success alert-dismissible fade show';
-                            notification.setAttribute('role', 'alert');
-                            notification.innerHTML = `
-                                <strong>Gegevens geëxtraheerd!</strong> De velden zijn automatisch ingevuld op basis van het bestand. Controleer en pas aan indien nodig.
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            `;
-                            
-                            // Insert notification at the top of the form
-                            const form = this.form;
-                            form.insertBefore(notification, form.firstChild);
-                            
-                            // Auto-dismiss notification after 5 seconds
-                            setTimeout(() => {
-                                notification.classList.remove('show');
-                                setTimeout(() => notification.remove(), 150);
-                            }, 5000);
-                        } else {
-                            // Show error notification
-                            const notification = document.createElement('div');
-                            notification.className = 'alert alert-warning alert-dismissible fade show';
-                            notification.setAttribute('role', 'alert');
-                            notification.innerHTML = `
-                                <strong>Let op!</strong> Kan geen gegevens extraheren uit het bestand. Vul de velden handmatig in.
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            `;
-                            
-                            // Insert notification at the top of the form
-                            const form = this.form;
-                            form.insertBefore(notification, form.firstChild);
-                            
-                            // Auto-dismiss notification after 5 seconds
-                            setTimeout(() => {
-                                notification.classList.remove('show');
-                                setTimeout(() => notification.remove(), 150);
-                            }, 5000);
-                        }
-                    })
-                    .catch(error => {
-                        // Remove loading overlay
-                        document.body.removeChild(loadingOverlay);
-                        
-                        // Show error notification
-                        const notification = document.createElement('div');
-                        notification.className = 'alert alert-danger alert-dismissible fade show';
-                        notification.setAttribute('role', 'alert');
-                        notification.innerHTML = `
-                            <strong>Fout!</strong> Er is een fout opgetreden bij het verwerken van het bestand.
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        `;
-                        
-                        // Insert notification at the top of the form
-                        const form = this.form;
-                        form.insertBefore(notification, form.firstChild);
-                        
-                        // Auto-dismiss notification after 5 seconds
-                        setTimeout(() => {
-                            notification.classList.remove('show');
-                            setTimeout(() => notification.remove(), 150);
-                        }, 5000);
-                        
-                        console.error('Error extracting data:', error);
-                    });
-                }
-            });
-        }
     });
 
     // Customer modal script
@@ -369,7 +215,7 @@
             formData.append('email', email);
             
             // Send AJAX request
-            fetch('{{ url_for("customer.new_customer") }}', {
+            fetch('{{ url_for("new_customer") }}', {
                 method: 'POST',
                 body: formData,
                 headers: {
