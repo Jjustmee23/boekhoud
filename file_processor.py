@@ -441,7 +441,56 @@ class FileProcessor:
         
         # For invoices, extract detailed information
         if is_invoice:
-            # Extract invoice number
+            # Special case for Hostio Solutions
+            if 'Hostio Solutions' in text and 'Invoice #' in text:
+                # Extract invoice number
+                invoice_num_parts = text.split('Invoice #')
+                if len(invoice_num_parts) > 1:
+                    invoice_num = invoice_num_parts[1].strip().split('\n')[0]
+                    info['invoice_number'] = invoice_num
+                    
+                    # Extract date if possible
+                    if 'Invoice Date:' in text:
+                        date_parts = text.split('Invoice Date:')
+                        if len(date_parts) > 1:
+                            date_str = date_parts[1].strip().split('\n')[0]
+                            info['date'] = self._normalize_date(date_str)
+                            
+                    # Extract amount if in EUR format
+                    amount_pattern = r'€(\d+\.\d+)\s*EUR'
+                    amount_match = re.search(amount_pattern, text)
+                    if amount_match:
+                        try:
+                            amount = float(amount_match.group(1))
+                            info['amount_incl_vat'] = amount
+                        except:
+                            pass
+                    
+                    # Set default VAT rate for Belgium
+                    info['vat_rate'] = 21.0
+                    
+                    # Invoice is expense (buying from Hostio)
+                    info['invoice_type'] = 'expense'
+                    
+                    # Extract customer info (the one receiving the invoice)
+                    if 'Invoiced To' in text:
+                        customer_parts = text.split('Invoiced To')
+                        if len(customer_parts) > 1:
+                            customer_text = customer_parts[1].strip()
+                            lines = customer_text.split('\n')
+                            if lines:
+                                info['customer_name'] = lines[0].strip()
+                                # Extract VAT number if present
+                                for line in lines:
+                                    if 'VAT Number:' in line or 'BTW' in line:
+                                        vat_parts = line.split(':')
+                                        if len(vat_parts) > 1:
+                                            info['customer_vat_number'] = vat_parts[1].strip()
+                                            break
+                
+                return info  # Return early if it's a Hostio invoice
+            
+            # For other invoices - general pattern matching
             invoice_number_patterns = [
                 r'invoice\s*#(\d{4}-[A-Za-z]{2}-\d+)',  # Format like #2024-HS-1430
                 r'invoice\s*#\s*([A-Za-z0-9\-\_\/\.]+)',
