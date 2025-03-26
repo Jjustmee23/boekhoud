@@ -8,7 +8,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 from models import (
     Customer, Invoice, User, get_next_invoice_number, check_duplicate_invoice, add_invoice,
-    calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary
+    calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary,
+    get_users, get_user, create_user, update_user, delete_user
 )
 from utils import (
     format_currency, format_decimal, generate_pdf_invoice, export_to_excel, export_to_csv,
@@ -2057,3 +2058,142 @@ def not_found_error(error):
 @app.errorhandler(500)
 def internal_error(error):
     return render_template('base.html', error='An internal error occurred', now=datetime.now()), 500
+
+# Admin routes
+@app.route('/admin')
+@login_required
+def admin():
+    # Only admins can access admin panel
+    if not current_user.is_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    from models import get_users
+    users = get_users()
+    customer_count = Customer.query.count()
+    invoice_count = Invoice.query.count()
+    
+    return render_template('admin.html', 
+                           users=users, 
+                           customer_count=customer_count, 
+                           invoice_count=invoice_count, 
+                           now=datetime.now())
+
+@app.route('/admin/user/create', methods=['POST'])
+@login_required
+def admin_create_user():
+    # Only admins can create users
+    if not current_user.is_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Check if request is from super admin for super admin creation
+    can_create_super_admin = current_user.is_super_admin
+    
+    username = request.form.get('username')
+    email = request.form.get('email')
+    password = request.form.get('password')
+    is_admin = 'is_admin' in request.form
+    is_super_admin = 'is_super_admin' in request.form and can_create_super_admin
+    
+    # Validate input
+    if not all([username, email, password]):
+        flash('Alle velden zijn verplicht', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Check if username or email already exists
+    if User.query.filter((User.username == username) | (User.email == email)).first():
+        flash('Gebruikersnaam of e-mailadres is al in gebruik', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Create user
+    try:
+        from models import create_user
+        create_user(username, email, password, is_admin, is_super_admin)
+        flash(f'Gebruiker {username} is aangemaakt', 'success')
+    except Exception as e:
+        logging.error(f"Error creating user: {str(e)}")
+        flash('Er is een fout opgetreden bij het aanmaken van de gebruiker', 'danger')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/user/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def edit_user(user_id):
+    # Only admins can edit users
+    if not current_user.is_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    from models import get_user, update_user
+    user = get_user(user_id)
+    if not user:
+        flash('Gebruiker niet gevonden', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Regular admins cannot edit super admins
+    if user.is_super_admin and not current_user.is_super_admin:
+        flash('U heeft geen toegang om super admins te bewerken', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Handle form submission
+    if request.method == 'POST':
+        email = request.form.get('email')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Check permissions for admin status changes
+        can_change_admin = current_user.is_super_admin or not user.is_super_admin
+        can_change_super_admin = current_user.is_super_admin and user_id != current_user.id
+        
+        is_admin = 'is_admin' in request.form if can_change_admin else user.is_admin
+        is_super_admin = 'is_super_admin' in request.form if can_change_super_admin else user.is_super_admin
+        
+        # Validate password if changing
+        if new_password:
+            if new_password != confirm_password:
+                flash('Wachtwoorden komen niet overeen', 'danger')
+                return render_template('edit_user.html', user=user, now=datetime.now())
+        
+        # Update user
+        try:
+            update_user(user_id, email, new_password if new_password else None, is_admin, is_super_admin)
+            flash(f'Gebruiker {user.username} is bijgewerkt', 'success')
+            return redirect(url_for('admin'))
+        except Exception as e:
+            logging.error(f"Error updating user: {str(e)}")
+            flash('Er is een fout opgetreden bij het bijwerken van de gebruiker', 'danger')
+    
+    return render_template('edit_user.html', user=user, now=datetime.now())
+
+@app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    # Only admins can delete users
+    if not current_user.is_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Cannot delete yourself
+    if user_id == current_user.id:
+        flash('U kunt uw eigen account niet verwijderen', 'danger')
+        return redirect(url_for('admin'))
+    
+    from models import get_user, delete_user as delete_user_model
+    user = get_user(user_id)
+    if not user:
+        flash('Gebruiker niet gevonden', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Regular admins cannot delete super admins
+    if user.is_super_admin and not current_user.is_super_admin:
+        flash('U heeft geen toegang om super admins te verwijderen', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Delete user
+    if delete_user_model(user_id):
+        flash(f'Gebruiker {user.username} is verwijderd', 'success')
+    else:
+        flash('Kan de gebruiker niet verwijderen. Er moet minimaal één super admin behouden blijven.', 'danger')
+    
+    return redirect(url_for('admin'))
