@@ -88,7 +88,7 @@
                     {% endif %}
                     <input type="file" name="invoice_file" id="invoice_file" class="form-control" accept=".pdf">
                     <small class="form-text text-muted">
-                        <i class="fas fa-info-circle"></i> Upload een factuur om automatisch gegevens te extraheren zoals factuurnummer, datum, bedrag en BTW.
+                        <i class="fas fa-info-circle"></i> Factuur wordt automatisch verwerkt direct na upload.
                     </small>
                 </div>
             </div>
@@ -160,6 +160,7 @@
         const amountInclVat = document.getElementById('amount_incl_vat');
         const amountExclVat = document.getElementById('amount_excl_vat');
         const vatRate = document.getElementById('vat_rate');
+        const invoiceFile = document.getElementById('invoice_file');
         
         // Calculate amount excluding VAT based on amount including VAT and VAT rate
         function calculateExclVat() {
@@ -180,6 +181,39 @@
         // Update on change
         amountInclVat.addEventListener('input', calculateExclVat);
         vatRate.addEventListener('change', calculateExclVat);
+        
+        // Auto-submit on file upload
+        if (invoiceFile) {
+            invoiceFile.addEventListener('change', function() {
+                if (this.files && this.files.length > 0) {
+                    // Create a loading overlay
+                    const loadingOverlay = document.createElement('div');
+                    loadingOverlay.style.position = 'fixed';
+                    loadingOverlay.style.top = '0';
+                    loadingOverlay.style.left = '0';
+                    loadingOverlay.style.width = '100%';
+                    loadingOverlay.style.height = '100%';
+                    loadingOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                    loadingOverlay.style.zIndex = '9999';
+                    loadingOverlay.style.display = 'flex';
+                    loadingOverlay.style.justifyContent = 'center';
+                    loadingOverlay.style.alignItems = 'center';
+                    
+                    const spinner = document.createElement('div');
+                    spinner.className = 'spinner-border text-light';
+                    spinner.setAttribute('role', 'status');
+                    spinner.innerHTML = '<span class="visually-hidden">Verwerken...</span>';
+                    
+                    loadingOverlay.appendChild(spinner);
+                    document.body.appendChild(loadingOverlay);
+                    
+                    // Submit the form
+                    setTimeout(() => {
+                        this.form.submit();
+                    }, 500);
+                }
+            });
+        }
     });
 
     // Customer modal script
