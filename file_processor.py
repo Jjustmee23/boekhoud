@@ -472,14 +472,18 @@ class FileProcessor:
                 logger.info(f"Detected VirtFusion invoice number: {invoice_num}")
                 break
         
-        # If no invoice number found yet, try using the filename
-        if not info.get('invoice_number') and os.path.basename(self.file_path):
-            filename = os.path.basename(self.file_path)
-            match = re.search(r'(VF\d+)', filename, re.IGNORECASE)
-            if match:
-                invoice_num = match.group(1)
-                info['invoice_number'] = invoice_num
-                logger.info(f"Detected invoice number from filename: {invoice_num}")
+        # If no invoice number found yet, try using the filename if possible
+        try:
+            file_path = getattr(self, 'file_path', None)
+            if not info.get('invoice_number') and file_path and os.path.basename(file_path):
+                filename = os.path.basename(file_path)
+                match = re.search(r'(VF\d+)', filename, re.IGNORECASE)
+                if match:
+                    invoice_num = match.group(1)
+                    info['invoice_number'] = invoice_num
+                    logger.info(f"Detected invoice number from filename: {invoice_num}")
+        except Exception as e:
+            logger.warning(f"Could not extract invoice number from filename: {str(e)}")
                 
         # Extract invoice date
         date_patterns = [
