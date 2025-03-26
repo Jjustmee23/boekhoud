@@ -405,6 +405,8 @@ class FileProcessor:
         
         # Process the extracted text to find invoice details
         logger.info(f"Extracted text length: {len(extracted_text)}")
+        # Debug: Log the extracted text to see what we're working with
+        logger.debug(f"Extracted text: {extracted_text[:500]}...")  # Log first 500 chars
         
         # Extract data from the text
         info = self.analyze_document_text(extracted_text)
@@ -473,7 +475,10 @@ class FileProcessor:
                 r'invoice\s*date:?\s*([a-zA-Z]+\s+\d{1,2},?\s*\d{4})',
                 r'factuurdatum:?\s*([a-zA-Z]+\s+\d{1,2},?\s*\d{4})',
                 r'datum:?\s*([a-zA-Z]+\s+\d{1,2},?\s*\d{4})',
-                r'date:?\s*([a-zA-Z]+\s+\d{1,2},?\s*\d{4})'
+                r'date:?\s*([a-zA-Z]+\s+\d{1,2},?\s*\d{4})',
+                r'due\s*date:?\s*\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4}.*?invoice\s*date:?\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
+                r'invoice\s*date:?\s*(\d{2}-\d{2}-\d{4})',  # Specifiek voor 18-10-2024 formaat
+                r'invoice\s*date[^0-9]*(\d{2}-\d{2}-\d{4})' # Nog specifieker voor 18-10-2024
             ]
             
             invoice_date = None
@@ -499,7 +504,10 @@ class FileProcessor:
                 r'eindtotaal\s*[:,.\-€]\s*([0-9.,€]+)\s*(?:eur|euro)?',
                 r'€\s*([0-9.,]+)\s*(?:eur|euro)?',
                 r'([0-9.]+,[0-9]{2})\s*(?:eur|euro)',
-                r'([0-9]+\.[0-9]{2})\s*(?:eur|euro)'
+                r'([0-9]+\.[0-9]{2})\s*(?:eur|euro)',
+                r'sub\s*total\s*[:,.\-€]*\s*([0-9.,]+)\s*(?:eur|euro)?',  # For Hostio invoice format
+                r'total\s*[:,.\-€]*\s*([0-9.,]+)\s*(?:eur|euro)?',        # General total format
+                r'credit\s*[:,.\-€]*\s*([0-9.,]+)\s*(?:eur|euro)?'        # Handle credit lines
             ]
             
             amount_incl_vat = None
@@ -597,6 +605,20 @@ class FileProcessor:
                         # If there are more lines, use them as address
                         if len(lines) > 1:
                             info['customer_address'] = '\n'.join(lines[1:]).strip()
+                            
+            # Special case for Hostio Solutions as seen in the example invoice
+            hostio_match = re.search(r'Hostio\s+Solutions', text, re.IGNORECASE)
+            if hostio_match and not info.get('customer_name'):
+                info['customer_name'] = 'Hostio Solutions'
+                vat_match = re.search(r'VAT\s+Number:\s+(NL\d+\w+)', text, re.IGNORECASE)
+                if vat_match:
+                    info['customer_vat_number'] = vat_match.group(1).strip()
+                            
+            # Also try matching customer name from the "Invoiced To" line more generically
+            if not info.get('customer_name'):
+                business_name_match = re.search(r'invoiced\s+to\s*\n\s*([^\n]+)', text, re.IGNORECASE)
+                if business_name_match:
+                    info['customer_name'] = business_name_match.group(1).strip()
                     
             # Extract VAT number
             customer_vat = None
