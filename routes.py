@@ -708,6 +708,30 @@ def new_customer():
                     customer=request.form,
                     now=datetime.now()
                 )
+                
+        # Controleer of BTW-nummer ingevuld is voor bedrijven en leveranciers
+        if (customer_type in ['business', 'supplier']) and not vat_number:
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'BTW-nummer is verplicht voor bedrijven en leveranciers'})
+            else:
+                flash('BTW-nummer is verplicht voor bedrijven en leveranciers', 'danger')
+                return render_template(
+                    'customer_form.html',
+                    customer=request.form,
+                    now=datetime.now()
+                )
+                
+        # Valideer BTW-nummer formaat indien ingevuld
+        if vat_number and not vat_number.startswith('BE') and len(vat_number) != 12:
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'BTW-nummer moet in het formaat BE0123456789 zijn'})
+            else:
+                flash('BTW-nummer moet in het formaat BE0123456789 zijn', 'danger')
+                return render_template(
+                    'customer_form.html',
+                    customer=request.form,
+                    now=datetime.now()
+                )
         
         # Add customer
         try:
@@ -847,6 +871,26 @@ def edit_customer(customer_id):
             # Validate data
             if not all([company_name, email, street, house_number, postal_code, city]):
                 flash('Bedrijfsnaam, e-mail en adresgegevens zijn verplicht', 'danger')
+                return render_template(
+                    'customer_form.html',
+                    customer=request.form,
+                    edit_mode=True,
+                    now=datetime.now()
+                )
+                
+            # Controleer of BTW-nummer ingevuld is voor bedrijven en leveranciers
+            if (customer_type in ['business', 'supplier']) and not vat_number:
+                flash('BTW-nummer is verplicht voor bedrijven en leveranciers', 'danger')
+                return render_template(
+                    'customer_form.html',
+                    customer=request.form,
+                    edit_mode=True,
+                    now=datetime.now()
+                )
+                
+            # Valideer BTW-nummer formaat indien ingevuld
+            if vat_number and not vat_number.startswith('BE') and len(vat_number) != 12:
+                flash('BTW-nummer moet in het formaat BE0123456789 zijn', 'danger')
                 return render_template(
                     'customer_form.html',
                     customer=request.form,

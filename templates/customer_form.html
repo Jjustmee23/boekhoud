@@ -12,7 +12,7 @@
 
 <div class="card border-0">
     <div class="card-body">
-        <form method="post" action="{% if edit_mode %}{{ url_for('edit_customer', customer_id=customer.id) }}{% else %}{{ url_for('new_customer') }}{% endif %}">
+        <form id="customerForm" method="post" action="{% if edit_mode %}{{ url_for('edit_customer', customer_id=customer.id) }}{% else %}{{ url_for('new_customer') }}{% endif %}">
             <!-- Bedrijfsgegevens -->
             <div class="mb-4">
                 <h5 class="border-bottom pb-2">Bedrijfsgegevens</h5>

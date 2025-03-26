@@ -82,20 +82,53 @@ function setupInvoiceCalculations() {
  */
 function setupCustomerFormValidation() {
     const customerForm = document.getElementById('customerForm');
+    const customerTypeSelect = document.getElementById('customer_type');
+    
+    // Regel dat BTW-nummer verplicht is voor bedrijven en leveranciers, maar niet voor particulieren
+    toggleVatNumberRequired();
     
     if (customerForm) {
         customerForm.addEventListener('submit', function(event) {
-            // Validate VAT number format for Belgian VAT number
+            // Controleer of BTW-nummer is ingevuld voor bedrijven/leveranciers
+            const customerType = customerTypeSelect ? customerTypeSelect.value : 'business';
             const vatNumber = document.getElementById('vat_number');
-            if (vatNumber && vatNumber.value) {
-                const vatRegex = /^BE[0-9]{10}$/;
-                if (!vatRegex.test(vatNumber.value)) {
+            
+            if (vatNumber) {
+                // Controleer of BTW-nummer verplicht is en ingevuld
+                if ((customerType === 'business' || customerType === 'supplier') && !vatNumber.value.trim()) {
                     event.preventDefault();
-                    alert('BTW-nummer moet in het formaat BE0123456789 zijn.');
+                    alert('BTW-nummer is verplicht voor bedrijven en leveranciers.');
                     vatNumber.focus();
+                    return;
+                }
+                
+                // Valideer BTW-nummer formaat indien ingevuld
+                if (vatNumber.value.trim()) {
+                    const vatRegex = /^BE[0-9]{10}$/;
+                    if (!vatRegex.test(vatNumber.value)) {
+                        event.preventDefault();
+                        alert('BTW-nummer moet in het formaat BE0123456789 zijn.');
+                        vatNumber.focus();
+                    }
                 }
             }
         });
+    }
+}
+
+/**
+ * Toggle BTW-nummer required status based on customer type
+ */
+function toggleVatNumberRequired() {
+    const customerType = document.getElementById('customer_type').value;
+    const vatRequiredLabel = document.getElementById('vat_required');
+    
+    if (vatRequiredLabel) {
+        if (customerType === 'business' || customerType === 'supplier') {
+            vatRequiredLabel.style.display = 'inline'; // Toon sterretje
+        } else {
+            vatRequiredLabel.style.display = 'none'; // Verberg sterretje
+        }
     }
 }
 
