@@ -2213,7 +2213,11 @@ def edit_user(user_id):
         if new_password:
             if new_password != confirm_password:
                 flash('Wachtwoorden komen niet overeen', 'danger')
-                return render_template('edit_user.html', user=user, now=datetime.now())
+                # Get workspaces for dropdown
+                workspaces = []
+                if current_user.is_super_admin:
+                    workspaces = Workspace.query.all()
+                return render_template('edit_user.html', user=user, workspaces=workspaces, now=datetime.now())
         
         # Update user
         try:
@@ -2224,7 +2228,12 @@ def edit_user(user_id):
             logging.error(f"Error updating user: {str(e)}")
             flash('Er is een fout opgetreden bij het bijwerken van de gebruiker', 'danger')
     
-    return render_template('edit_user.html', user=user, now=datetime.now())
+    # Get workspaces for dropdown
+    workspaces = []
+    if current_user.is_super_admin:
+        workspaces = Workspace.query.all()
+    
+    return render_template('edit_user.html', user=user, workspaces=workspaces, now=datetime.now())
 
 @app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
 @login_required
@@ -2384,6 +2393,8 @@ def assign_workspace_to_user(user_id):
         return redirect(url_for('admin'))
     
     workspace_id = request.form.get('workspace_id')
+    workspace = None
+    
     if workspace_id:
         workspace_id = int(workspace_id)
         workspace = Workspace.query.get(workspace_id)
@@ -2398,7 +2409,13 @@ def assign_workspace_to_user(user_id):
         # Assign user to workspace
         user.workspace_id = workspace_id
         db.session.commit()
-        workspace_name = workspace.name if workspace_id else "Geen (Super Admin)"
+        
+        # Get workspace name for the flash message
+        if workspace_id and workspace:
+            workspace_name = workspace.name
+        else:
+            workspace_name = "Geen (Super Admin)"
+            
         flash(f'Gebruiker {user.username} is toegewezen aan werkruimte: {workspace_name}', 'success')
     except Exception as e:
         db.session.rollback()
