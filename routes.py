@@ -552,6 +552,10 @@ def delete_invoice_route(invoice_id):
 
 @app.route('/invoices/<invoice_id>/pdf')
 def generate_invoice_pdf(invoice_id):
+    """
+    Deze functie wordt niet meer gebruikt voor het genereren van PDF's, 
+    maar voor het redirecten naar de originele geüploade factuur.
+    """
     try:
         # Convert invoice_id from string to UUID if needed
         if isinstance(invoice_id, str):
@@ -563,35 +567,20 @@ def generate_invoice_pdf(invoice_id):
             flash('Factuur niet gevonden', 'danger')
             return redirect(url_for('invoices_list'))
         
-        # Get the associated customer
-        customer = Customer.query.get(invoice.customer_id)
-        if not customer:
-            flash('Klant niet gevonden', 'danger')
-            return redirect(url_for('invoices_list'))
+        # Check if the invoice has a file attached
+        if not invoice.file_path:
+            flash('Deze factuur heeft geen bijlage. Upload eerst een factuurbestand.', 'warning')
+            return redirect(url_for('edit_invoice', invoice_id=invoice_id))
         
-        # Convert to dictionary format for the PDF generation
-        invoice_dict = invoice.to_dict()
-        customer_dict = customer.to_dict()
-        
-        # Generate PDF
-        pdf_path = generate_pdf_invoice(invoice_dict, customer_dict)
-        
-        # Filename for download
-        filename = f"Factuur-{invoice.invoice_number}.pdf"
-        
-        # Send file and then delete it after sending
-        return send_file(
-            pdf_path,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='application/pdf'
-        )
+        # Redirect to the view_invoice_attachment route
+        return redirect(url_for('view_invoice_attachment', invoice_id=invoice_id))
+    
     except ValueError:
         flash('Ongeldige factuur-ID', 'danger')
         return redirect(url_for('invoices_list'))
     except Exception as e:
-        flash(f'Fout bij het genereren van PDF: {str(e)}', 'danger')
-        logging.error(f"Error generating PDF invoice: {str(e)}")
+        flash(f'Fout bij het ophalen van de factuur: {str(e)}', 'danger')
+        logging.error(f"Error retrieving invoice: {str(e)}")
         return redirect(url_for('view_invoice', invoice_id=invoice_id))
 
 @app.route('/invoices/<invoice_id>/attachment')

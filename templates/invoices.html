@@ -105,9 +105,11 @@
                                         <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-secondary" title="Bewerken">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="{{ url_for('generate_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-info" title="PDF downloaden">
+                                        {% if invoice.file_path %}
+                                        <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-info" title="Factuur bekijken" target="_blank">
                                             <i class="fas fa-file-pdf"></i>
                                         </a>
+                                        {% endif %}
                                         <button type="button" class="btn btn-sm btn-outline-danger" 
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#deleteInvoiceModal" 
