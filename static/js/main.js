@@ -120,10 +120,12 @@ function setupCustomerFormValidation() {
  * Toggle BTW-nummer required status based on customer type
  */
 function toggleVatNumberRequired() {
-    const customerType = document.getElementById('customer_type').value;
+    const customerTypeElement = document.getElementById('customer_type');
     const vatRequiredLabel = document.getElementById('vat_required');
     
-    if (vatRequiredLabel) {
+    // Controleer of de elementen bestaan op de pagina
+    if (customerTypeElement && vatRequiredLabel) {
+        const customerType = customerTypeElement.value;
         if (customerType === 'business' || customerType === 'supplier') {
             vatRequiredLabel.style.display = 'inline'; // Toon sterretje
         } else {

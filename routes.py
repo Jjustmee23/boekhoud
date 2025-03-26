@@ -1232,7 +1232,7 @@ def bulk_upload():
         # Check if any files were uploaded
         if 'files[]' not in request.files:
             flash('No files selected', 'danger')
-            customers_data = get_customers()
+            customers_data = [customer.to_dict() for customer in Customer.query.all()]
             return render_template(
                 'bulk_upload.html',
                 customers=customers_data,
@@ -1242,7 +1242,7 @@ def bulk_upload():
         files = request.files.getlist('files[]')
         if not files or all(not f.filename for f in files):
             flash('No files selected', 'danger')
-            customers_data = get_customers()
+            customers_data = [customer.to_dict() for customer in Customer.query.all()]
             return render_template(
                 'bulk_upload.html',
                 customers=customers_data,
@@ -1278,7 +1278,7 @@ def bulk_upload():
         return redirect(url_for('bulk_upload_results'))
     
     # GET request - show the form
-    customers_data = get_customers()
+    customers_data = [customer.to_dict() for customer in Customer.query.all()]
     selected_customer = None
     
     # Set pre-selected customer if specified in URL
