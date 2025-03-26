@@ -89,6 +89,23 @@
                     <input type="file" name="invoice_file" id="invoice_file" class="form-control" accept=".pdf">
                 </div>
             </div>
+            
+            {% if invoice.status == 'unprocessed' %}
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="mark_as_processed" id="mark_as_processed" checked>
+                        <label class="form-check-label" for="mark_as_processed">
+                            Markeer deze factuur als verwerkt
+                        </label>
+                        <div class="form-text text-muted">
+                            Deze factuur is geïmporteerd via bulk upload en staat als "onbewerkt" gemarkeerd. 
+                            Vink dit aan om de factuur als volledig verwerkt te markeren.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Opslaan
