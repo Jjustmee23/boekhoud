@@ -13,29 +13,94 @@
 <div class="card border-0">
     <div class="card-body">
         <form method="post" action="{% if edit_mode %}{{ url_for('edit_customer', customer_id=customer.id) }}{% else %}{{ url_for('new_customer') }}{% endif %}">
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label for="name" class="form-label">Naam <span class="text-danger">*</span></label>
-                    <input type="text" name="name" id="name" class="form-control" value="{{ customer.name }}" required>
+            <!-- Bedrijfsgegevens -->
+            <div class="mb-4">
+                <h5 class="border-bottom pb-2">Bedrijfsgegevens</h5>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="company_name" class="form-label">Bedrijfsnaam <span class="text-danger">*</span></label>
+                        <input type="text" name="company_name" id="company_name" class="form-control" value="{{ customer.company_name }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="vat_number" class="form-label">BTW-nummer</label>
+                        <input type="text" name="vat_number" id="vat_number" class="form-control" value="{{ customer.vat_number }}" placeholder="BE0123456789">
+                        <small class="form-text text-muted">Formaat: BE0123456789</small>
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    <label for="vat_number" class="form-label">BTW-nummer</label>
-                    <input type="text" name="vat_number" id="vat_number" class="form-control" value="{{ customer.vat_number }}" placeholder="BE0123456789">
-                    <small class="form-text text-muted">Formaat: BE0123456789</small>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="customer_type" class="form-label">Type klant</label>
+                        <select name="customer_type" id="customer_type" class="form-select">
+                            <option value="business" {% if customer.customer_type == 'business' %}selected{% endif %}>Bedrijf</option>
+                            <option value="individual" {% if customer.customer_type == 'individual' %}selected{% endif %}>Particulier</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="default_vat_rate" class="form-label">Standaard BTW-tarief</label>
+                        <select name="default_vat_rate" id="default_vat_rate" class="form-select">
+                            <option value="">Geen standaard tarief</option>
+                            <option value="21" {% if customer.default_vat_rate == 21 %}selected{% endif %}>21% (Standaard)</option>
+                            <option value="6" {% if customer.default_vat_rate == 6 %}selected{% endif %}>6% (Verlaagd)</option>
+                            <option value="0" {% if customer.default_vat_rate == 0 %}selected{% endif %}>0% (Vrijgesteld)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
-                    <input type="email" name="email" id="email" class="form-control" value="{{ customer.email }}" required>
+            
+            <!-- Contactgegevens -->
+            <div class="mb-4">
+                <h5 class="border-bottom pb-2">Contactgegevens</h5>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="first_name" class="form-label">Voornaam</label>
+                        <input type="text" name="first_name" id="first_name" class="form-control" value="{{ customer.first_name }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="last_name" class="form-label">Achternaam</label>
+                        <input type="text" name="last_name" id="last_name" class="form-control" value="{{ customer.last_name }}">
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" name="email" id="email" class="form-control" value="{{ customer.email }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="phone" class="form-label">Telefoonnummer</label>
+                        <input type="tel" name="phone" id="phone" class="form-control" value="{{ customer.phone }}">
+                    </div>
                 </div>
             </div>
-            <div class="row mb-4">
-                <div class="col-12">
-                    <label for="address" class="form-label">Adres <span class="text-danger">*</span></label>
-                    <textarea name="address" id="address" class="form-control" rows="3" required>{{ customer.address }}</textarea>
+            
+            <!-- Adresgegevens -->
+            <div class="mb-4">
+                <h5 class="border-bottom pb-2">Adresgegevens</h5>
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <label for="street" class="form-label">Straat <span class="text-danger">*</span></label>
+                        <input type="text" name="street" id="street" class="form-control" value="{{ customer.street }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="house_number" class="form-label">Huisnummer <span class="text-danger">*</span></label>
+                        <input type="text" name="house_number" id="house_number" class="form-control" value="{{ customer.house_number }}" required>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="postal_code" class="form-label">Postcode <span class="text-danger">*</span></label>
+                        <input type="text" name="postal_code" id="postal_code" class="form-control" value="{{ customer.postal_code }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="city" class="form-label">Stad <span class="text-danger">*</span></label>
+                        <input type="text" name="city" id="city" class="form-control" value="{{ customer.city }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="country" class="form-label">Land</label>
+                        <input type="text" name="country" id="country" class="form-control" value="{{ customer.country|default('België') }}">
+                    </div>
                 </div>
             </div>
+            
             <div class="row">
                 <div class="col-12">
                     <hr>

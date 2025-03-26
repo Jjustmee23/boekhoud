@@ -1,12 +1,12 @@
 import os
 import logging
-from datetime import datetime
+import uuid
+from datetime import datetime, date
 from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session
-from app import app
+from app import app, db
 from models import (
-    add_customer, update_customer, delete_customer, get_customer, get_customers,
-    add_invoice, update_invoice, delete_invoice, get_invoice, get_invoices,
+    Customer, Invoice, get_next_invoice_number,
     calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary
 )
 from utils import (
@@ -37,13 +37,16 @@ def dashboard():
     vat_paid = sum(month['vat_paid'] for month in monthly_summary)
     vat_balance = vat_collected - vat_paid
     
-    # Get recent invoices
-    recent_invoices = get_invoices()[:5]  # Get 5 most recent
+    # Get recent invoices (5 most recent)
+    recent_invoices_query = Invoice.query.order_by(Invoice.date.desc()).limit(5)
     
-    # Enrich invoices with customer data
-    for invoice in recent_invoices:
-        customer = get_customer(invoice['customer_id'])
-        invoice['customer_name'] = customer['name'] if customer else 'Unknown Customer'
+    # Convert to dictionary format for the template
+    recent_invoices = []
+    for invoice in recent_invoices_query:
+        invoice_dict = invoice.to_dict()
+        customer = Customer.query.get(invoice.customer_id)
+        invoice_dict['customer_name'] = customer.name if customer else 'Unknown Customer'
+        recent_invoices.append(invoice_dict)
     
     return render_template(
         'dashboard.html',
@@ -59,7 +62,6 @@ def dashboard():
         recent_invoices=recent_invoices,
         current_year=current_year,
         format_currency=format_currency,
-        get_customer=get_customer,
         now=datetime.now()
     )
 
@@ -108,21 +110,49 @@ def invoices_list():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
-    # Get invoices with filters
-    invoices_data = get_invoices(
-        customer_id=customer_id,
-        invoice_type=invoice_type,
-        start_date=start_date,
-        end_date=end_date
-    )
+    # Build query with filters
+    query = Invoice.query
+    
+    if customer_id:
+        # Convert string to UUID if needed
+        if isinstance(customer_id, str):
+            try:
+                customer_id = uuid.UUID(customer_id)
+            except ValueError:
+                flash('Ongeldige klant-ID', 'danger')
+                # Continue with no filter if invalid
+        query = query.filter(Invoice.customer_id == customer_id)
+    
+    if invoice_type:
+        query = query.filter(Invoice.invoice_type == invoice_type)
+    
+    if start_date:
+        if isinstance(start_date, str):
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        query = query.filter(Invoice.date >= start_date)
+    
+    if end_date:
+        if isinstance(end_date, str):
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        query = query.filter(Invoice.date <= end_date)
+    
+    # Order by date, newest first
+    query = query.order_by(Invoice.date.desc())
+    
+    # Execute query
+    invoices_query = query.all()
+    
+    # Convert to dictionary format for the template
+    invoices_data = []
+    for invoice in invoices_query:
+        invoice_dict = invoice.to_dict()
+        customer = Customer.query.get(invoice.customer_id)
+        invoice_dict['customer_name'] = customer.name if customer else 'Onbekende Klant'
+        invoices_data.append(invoice_dict)
     
     # Get all customers for filter dropdown
-    customers_data = get_customers()
-    
-    # Enrich invoices with customer data
-    for invoice in invoices_data:
-        customer = get_customer(invoice['customer_id'])
-        invoice['customer_name'] = customer['name'] if customer else 'Unknown Customer'
+    customers_query = Customer.query.all()
+    customers_data = [customer.to_dict() for customer in customers_query]
     
     return render_template(
         'invoices.html',
@@ -141,16 +171,17 @@ def new_invoice():
     if request.method == 'POST':
         # Get form data
         customer_id = request.form.get('customer_id')
-        date = request.form.get('date')
+        date_str = request.form.get('date')
         invoice_type = request.form.get('type')
         amount_incl_vat = request.form.get('amount_incl_vat')
         vat_rate = request.form.get('vat_rate')
         invoice_number = request.form.get('invoice_number')  # Optional
         
         # Validate data
-        if not all([customer_id, date, invoice_type, amount_incl_vat, vat_rate]):
-            flash('All fields are required', 'danger')
-            customers_data = get_customers()
+        if not all([customer_id, date_str, invoice_type, amount_incl_vat, vat_rate]):
+            flash('Alle velden zijn verplicht', 'danger')
+            customers_query = Customer.query.all()
+            customers_data = [customer.to_dict() for customer in customers_query]
             return render_template(
                 'invoice_form.html',
                 customers=customers_data,
@@ -159,42 +190,99 @@ def new_invoice():
                 now=datetime.now()
             )
         
-        # Handle file upload
-        file_path = None
-        if 'invoice_file' in request.files:
-            file = request.files['invoice_file']
-            if file and file.filename and allowed_file(file.filename):
-                file_path = save_uploaded_file(file)
-                if not file_path:
-                    flash('Failed to upload file', 'warning')
-            elif file and file.filename:
-                flash('Only PDF, PNG, JPG and JPEG files are allowed', 'warning')
-        
-        # Add invoice
         try:
-            invoice, message, duplicate_id = add_invoice(
+            # Convert customer_id to UUID
+            if isinstance(customer_id, str):
+                customer_id = uuid.UUID(customer_id)
+                
+            # Convert date string to date object
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            
+            # Parse amounts
+            amount_incl_vat_float = float(amount_incl_vat)
+            vat_rate_float = float(vat_rate)
+            
+            # Calculate amounts
+            amount_incl_vat_decimal = Decimal(str(amount_incl_vat_float))
+            vat_rate_decimal = Decimal(str(vat_rate_float))
+            vat_amount = amount_incl_vat_decimal - (amount_incl_vat_decimal / (1 + vat_rate_decimal / 100))
+            amount_excl_vat = amount_incl_vat_decimal - vat_amount
+            
+            # Handle file upload
+            file_path = None
+            if 'invoice_file' in request.files:
+                file = request.files['invoice_file']
+                if file and file.filename and allowed_file(file.filename):
+                    file_path = save_uploaded_file(file)
+                    if not file_path:
+                        flash('Bestand uploaden mislukt', 'warning')
+                elif file and file.filename:
+                    flash('Alleen PDF, PNG, JPG en JPEG bestanden zijn toegestaan', 'warning')
+            
+            # Check for duplicate invoice number
+            if invoice_number:
+                existing_invoice = Invoice.query.filter_by(invoice_number=invoice_number).first()
+                if existing_invoice:
+                    duplicate_id = existing_invoice.id
+                    flash(f'Factuur met dit nummer bestaat al. <a href="{url_for("view_invoice", invoice_id=duplicate_id)}">Bekijk dubbele factuur</a>', 'warning')
+                    customers_query = Customer.query.all()
+                    customers_data = [customer.to_dict() for customer in customers_query]
+                    return render_template(
+                        'invoice_form.html',
+                        customers=customers_data,
+                        vat_rates=get_vat_rates(),
+                        invoice=request.form,
+                        now=datetime.now()
+                    )
+            else:
+                # Generate new invoice number
+                invoice_number = get_next_invoice_number()
+            
+            # Check if customer exists
+            customer = Customer.query.get(customer_id)
+            if not customer:
+                flash('Klant niet gevonden', 'danger')
+                customers_query = Customer.query.all()
+                customers_data = [customer.to_dict() for customer in customers_query]
+                return render_template(
+                    'invoice_form.html',
+                    customers=customers_data,
+                    vat_rates=get_vat_rates(),
+                    invoice=request.form,
+                    now=datetime.now()
+                )
+            
+            # Create new invoice
+            invoice = Invoice(
+                invoice_number=invoice_number,
                 customer_id=customer_id,
                 date=date,
                 invoice_type=invoice_type,
-                amount_incl_vat=float(amount_incl_vat),
-                vat_rate=float(vat_rate),
-                invoice_number=invoice_number if invoice_number else None,
+                amount_excl_vat=float(amount_excl_vat),
+                amount_incl_vat=amount_incl_vat_float,
+                vat_rate=vat_rate_float,
+                vat_amount=float(vat_amount),
                 file_path=file_path
             )
             
-            if invoice:
-                flash(message, 'success')
-                return redirect(url_for('invoices_list'))
-            else:
-                if duplicate_id:
-                    flash(f'{message}. <a href="{url_for("view_invoice", invoice_id=duplicate_id)}">View duplicate</a>', 'warning')
-                else:
-                    flash(message, 'danger')
+            # Save to database
+            db.session.add(invoice)
+            db.session.commit()
+            
+            flash('Factuur succesvol toegevoegd', 'success')
+            return redirect(url_for('invoices_list'))
+            
         except ValueError as e:
-            flash(f'Invalid input: {str(e)}', 'danger')
+            flash(f'Ongeldige invoer: {str(e)}', 'danger')
+            logging.error(f"Error adding invoice: {str(e)}")
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Fout bij het toevoegen van de factuur: {str(e)}', 'danger')
+            logging.error(f"Error adding invoice: {str(e)}")
         
         # If we get here, there was an error
-        customers_data = get_customers()
+        customers_query = Customer.query.all()
+        customers_data = [customer.to_dict() for customer in customers_query]
         return render_template(
             'invoice_form.html',
             customers=customers_data,
@@ -204,7 +292,8 @@ def new_invoice():
         )
     
     # GET request - show the form
-    customers_data = get_customers()
+    customers_query = Customer.query.all()
+    customers_data = [customer.to_dict() for customer in customers_query]
     return render_template(
         'invoice_form.html',
         customers=customers_data,
@@ -402,17 +491,26 @@ def view_invoice_attachment(invoice_id):
 # Customer management routes
 @app.route('/customers')
 def customers_list():
-    customers_data = get_customers()
+    # Get all customers from the database
+    customers_query = Customer.query.all()
     
-    # Add invoice counts and totals
-    for customer in customers_data:
-        customer_invoices = get_invoices(customer_id=customer['id'])
-        customer['invoice_count'] = len(customer_invoices)
-        customer['total_amount'] = sum(
-            inv['amount_incl_vat'] 
-            for inv in customer_invoices 
-            if inv['invoice_type'] == 'income'
+    # Convert to dictionary format for the template and add counts/totals
+    customers_data = []
+    for customer in customers_query:
+        customer_dict = customer.to_dict()
+        
+        # Query invoices for this customer
+        customer_invoices_query = Invoice.query.filter_by(customer_id=customer.id).all()
+        
+        # Add additional data
+        customer_dict['invoice_count'] = len(customer_invoices_query)
+        customer_dict['total_amount'] = sum(
+            inv.amount_incl_vat 
+            for inv in customer_invoices_query 
+            if inv.invoice_type == 'income'
         )
+        
+        customers_data.append(customer_dict)
     
     return render_template(
         'customers.html',
@@ -424,21 +522,30 @@ def customers_list():
 @app.route('/customers/new', methods=['GET', 'POST'])
 def new_customer():
     if request.method == 'POST':
-        # Get form data
-        name = request.form.get('name')
-        address = request.form.get('address')
-        vat_number = request.form.get('vat_number')
-        email = request.form.get('email')
-        
         # Check if request is coming from an AJAX call
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'json' in request.headers.get('Accept', '')
         
+        # Get form data
+        company_name = request.form.get('company_name')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        vat_number = request.form.get('vat_number')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        street = request.form.get('street')
+        house_number = request.form.get('house_number')
+        postal_code = request.form.get('postal_code')
+        city = request.form.get('city')
+        country = request.form.get('country')
+        customer_type = request.form.get('customer_type')
+        default_vat_rate = request.form.get('default_vat_rate')
+        
         # Validate data
-        if not all([name, address, email]):
+        if not all([company_name, email, street, house_number, postal_code, city]):
             if is_ajax:
-                return jsonify({'success': False, 'message': 'Naam, adres en e-mail zijn verplicht'})
+                return jsonify({'success': False, 'message': 'Bedrijfsnaam, e-mail en adresgegevens zijn verplicht'})
             else:
-                flash('Naam, adres en e-mail zijn verplicht', 'danger')
+                flash('Bedrijfsnaam, e-mail en adresgegevens zijn verplicht', 'danger')
                 return render_template(
                     'customer_form.html',
                     customer=request.form,
@@ -447,30 +554,49 @@ def new_customer():
         
         # Add customer
         try:
-            customer = add_customer(
-                name=name,
-                address=address,
+            # Create a new customer object
+            customer = Customer(
+                company_name=company_name,
+                first_name=first_name,
+                last_name=last_name,
                 vat_number=vat_number,
-                email=email
+                email=email,
+                phone=phone,
+                street=street,
+                house_number=house_number,
+                postal_code=postal_code,
+                city=city,
+                country=country or 'België',
+                customer_type=customer_type or 'business'
             )
             
-            if customer:
-                if is_ajax:
-                    return jsonify({'success': True, 'customer': customer})
-                else:
-                    flash('Klant is succesvol toegevoegd', 'success')
-                    return redirect(url_for('customers_list'))
-            else:
-                if is_ajax:
-                    return jsonify({'success': False, 'message': 'Kan klant niet toevoegen'})
-                else:
-                    flash('Kan klant niet toevoegen', 'danger')
-        except ValueError as e:
+            # Set default VAT rate if provided
+            if default_vat_rate:
+                customer.default_vat_rate = float(default_vat_rate)
+                
+            # Add to database
+            db.session.add(customer)
+            db.session.commit()
+            
             if is_ajax:
-                return jsonify({'success': False, 'message': f'Ongeldige invoer: {str(e)}'})
+                return jsonify({
+                    'success': True, 
+                    'customer': {
+                        'id': str(customer.id),
+                        'name': customer.name  # Uses the property we defined
+                    }
+                })
             else:
-                flash(f'Ongeldige invoer: {str(e)}', 'danger')
-        
+                flash('Klant is succesvol toegevoegd', 'success')
+                return redirect(url_for('customers_list'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error adding customer: {str(e)}")
+            if is_ajax:
+                return jsonify({'success': False, 'message': f'Fout: {str(e)}'})
+            else:
+                flash(f'Fout: {str(e)}', 'danger')
+                
         # If we get here, there was an error
         if not is_ajax:
             return render_template(
@@ -489,53 +615,119 @@ def new_customer():
 
 @app.route('/customers/<customer_id>')
 def view_customer(customer_id):
-    customer = get_customer(customer_id)
-    if not customer:
-        flash('Customer not found', 'danger')
+    try:
+        # Convert customer_id from string to UUID if needed
+        if isinstance(customer_id, str):
+            customer_id = uuid.UUID(customer_id)
+            
+        # Query the customer from the database
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            flash('Klant niet gevonden', 'danger')
+            return redirect(url_for('customers_list'))
+        
+        # Query customer invoices
+        customer_invoices_query = Invoice.query.filter_by(customer_id=customer.id).all()
+        
+        # Convert to dictionary format for the template
+        customer_data = customer.to_dict()
+        customer_invoices = [invoice.to_dict() for invoice in customer_invoices_query]
+        
+        # Calculate total income and expense
+        total_income = sum(
+            inv.amount_incl_vat 
+            for inv in customer_invoices_query 
+            if inv.invoice_type == 'income'
+        )
+        total_expense = sum(
+            inv.amount_incl_vat 
+            for inv in customer_invoices_query 
+            if inv.invoice_type == 'expense'
+        )
+        
+        return render_template(
+            'customer_detail.html',
+            customer=customer_data,
+            invoices=customer_invoices,
+            total_income=total_income,
+            total_expense=total_expense,
+            format_currency=format_currency,
+            now=datetime.now()
+        )
+    except ValueError:
+        flash('Ongeldige klant-ID', 'danger')
         return redirect(url_for('customers_list'))
-    
-    # Get customer invoices
-    customer_invoices = get_invoices(customer_id=customer_id)
-    
-    # Calculate total income and expense
-    total_income = sum(
-        inv['amount_incl_vat'] 
-        for inv in customer_invoices 
-        if inv['invoice_type'] == 'income'
-    )
-    total_expense = sum(
-        inv['amount_incl_vat'] 
-        for inv in customer_invoices 
-        if inv['invoice_type'] == 'expense'
-    )
-    
-    return render_template(
-        'customer_detail.html',
-        customer=customer,
-        invoices=customer_invoices,
-        total_income=total_income,
-        total_expense=total_expense,
-        format_currency=format_currency,
-        now=datetime.now()
-    )
 
 @app.route('/customers/<customer_id>/edit', methods=['GET', 'POST'])
 def edit_customer(customer_id):
-    customer = get_customer(customer_id)
-    if not customer:
-        flash('Customer not found', 'danger')
-        return redirect(url_for('customers_list'))
-    
-    if request.method == 'POST':
-        # Get form data
-        name = request.form.get('name')
-        address = request.form.get('address')
-        vat_number = request.form.get('vat_number')
-        email = request.form.get('email')
+    try:
+        # Convert customer_id from string to UUID if needed
+        if isinstance(customer_id, str):
+            customer_id = uuid.UUID(customer_id)
+            
+        # Query the customer from the database
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            flash('Klant niet gevonden', 'danger')
+            return redirect(url_for('customers_list'))
         
-        # Validate data
-        if not all([name, address, email]):
-            flash('Name, address and email are required', 'danger')
+        if request.method == 'POST':
+            # Get form data 
+            company_name = request.form.get('company_name')
+            first_name = request.form.get('first_name')
+            last_name = request.form.get('last_name')
+            vat_number = request.form.get('vat_number')
+            email = request.form.get('email')
+            phone = request.form.get('phone')
+            street = request.form.get('street')
+            house_number = request.form.get('house_number')
+            postal_code = request.form.get('postal_code')
+            city = request.form.get('city')
+            country = request.form.get('country')
+            customer_type = request.form.get('customer_type')
+            default_vat_rate = request.form.get('default_vat_rate')
+            
+            # Validate data
+            if not all([company_name, email, street, house_number, postal_code, city]):
+                flash('Bedrijfsnaam, e-mail en adresgegevens zijn verplicht', 'danger')
+                return render_template(
+                    'customer_form.html',
+                    customer=request.form,
+                    edit_mode=True,
+                    now=datetime.now()
+                )
+            
+            # Update customer
+            try:
+                # Update customer attributes
+                customer.company_name = company_name
+                customer.first_name = first_name
+                customer.last_name = last_name
+                customer.vat_number = vat_number
+                customer.email = email
+                customer.phone = phone
+                customer.street = street
+                customer.house_number = house_number
+                customer.postal_code = postal_code
+                customer.city = city
+                customer.country = country or 'België'
+                customer.customer_type = customer_type or 'business'
+                
+                # Set default VAT rate if provided
+                if default_vat_rate:
+                    customer.default_vat_rate = float(default_vat_rate)
+                
+                # Save changes
+                db.session.commit()
+                
+                flash('Klant succesvol bijgewerkt', 'success')
+                return redirect(url_for('view_customer', customer_id=customer_id))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Fout bij het bijwerken van de klant: {str(e)}', 'danger')
+                logging.error(f"Error updating customer: {str(e)}")
+            
+            # If we get here, there was an error
             return render_template(
                 'customer_form.html',
                 customer=request.form,
@@ -543,48 +735,50 @@ def edit_customer(customer_id):
                 now=datetime.now()
             )
         
-        # Update customer
-        try:
-            updated_customer = update_customer(
-                customer_id=customer_id,
-                name=name,
-                address=address,
-                vat_number=vat_number,
-                email=email
-            )
-            
-            if updated_customer:
-                flash('Customer updated successfully', 'success')
-                return redirect(url_for('view_customer', customer_id=customer_id))
-            else:
-                flash('Failed to update customer', 'danger')
-        except ValueError as e:
-            flash(f'Invalid input: {str(e)}', 'danger')
-        
-        # If we get here, there was an error
+        # GET request - show the form with current data
         return render_template(
             'customer_form.html',
-            customer=request.form,
+            customer=customer.to_dict(),
             edit_mode=True,
             now=datetime.now()
         )
-    
-    # GET request - show the form
-    return render_template(
-        'customer_form.html',
-        customer=customer,
-        edit_mode=True,
-        now=datetime.now()
-    )
+    except ValueError:
+        flash('Ongeldige klant-ID', 'danger')
+        return redirect(url_for('customers_list'))
 
 @app.route('/customers/<customer_id>/delete', methods=['POST'])
 def delete_customer_route(customer_id):
-    success, message = delete_customer(customer_id)
-    if success:
-        flash(message, 'success')
-    else:
-        flash(message, 'danger')
-    return redirect(url_for('customers_list'))
+    try:
+        # Convert customer_id from string to UUID if needed
+        if isinstance(customer_id, str):
+            customer_id = uuid.UUID(customer_id)
+            
+        # Query the customer from the database
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            flash('Klant niet gevonden', 'danger')
+            return redirect(url_for('customers_list'))
+        
+        # Check if customer has invoices
+        has_invoices = Invoice.query.filter_by(customer_id=customer.id).first() is not None
+        if has_invoices:
+            flash('Kan klant niet verwijderen omdat er nog facturen aan gekoppeld zijn', 'danger')
+            return redirect(url_for('customers_list'))
+        
+        # Delete the customer
+        try:
+            db.session.delete(customer)
+            db.session.commit()
+            flash('Klant succesvol verwijderd', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Fout bij het verwijderen van de klant: {str(e)}', 'danger')
+            logging.error(f"Error deleting customer: {str(e)}")
+        
+        return redirect(url_for('customers_list'))
+    except ValueError:
+        flash('Ongeldige klant-ID', 'danger')
+        return redirect(url_for('customers_list'))
 
 # Reports routes
 @app.route('/reports')

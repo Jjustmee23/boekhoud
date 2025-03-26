@@ -111,28 +111,93 @@
             </div>
             <div class="modal-body">
                 <form id="quickCustomerForm">
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <label for="modal_name" class="form-label">Naam <span class="text-danger">*</span></label>
-                            <input type="text" id="modal_name" name="name" class="form-control" required>
+                    <!-- Bedrijfsgegevens -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2">Bedrijfsgegevens</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="modal_company_name" class="form-label">Bedrijfsnaam <span class="text-danger">*</span></label>
+                                <input type="text" id="modal_company_name" name="company_name" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="modal_vat_number" class="form-label">BTW Nummer</label>
+                                <input type="text" id="modal_vat_number" name="vat_number" class="form-control" placeholder="BE0123456789">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="modal_customer_type" class="form-label">Type klant</label>
+                                <select id="modal_customer_type" name="customer_type" class="form-select">
+                                    <option value="business" selected>Bedrijf</option>
+                                    <option value="individual">Particulier</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="modal_default_vat_rate" class="form-label">Standaard BTW-tarief</label>
+                                <select id="modal_default_vat_rate" name="default_vat_rate" class="form-select">
+                                    <option value="">Geen standaard tarief</option>
+                                    <option value="21">21% (Standaard)</option>
+                                    <option value="6">6% (Verlaagd)</option>
+                                    <option value="0">0% (Vrijgesteld)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <label for="modal_address" class="form-label">Adres <span class="text-danger">*</span></label>
-                            <textarea id="modal_address" name="address" class="form-control" rows="3" required></textarea>
+                    
+                    <!-- Contactgegevens -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2">Contactgegevens</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="modal_first_name" class="form-label">Voornaam</label>
+                                <input type="text" id="modal_first_name" name="first_name" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="modal_last_name" class="form-label">Achternaam</label>
+                                <input type="text" id="modal_last_name" name="last_name" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="modal_email" class="form-label">Email <span class="text-danger">*</span></label>
+                                <input type="email" id="modal_email" name="email" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="modal_phone" class="form-label">Telefoonnummer</label>
+                                <input type="tel" id="modal_phone" name="phone" class="form-control">
+                            </div>
                         </div>
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="modal_vat_number" class="form-label">BTW Nummer</label>
-                            <input type="text" id="modal_vat_number" name="vat_number" class="form-control" placeholder="BE0123456789">
+                    
+                    <!-- Adresgegevens -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2">Adresgegevens</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label for="modal_street" class="form-label">Straat <span class="text-danger">*</span></label>
+                                <input type="text" id="modal_street" name="street" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="modal_house_number" class="form-label">Huisnummer <span class="text-danger">*</span></label>
+                                <input type="text" id="modal_house_number" name="house_number" class="form-control" required>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <label for="modal_email" class="form-label">E-mail <span class="text-danger">*</span></label>
-                            <input type="email" id="modal_email" name="email" class="form-control" required>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="modal_postal_code" class="form-label">Postcode <span class="text-danger">*</span></label>
+                                <input type="text" id="modal_postal_code" name="postal_code" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="modal_city" class="form-label">Stad <span class="text-danger">*</span></label>
+                                <input type="text" id="modal_city" name="city" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="modal_country" class="form-label">Land</label>
+                                <input type="text" id="modal_country" name="country" class="form-control" value="België">
+                            </div>
                         </div>
                     </div>
+                    
                     <div class="alert alert-success d-none" id="customerSuccessMessage">
                         <i class="fas fa-check-circle"></i> Klant is succesvol toegevoegd!
                     </div>
@@ -195,13 +260,22 @@
             customerErrorMessage.classList.add('d-none');
             
             // Get form data
-            const name = document.getElementById('modal_name').value;
-            const address = document.getElementById('modal_address').value;
+            const companyName = document.getElementById('modal_company_name').value;
+            const firstName = document.getElementById('modal_first_name').value;
+            const lastName = document.getElementById('modal_last_name').value;
             const vatNumber = document.getElementById('modal_vat_number').value;
             const email = document.getElementById('modal_email').value;
+            const phone = document.getElementById('modal_phone').value;
+            const street = document.getElementById('modal_street').value;
+            const houseNumber = document.getElementById('modal_house_number').value;
+            const postalCode = document.getElementById('modal_postal_code').value;
+            const city = document.getElementById('modal_city').value;
+            const country = document.getElementById('modal_country').value;
+            const customerType = document.getElementById('modal_customer_type').value;
+            const defaultVatRate = document.getElementById('modal_default_vat_rate').value;
             
             // Simple validation
-            if (!name || !address || !email) {
+            if (!companyName || !email || !street || !houseNumber || !postalCode || !city) {
                 customerErrorMessage.textContent = 'Vul alle verplichte velden in.';
                 customerErrorMessage.classList.remove('d-none');
                 return;
@@ -209,10 +283,19 @@
             
             // Prepare request data
             const formData = new FormData();
-            formData.append('name', name);
-            formData.append('address', address);
+            formData.append('company_name', companyName);
+            formData.append('first_name', firstName);
+            formData.append('last_name', lastName);
             formData.append('vat_number', vatNumber);
             formData.append('email', email);
+            formData.append('phone', phone);
+            formData.append('street', street);
+            formData.append('house_number', houseNumber);
+            formData.append('postal_code', postalCode);
+            formData.append('city', city);
+            formData.append('country', country);
+            formData.append('customer_type', customerType);
+            formData.append('default_vat_rate', defaultVatRate);
             
             // Send AJAX request
             fetch('{{ url_for("new_customer") }}', {

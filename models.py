@@ -1,17 +1,120 @@
-from datetime import datetime
+from datetime import datetime, date
 import uuid
 from decimal import Decimal
+from app import db
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import UUID
 
-# In-memory database storage
+# Legacy in-memory storage (will be deprecated)
 customers = {}  # id -> customer
 invoices = {}   # id -> invoice
+
+# Database models
+class Customer(db.Model):
+    __tablename__ = 'customers'
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_name = db.Column(db.String(100), nullable=False)
+    vat_number = db.Column(db.String(20))
+    first_name = db.Column(db.String(50))
+    last_name = db.Column(db.String(50))
+    email = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(20))
+    street = db.Column(db.String(100))
+    house_number = db.Column(db.String(10))
+    postal_code = db.Column(db.String(10))
+    city = db.Column(db.String(50))
+    country = db.Column(db.String(50), default='België')
+    customer_type = db.Column(db.String(20), default='business')  # business, individual
+    default_vat_rate = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # Relationship to invoices
+    invoices = db.relationship('Invoice', back_populates='customer', cascade='all, delete-orphan')
+    
+    def to_dict(self):
+        return {
+            'id': str(self.id),
+            'company_name': self.company_name,
+            'vat_number': self.vat_number,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'email': self.email,
+            'phone': self.phone,
+            'street': self.street,
+            'house_number': self.house_number,
+            'postal_code': self.postal_code,
+            'city': self.city,
+            'country': self.country,
+            'customer_type': self.customer_type,
+            'default_vat_rate': self.default_vat_rate,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at,
+            'name': self.name,
+            'address': self.address
+        }
+        
+    @property
+    def name(self):
+        """For compatibility with existing code"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.company_name
+        
+    @property
+    def address(self):
+        """For compatibility with existing code"""
+        address_parts = []
+        if self.street and self.house_number:
+            address_parts.append(f"{self.street} {self.house_number}")
+        if self.postal_code and self.city:
+            address_parts.append(f"{self.postal_code} {self.city}")
+        if self.country:
+            address_parts.append(self.country)
+        return ", ".join(address_parts)
+
+class Invoice(db.Model):
+    __tablename__ = 'invoices'
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    invoice_number = db.Column(db.String(20), unique=True, nullable=False)
+    customer_id = db.Column(UUID(as_uuid=True), db.ForeignKey('customers.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    invoice_type = db.Column(db.String(10), nullable=False)  # income, expense
+    amount_excl_vat = db.Column(db.Float, nullable=False)
+    amount_incl_vat = db.Column(db.Float, nullable=False)
+    vat_rate = db.Column(db.Float, nullable=False)
+    vat_amount = db.Column(db.Float, nullable=False)
+    file_path = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # Relationship to customer
+    customer = db.relationship('Customer', back_populates='invoices')
+    
+    def to_dict(self):
+        return {
+            'id': str(self.id),
+            'invoice_number': self.invoice_number,
+            'customer_id': str(self.customer_id),
+            'date': self.date.strftime('%Y-%m-%d') if isinstance(self.date, date) else self.date,
+            'invoice_type': self.invoice_type,
+            'amount_excl_vat': self.amount_excl_vat,
+            'amount_incl_vat': self.amount_incl_vat,
+            'vat_rate': self.vat_rate,
+            'vat_amount': self.vat_amount,
+            'file_path': self.file_path,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
 
 # Helper function to generate next invoice number
 def get_next_invoice_number():
     """Generate the next invoice number in format INV-YYYY-XXXX"""
     year = datetime.now().year
     # Count invoices for this year
-    count = sum(1 for inv in invoices.values() if f"INV-{year}" in inv['invoice_number'])
+    count = Invoice.query.filter(Invoice.invoice_number.like(f"INV-{year}-%")).count()
     return f"INV-{year}-{(count + 1):04d}"
 
 # Customer Management
