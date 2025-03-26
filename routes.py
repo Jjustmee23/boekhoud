@@ -1005,15 +1005,25 @@ def extract_invoice_data():
     file.save(file_path)
     
     try:
-        # Extract data from file
+        # Extract data from file content using OCR/text analysis
         processor = FileProcessor()
-        file_info = processor._extract_info_from_filename(file.filename)
+        
+        # First extract data from file content (OCR)
+        file_info = processor.extract_document_data(file_path)
+        
+        # If we couldn't extract needed info, fallback to filename analysis
+        if not (file_info.get('is_invoice', False) or file_info.get('is_bank_statement', False)):
+            filename_info = processor._extract_info_from_filename(file.filename)
+            # Merge the extracted data, preferring file content over filename data
+            for key, value in filename_info.items():
+                if key not in file_info:
+                    file_info[key] = value
         
         extracted_data = {}
         customer_id = None
         
         # Create document based on file type
-        if 'invoice' in file_info.get('document_type', '').lower():
+        if file_info.get('is_invoice', False):
             doc = InvoiceDocument(file_path, file_info)
             invoice_data = doc.get_invoice_data()
             extracted_data.update(invoice_data)

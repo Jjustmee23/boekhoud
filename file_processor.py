@@ -2,6 +2,8 @@ import os
 import uuid
 import logging
 import re
+import io
+import tempfile
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from utils import save_uploaded_file, allowed_file
@@ -9,6 +11,12 @@ from models import (
     add_customer, get_customer, add_invoice, check_duplicate_invoice,
     get_customers, get_invoices
 )
+
+# Import libraries for PDF and text extraction
+from pypdf import PdfReader
+import pytesseract
+from PIL import Image
+import trafilatura
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -179,7 +187,16 @@ class FileProcessor:
                 
                 # Extract data from filename as placeholder for real extraction
                 filename = os.path.basename(file_path)
-                file_info = self._extract_info_from_filename(filename)
+                # Extract data first from file content (OCR)
+                file_info = self.extract_document_data(file_path)
+                
+                # If we couldn't extract needed info, fallback to filename analysis
+                if not (file_info.get('is_invoice', False) or file_info.get('is_bank_statement', False)):
+                    filename_info = self._extract_info_from_filename(filename)
+                    # Merge the extracted data, preferring file content over filename data
+                    for key, value in filename_info.items():
+                        if key not in file_info:
+                            file_info[key] = value
                 
                 # Create appropriate document object based on detected type
                 if file_info.get('is_invoice', False):
@@ -344,15 +361,240 @@ class FileProcessor:
         # 2. Update the invoice payment status
         # 3. Create a proper bank statement record in the database
     
+    def extract_text_from_pdf(self, file_path):
+        """Extract text from PDF file using PyPDF."""
+        try:
+            text = ""
+            with open(file_path, 'rb') as file:
+                pdf_reader = PdfReader(file)
+                for page_num in range(len(pdf_reader.pages)):
+                    text += pdf_reader.pages[page_num].extract_text()
+            return text
+        except Exception as e:
+            logger.warning(f"Failed to extract text from PDF: {str(e)}")
+            return ""
+            
+    def extract_text_from_image(self, file_path):
+        """Extract text from image file using pytesseract OCR."""
+        try:
+            image = Image.open(file_path)
+            text = pytesseract.image_to_string(image, lang='nld+eng')
+            return text
+        except Exception as e:
+            logger.warning(f"Failed to extract text from image: {str(e)}")
+            return ""
+    
+    def extract_document_data(self, file_path):
+        """
+        Extract information from document using OCR/text extraction.
+        """
+        # Determine file type
+        file_extension = os.path.splitext(file_path)[1].lower()
+        extracted_text = ""
+        
+        try:
+            if file_extension == '.pdf':
+                extracted_text = self.extract_text_from_pdf(file_path)
+            elif file_extension in ['.jpg', '.jpeg', '.png']:
+                extracted_text = self.extract_text_from_image(file_path)
+            else:
+                # Unsupported file type
+                logger.warning(f"Unsupported file type for OCR: {file_extension}")
+        except Exception as e:
+            logger.error(f"Error extracting text from document: {str(e)}")
+        
+        # Process the extracted text to find invoice details
+        logger.info(f"Extracted text length: {len(extracted_text)}")
+        
+        # Extract data from the text
+        info = self.analyze_document_text(extracted_text)
+        
+        return info
+        
+    def analyze_document_text(self, text):
+        """
+        Analyze text from document to extract invoice information.
+        """
+        # Initialize extracted data
+        info = {}
+        
+        if not text:
+            return info
+        
+        # Determine document type (invoice vs. bank statement)
+        lower_text = text.lower()
+        is_invoice = any(keyword in lower_text for keyword in [
+            'factuur', 'invoice', 'rekening', 'bill', 'nota', 'bon', 
+            'btw', 'vat', 'tva', 'facture'
+        ])
+        
+        is_bank_statement = any(keyword in lower_text for keyword in [
+            'rekeningafschrift', 'bank statement', 'statement of account', 'account statement', 
+            'transaction overview', 'transactieoverzicht'
+        ])
+        
+        # Add document classification to info
+        info['is_invoice'] = is_invoice
+        info['is_bank_statement'] = is_bank_statement
+        
+        # For invoices, extract detailed information
+        if is_invoice:
+            # Extract invoice number
+            invoice_number_patterns = [
+                r'factuurnr\.?\s*[:.\-]\s*([A-Za-z0-9\-\_\/\.]+)',
+                r'factuurnummer\s*[:.\-]\s*([A-Za-z0-9\-\_\/\.]+)',
+                r'invoice\s*number\s*[:.\-]\s*([A-Za-z0-9\-\_\/\.]+)',
+                r'invoice\s*#\s*([A-Za-z0-9\-\_\/\.]+)',
+                r'invoice\s*no\.?\s*[:.\-]?\s*([A-Za-z0-9\-\_\/\.]+)',
+                r'factuur\s*#\s*([A-Za-z0-9\-\_\/\.]+)',
+                r'factuurnummer\s*(\d+)',
+                r'factuurnr\s*(\d+)',
+                r'f-?[\d]+',  # Simple pattern like F-12345 or F12345
+                r'INV-?[\d]+' # Simple pattern like INV-12345 or INV12345
+            ]
+            
+            invoice_number = None
+            for pattern in invoice_number_patterns:
+                match = re.search(pattern, lower_text, re.IGNORECASE)
+                if match:
+                    invoice_number = match.group(1).strip()
+                    break
+                    
+            if invoice_number:
+                info['invoice_number'] = invoice_number
+                
+            # Extract date
+            date_patterns = [
+                r'datum\s*[:.\-]\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
+                r'date\s*[:.\-]\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
+                r'factuurdatum\s*[:.\-]\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})',
+                r'invoice\s*date\s*[:.\-]\s*(\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4})'
+            ]
+            
+            invoice_date = None
+            for pattern in date_patterns:
+                match = re.search(pattern, lower_text, re.IGNORECASE)
+                if match:
+                    date_str = match.group(1).strip()
+                    try:
+                        # Try to convert to standard format (will implement properly in real app)
+                        info['date'] = date_str
+                        break
+                    except:
+                        pass
+                        
+            # Extract amount
+            amount_patterns = [
+                r'totaal\s*(?:incl\.?\s*btw)?\s*[:.\-€]\s*([0-9.,]+)',
+                r'total\s*(?:incl\.?\s*vat)?\s*[:.\-€]\s*([0-9.,]+)',
+                r'te\s*betalen\s*[:.\-€]\s*([0-9.,]+)',
+                r'amount\s*due\s*[:.\-€]\s*([0-9.,]+)',
+                r'totaal\s*bedrag\s*[:.\-€]\s*([0-9.,]+)',
+                r'total\s*amount\s*[:.\-€]\s*([0-9.,]+)',
+                r'eindtotaal\s*[:.\-€]\s*([0-9.,]+)',
+                r'€\s*([0-9.,]+)'
+            ]
+            
+            amount_incl_vat = None
+            for pattern in amount_patterns:
+                match = re.search(pattern, lower_text, re.IGNORECASE)
+                if match:
+                    amount_str = match.group(1).strip().replace('.', '').replace(',', '.')
+                    try:
+                        amount_incl_vat = float(amount_str)
+                        info['amount_incl_vat'] = amount_incl_vat
+                        break
+                    except:
+                        pass
+                        
+            # Extract VAT rate
+            vat_patterns = [
+                r'btw\s*(?:percentage|tarief|rate)?\s*[:.\-]\s*(\d{1,2})[.,]?(\d{0,2})?\s*%',
+                r'vat\s*(?:percentage|rate)?\s*[:.\-]\s*(\d{1,2})[.,]?(\d{0,2})?\s*%',
+                r'btw\s*\((\d{1,2})[.,]?(\d{0,2})?\s*%\)',
+                r'vat\s*\((\d{1,2})[.,]?(\d{0,2})?\s*%\)',
+                r'(\d{1,2})[.,]?(\d{0,2})?\s*%\s*btw',
+                r'(\d{1,2})[.,]?(\d{0,2})?\s*%\s*vat',
+                r'tarief\s*(\d{1,2})[.,]?(\d{0,2})?\s*%'
+            ]
+            
+            vat_rate = 21.0  # Default rate for Belgium
+            for pattern in vat_patterns:
+                match = re.search(pattern, lower_text, re.IGNORECASE)
+                if match:
+                    try:
+                        whole_part = match.group(1)
+                        decimal_part = match.group(2) if len(match.groups()) > 1 and match.group(2) else '0'
+                        vat_rate = float(f"{whole_part}.{decimal_part}")
+                        info['vat_rate'] = vat_rate
+                        break
+                    except:
+                        pass
+            
+            # Determine invoice type (income or expense)
+            # Typical markers for income invoices
+            income_markers = [
+                'uw klantnummer', 'your customer number', 
+                'klantnummer', 'customer number',
+                'client number', 'clientnummer'
+            ]
+            
+            # Check if any income markers are present
+            is_income = any(marker in lower_text for marker in income_markers)
+            info['invoice_type'] = 'income' if is_income else 'expense'
+            
+            # Extract customer info
+            # For expense invoices, look for supplier details
+            # For income invoices, look for client details
+            if info['invoice_type'] == 'expense':
+                # Look for "from" or supplier section
+                name_patterns = [
+                    r'(?:van|from|sender|afzender)[:.\-]\s*([^\n]+)',
+                    r'(?:supplier|leverancier|verkoper|seller)[:.\-]\s*([^\n]+)'
+                ]
+                
+                vat_patterns = [
+                    r'(?:btw|vat|tva)(?:-|\s)(?:nummer|number|no)[:.\-]\s*([A-Za-z0-9\s]+)',
+                    r'(?:ondernemingsnummer|company\s*number)[:.\-]\s*([A-Za-z0-9\s]+)'
+                ]
+            else:
+                # Look for "to" or client section
+                name_patterns = [
+                    r'(?:aan|to|recipient|ontvanger)[:.\-]\s*([^\n]+)',
+                    r'(?:customer|klant|koper|buyer)[:.\-]\s*([^\n]+)'
+                ]
+                
+                vat_patterns = [
+                    r'(?:btw|vat|tva)(?:-|\s)(?:nummer|number|no)[:.\-]\s*([A-Za-z0-9\s]+)',
+                    r'(?:ondernemingsnummer|company\s*number)[:.\-]\s*([A-Za-z0-9\s]+)'
+                ]
+            
+            # Extract customer name
+            customer_name = None
+            for pattern in name_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    customer_name = match.group(1).strip()
+                    info['customer_name'] = customer_name
+                    break
+                    
+            # Extract VAT number
+            customer_vat = None
+            for pattern in vat_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    customer_vat = match.group(1).strip().replace(' ', '')
+                    info['customer_vat_number'] = customer_vat
+                    break
+        
+        return info
+    
     def _extract_info_from_filename(self, filename):
         """
         Analyzes filename to extract document information.
-        In a real implementation, this would use OCR/ML to extract info from the file content.
-        
-        For demo purposes, we're using filename patterns to simulate document analysis.
+        This is a fallback method that will be used if OCR extraction fails.
         """
         # This is a placeholder implementation
-        # In real life, you'd use OCR tools like pytesseract, or ML services
         info = {}
         
         # Basic classification based on filename keywords
