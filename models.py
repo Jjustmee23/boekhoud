@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import uuid
 from decimal import Decimal
 from app import db
@@ -338,43 +338,63 @@ def calculate_vat_report(year, quarter=None, month=None):
         - Grid 59: Input VAT (VAT on purchases)
         - Grid 71: VAT balance (54-59)
     """
-    # Filter invoices by period
-    filtered_invoices = list(invoices.values())
+    # Start with base query for the year
+    start_date = date(year, 1, 1)
+    end_date = date(year, 12, 31)
+    query = Invoice.query.filter(
+        Invoice.date >= start_date,
+        Invoice.date <= end_date
+    )
     
-    # Filter by year
-    filtered_invoices = [
-        inv for inv in filtered_invoices 
-        if datetime.strptime(inv['date'], '%Y-%m-%d').year == year
-    ]
-    
-    # Filter by quarter or month if specified
+    # Apply additional filters if specified
     if quarter:
-        filtered_invoices = [
-            inv for inv in filtered_invoices
-            if ((datetime.strptime(inv['date'], '%Y-%m-%d').month - 1) // 3) + 1 == quarter
-        ]
+        start_month = (quarter - 1) * 3 + 1
+        end_month = quarter * 3
+        
+        quarter_start = date(year, start_month, 1)
+        if end_month == 12:
+            quarter_end = date(year, end_month, 31)
+        else:
+            quarter_end = date(year, end_month + 1, 1) - timedelta(days=1)
+            
+        query = query.filter(
+            Invoice.date >= quarter_start,
+            Invoice.date <= quarter_end
+        )
     
     if month:
-        filtered_invoices = [
-            inv for inv in filtered_invoices
-            if datetime.strptime(inv['date'], '%Y-%m-%d').month == month
-        ]
+        month_start = date(year, month, 1)
+        if month == 12:
+            month_end = date(year, month, 31)
+        else:
+            month_end = date(year, month + 1, 1) - timedelta(days=1)
+            
+        query = query.filter(
+            Invoice.date >= month_start,
+            Invoice.date <= month_end
+        )
+    
+    # Execute query and get results
+    filtered_invoices = query.all()
+    
+    # Convert DB objects to dictionaries for easier handling in templates
+    invoice_dicts = [inv.to_dict() for inv in filtered_invoices]
     
     # Calculate VAT grids
-    grid_03 = sum(inv['amount_excl_vat'] for inv in filtered_invoices if inv['invoice_type'] == 'income')
-    grid_54 = sum(inv['vat_amount'] for inv in filtered_invoices if inv['invoice_type'] == 'income')
-    grid_59 = sum(inv['vat_amount'] for inv in filtered_invoices if inv['invoice_type'] == 'expense')
+    grid_03 = sum(inv.amount_excl_vat for inv in filtered_invoices if inv.invoice_type == 'income')
+    grid_54 = sum(inv.vat_amount for inv in filtered_invoices if inv.invoice_type == 'income')
+    grid_59 = sum(inv.vat_amount for inv in filtered_invoices if inv.invoice_type == 'expense')
     grid_71 = grid_54 - grid_59
     
     return {
-        'grid_03': grid_03,
-        'grid_54': grid_54,
-        'grid_59': grid_59,
-        'grid_71': grid_71,
+        'grid_03': float(grid_03),
+        'grid_54': float(grid_54),
+        'grid_59': float(grid_59),
+        'grid_71': float(grid_71),
         'year': year,
         'quarter': quarter,
         'month': month,
-        'invoices': filtered_invoices
+        'invoices': invoice_dicts
     }
 
 # Financial Summary functions
@@ -383,27 +403,33 @@ def get_monthly_summary(year):
     monthly_data = []
     
     for month in range(1, 13):
-        # Get all invoices for this month
-        month_invoices = [
-            inv for inv in invoices.values()
-            if datetime.strptime(inv['date'], '%Y-%m-%d').year == year
-            and datetime.strptime(inv['date'], '%Y-%m-%d').month == month
-        ]
+        # Create date range for the month
+        start_date = date(year, month, 1)
+        if month == 12:
+            end_date = date(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_date = date(year, month + 1, 1) - timedelta(days=1)
         
-        income = sum(inv['amount_excl_vat'] for inv in month_invoices if inv['invoice_type'] == 'income')
-        expenses = sum(inv['amount_excl_vat'] for inv in month_invoices if inv['invoice_type'] == 'expense')
-        vat_collected = sum(inv['vat_amount'] for inv in month_invoices if inv['invoice_type'] == 'income')
-        vat_paid = sum(inv['vat_amount'] for inv in month_invoices if inv['invoice_type'] == 'expense')
+        # Query all invoices for this month
+        month_invoices = Invoice.query.filter(
+            Invoice.date >= start_date,
+            Invoice.date <= end_date
+        ).all()
+        
+        income = sum(inv.amount_excl_vat for inv in month_invoices if inv.invoice_type == 'income')
+        expenses = sum(inv.amount_excl_vat for inv in month_invoices if inv.invoice_type == 'expense')
+        vat_collected = sum(inv.vat_amount for inv in month_invoices if inv.invoice_type == 'income')
+        vat_paid = sum(inv.vat_amount for inv in month_invoices if inv.invoice_type == 'expense')
         
         monthly_data.append({
             'month': month,
             'month_name': datetime(year, month, 1).strftime('%B'),
-            'income': income,
-            'expenses': expenses,
-            'profit': income - expenses,
-            'vat_collected': vat_collected,
-            'vat_paid': vat_paid,
-            'vat_balance': vat_collected - vat_paid
+            'income': float(income),
+            'expenses': float(expenses),
+            'profit': float(income - expenses),
+            'vat_collected': float(vat_collected),
+            'vat_paid': float(vat_paid),
+            'vat_balance': float(vat_collected - vat_paid)
         })
     
     return monthly_data
@@ -416,26 +442,32 @@ def get_quarterly_summary(year):
         start_month = (quarter - 1) * 3 + 1
         end_month = quarter * 3
         
-        # Get all invoices for this quarter
-        quarter_invoices = [
-            inv for inv in invoices.values()
-            if datetime.strptime(inv['date'], '%Y-%m-%d').year == year
-            and start_month <= datetime.strptime(inv['date'], '%Y-%m-%d').month <= end_month
-        ]
+        # Define date range for the quarter
+        start_date = date(year, start_month, 1)
+        if end_month == 12:
+            end_date = date(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_date = date(year, end_month + 1, 1) - timedelta(days=1)
         
-        income = sum(inv['amount_excl_vat'] for inv in quarter_invoices if inv['invoice_type'] == 'income')
-        expenses = sum(inv['amount_excl_vat'] for inv in quarter_invoices if inv['invoice_type'] == 'expense')
-        vat_collected = sum(inv['vat_amount'] for inv in quarter_invoices if inv['invoice_type'] == 'income')
-        vat_paid = sum(inv['vat_amount'] for inv in quarter_invoices if inv['invoice_type'] == 'expense')
+        # Query invoices for this quarter
+        quarter_invoices = Invoice.query.filter(
+            Invoice.date >= start_date,
+            Invoice.date <= end_date
+        ).all()
+        
+        income = sum(inv.amount_excl_vat for inv in quarter_invoices if inv.invoice_type == 'income')
+        expenses = sum(inv.amount_excl_vat for inv in quarter_invoices if inv.invoice_type == 'expense')
+        vat_collected = sum(inv.vat_amount for inv in quarter_invoices if inv.invoice_type == 'income')
+        vat_paid = sum(inv.vat_amount for inv in quarter_invoices if inv.invoice_type == 'expense')
         
         quarterly_data.append({
             'quarter': quarter,
-            'income': income,
-            'expenses': expenses,
-            'profit': income - expenses,
-            'vat_collected': vat_collected,
-            'vat_paid': vat_paid,
-            'vat_balance': vat_collected - vat_paid
+            'income': float(income),
+            'expenses': float(expenses),
+            'profit': float(income - expenses),
+            'vat_collected': float(vat_collected),
+            'vat_paid': float(vat_paid),
+            'vat_balance': float(vat_collected - vat_paid)
         })
     
     return quarterly_data
@@ -444,19 +476,23 @@ def get_customer_summary():
     """Get financial summary by customer"""
     customer_data = []
     
-    for customer_id, customer in customers.items():
-        # Get all invoices for this customer
-        customer_invoices = [inv for inv in invoices.values() if inv['customer_id'] == customer_id]
+    # Get all customers from the database
+    customers_query = Customer.query.all()
+    
+    for customer in customers_query:
+        # Query invoices for this customer
+        customer_invoices = Invoice.query.filter_by(customer_id=customer.id).all()
         
-        income = sum(inv['amount_excl_vat'] for inv in customer_invoices if inv['invoice_type'] == 'income')
-        vat_collected = sum(inv['vat_amount'] for inv in customer_invoices if inv['invoice_type'] == 'income')
-        invoice_count = len([inv for inv in customer_invoices if inv['invoice_type'] == 'income'])
+        income = sum(inv.amount_excl_vat for inv in customer_invoices if inv.invoice_type == 'income')
+        vat_collected = sum(inv.vat_amount for inv in customer_invoices if inv.invoice_type == 'income')
+        invoice_count = len([inv for inv in customer_invoices if inv.invoice_type == 'income'])
         
         customer_data.append({
-            'customer_id': customer_id,
-            'customer_name': customer['name'],
-            'income': income,
-            'vat_collected': vat_collected,
+            'customer_id': str(customer.id),
+            'customer_name': customer.name,
+            'vat_number': customer.vat_number,
+            'income': float(income),
+            'vat_collected': float(vat_collected),
             'invoice_count': invoice_count
         })
     

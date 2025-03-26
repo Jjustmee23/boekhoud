@@ -182,7 +182,7 @@
                                 {% for customer in customer_summary[:5] %}
                                     <tr>
                                         <td>{{ customer.customer_name }}</td>
-                                        <td>{{ get_customer(customer.customer_id).vat_number }}</td>
+                                        <td>{{ customer.vat_number or '-' }}</td>
                                         <td class="text-end">{{ customer.invoice_count }}</td>
                                         <td class="text-end">{{ format_currency(customer.income) }}</td>
                                         <td class="text-end">
