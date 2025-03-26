@@ -80,14 +80,30 @@ function setupInvoiceCalculations() {
     // Auto-fill VAT rate when customer is selected
     if (customerSelect && vatRate) {
         customerSelect.addEventListener('change', function() {
+            // Controleer of er een optie is geselecteerd
+            if (this.selectedIndex <= 0) return;
+            
             // Get selected option
             const selectedOption = this.options[this.selectedIndex];
-            // Get data-vat-rate attribute (default VAT rate for the customer)
+            // Get data-default-vat-rate attribute (default BTW-tarief voor de klant)
             const defaultVatRate = selectedOption.getAttribute('data-default-vat-rate');
             
-            // Set VAT rate if available
-            if (defaultVatRate && defaultVatRate !== 'null' && defaultVatRate !== 'undefined') {
-                vatRate.value = defaultVatRate;
+            // Set VAT rate if available and not empty/null/undefined
+            if (defaultVatRate && 
+                defaultVatRate !== 'null' && 
+                defaultVatRate !== 'undefined' && 
+                defaultVatRate !== 'None' && 
+                defaultVatRate.trim() !== '') {
+                
+                // Vind de bijbehorende BTW-tariefoptie
+                const vatOptions = vatRate.options;
+                for (let i = 0; i < vatOptions.length; i++) {
+                    if (parseFloat(vatOptions[i].value) === parseFloat(defaultVatRate)) {
+                        vatRate.selectedIndex = i;
+                        break;
+                    }
+                }
+                
                 // Trigger calculation update
                 if (typeof calculateExclVat === 'function') {
                     calculateExclVat();

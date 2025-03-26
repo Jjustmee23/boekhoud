@@ -74,10 +74,10 @@ def export_to_csv(data, filename, columns=None):
 def get_vat_rates():
     """Return the available Belgian VAT rates"""
     return [
-        {'rate': 0, 'label': '0%'},
-        {'rate': 6, 'label': '6%'},
-        {'rate': 12, 'label': '12%'},
-        {'rate': 21, 'label': '21%'}
+        {'value': 0, 'name': '0% (Vrijgesteld)'},
+        {'value': 6, 'name': '6% (Verlaagd)'},
+        {'value': 12, 'name': '12% (Verlaagd)'},
+        {'value': 21, 'name': '21% (Standaard)'}
     ]
 
 def date_to_quarter(date):
