@@ -183,7 +183,7 @@ def new_invoice():
                             if not found_customer:
                                 # Try to find by name
                                 for c in customers_list:
-                                    if c.get('name').lower() == customer_data.get('name').lower():
+                                    if c.get('name') and customer_data.get('name') and c.get('name').lower() == customer_data.get('name').lower():
                                         found_customer = c
                                         break
                             
@@ -257,8 +257,8 @@ def new_invoice():
                 customer_id=customer_id,
                 date=date,
                 invoice_type=invoice_type,
-                amount_incl_vat=float(amount_incl_vat),
-                vat_rate=float(vat_rate),
+                amount_incl_vat=float(amount_incl_vat) if amount_incl_vat else 0,
+                vat_rate=float(vat_rate) if vat_rate else 21,
                 invoice_number=invoice_number if invoice_number else None,
                 file_path=file_path
             )
@@ -361,8 +361,8 @@ def edit_invoice(invoice_id):
                 customer_id=customer_id,
                 date=date,
                 invoice_type=invoice_type,
-                amount_incl_vat=float(amount_incl_vat),
-                vat_rate=float(vat_rate),
+                amount_incl_vat=float(amount_incl_vat) if amount_incl_vat else 0,
+                vat_rate=float(vat_rate) if vat_rate else 21,
                 invoice_number=invoice_number if invoice_number else None,
                 file_path=file_path
             )
