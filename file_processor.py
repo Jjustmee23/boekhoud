@@ -414,16 +414,41 @@ class FileProcessor:
                         date_extracted = True
                         logger.info(f"Detected invoice date (method 3): {date_str}")
                         break
+        
+        # Also store your own VAT number if found
+        if 'BE0537.664.664' in text or 'BE 0537.664.664' in text:
+            logger.info("Found company VAT number: BE0537664664")
+            # If we're identifying a customer, don't use our own VAT number
+            if not info.get('customer_vat_number'):
+                info['own_vat_number'] = 'BE0537664664'
                 
+        # Dump the full text for debugging
+        logger.debug(f"Full invoice text for amount detection:\n{text}")
+        
         # Extract amount (format: €19.00 EUR) - try multiple patterns
         amount_patterns = [
+            # Look for Total amount patterns
+            r'Total\s+€(\d+\.\d+)\s*EUR',  # Total €19.00 EUR
+            r'Total[\s:]+€(\d+\.\d+)',     # Total: €19.00
+            r'Total\s+(\d+\.\d+)\s*EUR',   # Total 19.00 EUR
+            r'Total\s*:\s*€?(\d+\.\d+)',   # Total: 19.00 or Total: €19.00
+            
+            # Look for €19.00 EUR pattern anywhere
             r'€(\d+\.\d+)\s*EUR',  # €19.00 EUR
-            r'Total\s+€(\d+\.\d+)', # Total €19.00
-            r'Total\s+(\d+\.\d+)\s*EUR', # Total 19.00 EUR
-            r'Sub\s+Total\s+€(\d+\.\d+)', # Sub Total €19.00
+            
+            # Try to match more complex patterns
+            r'Sub\s+Total\s+€?(\d+\.\d+)', # Sub Total €19.00
             r'Total\s+€?(\d+\.\d+)\s*EUR', # Total €19.00 EUR or Total 19.00 EUR
+            
+            # Look for line starting with amount
             r'[\n\r]€(\d+\.\d+)', # Line starting with €19.00
-            r'Total\s+[\n\r]€(\d+\.\d+)' # Total then line break then €19.00
+            r'Total\s+[\n\r]€(\d+\.\d+)', # Total then line break then €19.00
+            
+            # Look for Domains pattern as fallback (specific to Hostio invoices)
+            r'Domains:.*?€(\d+\.\d+)\s*EUR',  # Domains: 1 x Per 1000 domains €2.00 EUR
+            
+            # Look for any number in EUR format as last resort
+            r'€(\d+\.\d+)'  # €19.00
         ]
         
         for pattern in amount_patterns:
@@ -432,7 +457,19 @@ class FileProcessor:
                 try:
                     amount = float(amount_match.group(1))
                     info['amount_incl_vat'] = amount
-                    logger.info(f"Detected amount: €{amount}")
+                    logger.info(f"Detected amount: €{amount} using pattern: {pattern}")
+                    
+                    # If we find a total amount (containing the word 'total'), favor it over other amounts
+                    if 'total' in pattern.lower():
+                        logger.info(f"Found a 'total' amount: €{amount}")
+                        break
+                    
+                    # Continue searching for better matches (like totals) if we find the 'Domains' pattern
+                    if 'domains' in pattern.lower() and amount < 10:
+                        logger.info(f"Found a 'domains' amount (€{amount}), but will continue looking for the total")
+                        continue
+                        
+                    # For all other patterns, break after finding the first match
                     break
                 except Exception as e:
                     logger.warning(f"Error parsing amount: {str(e)}")
