@@ -337,6 +337,10 @@ def invoices_list():
     # Build query with filters
     query = Invoice.query
     
+    # Apply workspace filter for regular users, super admins see all data
+    if not current_user.is_super_admin:
+        query = query.filter_by(workspace_id=current_user.workspace_id)
+    
     if customer_id:
         # Convert string to UUID if needed
         if isinstance(customer_id, str):
@@ -487,7 +491,8 @@ def new_invoice():
                 amount_incl_vat=amount_incl_vat_float,
                 vat_rate=vat_rate_float,
                 vat_amount=float(vat_amount),
-                file_path=file_path
+                file_path=file_path,
+                workspace_id=current_user.workspace_id
             )
             
             # Save to database
@@ -517,7 +522,11 @@ def new_invoice():
         )
     
     # GET request - show the form
-    customers_query = Customer.query.all()
+    # Filter customers by workspace for regular users
+    query = Customer.query
+    if not current_user.is_super_admin:
+        query = query.filter_by(workspace_id=current_user.workspace_id)
+    customers_query = query.all()
     customers_data = [customer.to_dict() for customer in customers_query]
     
     # Als een klant_id is opgegeven in de query parameter, zorg ervoor dat deze wordt vooringevuld
@@ -732,7 +741,11 @@ def edit_invoice(invoice_id):
             )
         
         # GET request - show the form
-        customers_query = Customer.query.all()
+        # Filter customers by workspace for regular users
+        query = Customer.query
+        if not current_user.is_super_admin:
+            query = query.filter_by(workspace_id=current_user.workspace_id)
+        customers_query = query.all()
         customers_data = [customer.to_dict() for customer in customers_query]
         
         # Convert invoice to dictionary for template
@@ -882,8 +895,13 @@ def view_invoice_attachment(invoice_id):
 # Customer management routes
 @app.route('/customers')
 def customers_list():
-    # Get all customers from the database
-    customers_query = Customer.query.all()
+    # Apply workspace filter for regular users, super admins see all data
+    query = Customer.query
+    if not current_user.is_super_admin:
+        query = query.filter_by(workspace_id=current_user.workspace_id)
+    
+    # Get customers from the database
+    customers_query = query.all()
     
     # Convert to dictionary format for the template and add counts/totals
     customers_data = []
@@ -891,7 +909,10 @@ def customers_list():
         customer_dict = customer.to_dict()
         
         # Query invoices for this customer
-        customer_invoices_query = Invoice.query.filter_by(customer_id=customer.id).all()
+        invoice_query = Invoice.query.filter_by(customer_id=customer.id)
+        if not current_user.is_super_admin:
+            invoice_query = invoice_query.filter_by(workspace_id=current_user.workspace_id)
+        customer_invoices_query = invoice_query.all()
         
         # Add additional data
         customer_dict['invoice_count'] = len(customer_invoices_query)
@@ -982,7 +1003,8 @@ def new_customer():
                 postal_code=postal_code,
                 city=city,
                 country=country or 'België',
-                customer_type=customer_type or 'business'
+                customer_type=customer_type or 'business',
+                workspace_id=current_user.workspace_id
             )
             
             # Set default VAT rate if provided
@@ -1042,7 +1064,10 @@ def view_customer(customer_id):
             return redirect(url_for('customers_list'))
         
         # Query customer invoices - all and separate processed/unprocessed
-        customer_invoices_query = Invoice.query.filter_by(customer_id=customer.id).all()
+        invoice_query = Invoice.query.filter_by(customer_id=customer.id)
+        if not current_user.is_super_admin:
+            invoice_query = invoice_query.filter_by(workspace_id=current_user.workspace_id)
+        customer_invoices_query = invoice_query.all()
         
         # Filter processed and unprocessed invoices
         processed_invoices = [invoice.to_dict() for invoice in customer_invoices_query 
@@ -1454,7 +1479,9 @@ def quarterly_report(year):
 
 @app.route('/reports/customers', methods=['GET'])
 def customer_report():
-    customer_data = get_customer_summary()
+    # Apply workspace filter for regular users, super admins see all data
+    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    customer_data = get_customer_summary(workspace_id)
     
     # Get export format
     export_format = request.args.get('format')
@@ -1515,15 +1542,18 @@ def generate_vat_report():
     year = int(request.form.get('year'))
     report_type = request.form.get('report_type')  # 'quarterly' or 'monthly'
     
+    # Apply workspace filter for regular users, super admins see all data
+    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    
     if report_type == 'quarterly':
         quarter = int(request.form.get('quarter'))
         month = None
-        report = calculate_vat_report(year=year, quarter=quarter)
+        report = calculate_vat_report(year=year, quarter=quarter, workspace_id=workspace_id)
         period_name = f"Q{quarter} {year}"
     else:  # monthly
         month = int(request.form.get('month'))
         quarter = None
-        report = calculate_vat_report(year=year, month=month)
+        report = calculate_vat_report(year=year, month=month, workspace_id=workspace_id)
         month_name = datetime(year, month, 1).strftime('%B')
         period_name = f"{month_name} {year}"
     

@@ -337,7 +337,7 @@ def get_invoices(customer_id=None, invoice_type=None, start_date=None, end_date=
     return result
 
 # VAT Calculations for Belgian reporting
-def calculate_vat_report(year, quarter=None, month=None):
+def calculate_vat_report(year, quarter=None, month=None, workspace_id=None):
     """
     Calculate VAT report for Belgian reporting
     
@@ -345,6 +345,7 @@ def calculate_vat_report(year, quarter=None, month=None):
         year: Year to report
         quarter: Quarter (1-4) if reporting quarterly
         month: Month (1-12) if reporting monthly
+        workspace_id: Optional workspace ID to filter by
     
     Returns:
         Dictionary with VAT grids:
@@ -360,6 +361,10 @@ def calculate_vat_report(year, quarter=None, month=None):
         Invoice.date >= start_date,
         Invoice.date <= end_date
     )
+    
+    # Apply workspace filter if provided
+    if workspace_id is not None:
+        query = query.filter_by(workspace_id=workspace_id)
     
     # Apply additional filters if specified
     if quarter:
