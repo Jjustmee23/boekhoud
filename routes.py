@@ -1521,6 +1521,99 @@ def bulk_action_invoices():
         
     return redirect(url_for('invoices_list'))
 
+
+@app.route('/customers/<customer_id>/invoices/bulk-action', methods=['POST'])
+def bulk_action_customer_invoices(customer_id):
+    """Process bulk actions for selected invoices on the customer detail page"""
+    selected_ids = request.form.getlist('selected_ids[]')
+    bulk_action = request.form.get('bulk_action')
+    invoice_status = request.form.get('invoice_status', 'processed')
+    
+    if not selected_ids:
+        flash('Geen facturen geselecteerd', 'warning')
+        return redirect(url_for('view_customer', customer_id=customer_id))
+    
+    try:
+        # Convert customer_id from string to UUID if needed
+        if isinstance(customer_id, str):
+            customer_id = uuid.UUID(customer_id)
+            
+        # Verify customer exists
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            flash('Klant niet gevonden', 'danger')
+            return redirect(url_for('customers_list'))
+    except ValueError:
+        flash('Ongeldige klant-ID', 'danger')
+        return redirect(url_for('customers_list'))
+    
+    if bulk_action == 'delete':
+        # Delete selected invoices
+        delete_count = 0
+        for invoice_id in selected_ids:
+            try:
+                # Convert string to UUID if needed
+                if isinstance(invoice_id, str):
+                    invoice_id = uuid.UUID(invoice_id)
+                
+                invoice = Invoice.query.get(invoice_id)
+                if invoice and invoice.customer_id == customer_id:
+                    db.session.delete(invoice)
+                    delete_count += 1
+            except Exception as e:
+                flash(f'Fout bij verwijderen factuur: {str(e)}', 'danger')
+        
+        if delete_count > 0:
+            db.session.commit()
+            flash(f'{delete_count} facturen succesvol verwijderd', 'success')
+        
+    elif bulk_action == 'export_pdf':
+        # Not implemented yet - would create a ZIP file with multiple PDFs
+        flash('PDF bulk export nog niet geïmplementeerd', 'info')
+        
+    elif bulk_action == 'mark_processed':
+        # Mark selected invoices as processed
+        status_count = 0
+        for invoice_id in selected_ids:
+            try:
+                if isinstance(invoice_id, str):
+                    invoice_id = uuid.UUID(invoice_id)
+                
+                invoice = Invoice.query.get(invoice_id)
+                if invoice and invoice.customer_id == customer_id:
+                    invoice.status = 'processed'
+                    status_count += 1
+            except Exception as e:
+                flash(f'Fout bij het wijzigen van status: {str(e)}', 'danger')
+        
+        if status_count > 0:
+            db.session.commit()
+            flash(f'{status_count} facturen gemarkeerd als verwerkt', 'success')
+            
+    elif bulk_action == 'mark_unprocessed':
+        # Mark selected invoices as unprocessed
+        status_count = 0
+        for invoice_id in selected_ids:
+            try:
+                if isinstance(invoice_id, str):
+                    invoice_id = uuid.UUID(invoice_id)
+                
+                invoice = Invoice.query.get(invoice_id)
+                if invoice and invoice.customer_id == customer_id:
+                    invoice.status = 'unprocessed'
+                    status_count += 1
+            except Exception as e:
+                flash(f'Fout bij het wijzigen van status: {str(e)}', 'danger')
+        
+        if status_count > 0:
+            db.session.commit()
+            flash(f'{status_count} facturen gemarkeerd als onverwerkt', 'success')
+            
+    else:
+        flash('Ongeldige bulk actie', 'warning')
+        
+    return redirect(url_for('view_customer', customer_id=customer_id))
+
 @app.route('/bulk-upload/process', methods=['POST'])
 def bulk_upload_process():
     # Haal de ingevulde formuliergegevens op
