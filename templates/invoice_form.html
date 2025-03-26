@@ -80,13 +80,27 @@
                 <div class="col-md-12">
                     <label for="invoice_file" class="form-label">Factuur Bestand (PDF)</label>
                     {% if invoice.file_path %}
-                        <div class="mb-2">
-                            <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id) }}" target="_blank" class="btn btn-sm btn-primary">
-                                <i class="fas fa-file-pdf"></i> Bekijk huidige factuur
-                            </a>
+                        <div class="mb-2 p-3 border rounded bg-light">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <strong>Huidige geüploade factuur:</strong> 
+                                    <span class="ms-2 text-muted">{{ invoice.file_path.split('/')[-1] }}</span>
+                                </div>
+                                <div>
+                                    <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id) }}" target="_blank" class="btn btn-sm btn-outline-primary me-2">
+                                        <i class="fas fa-eye"></i> Bekijken
+                                    </a>
+                                    <a href="{{ url_for('view_invoice_attachment', invoice_id=invoice.id, download=1) }}" class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-download"></i> Downloaden
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-text mb-2">
+                            Upload een nieuw bestand hieronder om het huidige te vervangen, of laat leeg om het huidige bestand te behouden.
                         </div>
                     {% endif %}
-                    <input type="file" name="invoice_file" id="invoice_file" class="form-control" accept=".pdf">
+                    <input type="file" name="invoice_file" id="invoice_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
                 </div>
             </div>
             
