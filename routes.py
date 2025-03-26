@@ -202,8 +202,15 @@ def profile():
             
             # Update password
             current_user.set_password(new_password)
+            
+            # Reset password_change_required flag if set
+            if current_user.password_change_required:
+                current_user.password_change_required = False
+                flash('Wachtwoord bijgewerkt. Je kunt nu het systeem gebruiken.', 'success')
+            else:
+                flash('Wachtwoord bijgewerkt', 'success')
+                
             db.session.add(current_user)
-            flash('Wachtwoord bijgewerkt', 'success')
         
         # Commit changes
         try:
@@ -225,10 +232,13 @@ def dashboard():
     # Get current year
     current_year = datetime.now().year
     
-    # Get summaries
-    monthly_summary = get_monthly_summary(current_year)
-    quarterly_summary = get_quarterly_summary(current_year)
-    customer_summary = get_customer_summary()
+    # Apply workspace filter for regular users, super admins see all data
+    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    
+    # Get summaries for the workspace
+    monthly_summary = get_monthly_summary(current_year, workspace_id)
+    quarterly_summary = get_quarterly_summary(current_year, workspace_id)
+    customer_summary = get_customer_summary(workspace_id)
     
     # Calculate totals for the year
     year_income = sum(month['income'] for month in monthly_summary)
@@ -240,8 +250,14 @@ def dashboard():
     vat_paid = sum(month['vat_paid'] for month in monthly_summary)
     vat_balance = vat_collected - vat_paid
     
-    # Get recent invoices (5 most recent)
-    recent_invoices_query = Invoice.query.order_by(Invoice.date.desc()).limit(5)
+    # Get recent invoices (5 most recent) for the workspace
+    recent_invoices_query = Invoice.query
+    
+    # Filter by workspace for regular users
+    if not current_user.is_super_admin and current_user.workspace_id:
+        recent_invoices_query = recent_invoices_query.filter_by(workspace_id=current_user.workspace_id)
+        
+    recent_invoices_query = recent_invoices_query.order_by(Invoice.date.desc()).limit(5)
     
     # Convert to dictionary format for the template
     recent_invoices = []

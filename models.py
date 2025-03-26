@@ -461,8 +461,14 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
         
 # Financial Summary functions
-def get_monthly_summary(year):
-    """Get monthly financial summary for a year"""
+def get_monthly_summary(year, workspace_id=None):
+    """
+    Get monthly financial summary for a year
+    
+    Args:
+        year: Year to get summary for
+        workspace_id: Optional workspace ID to filter by
+    """
     monthly_data = []
     
     for month in range(1, 13):
@@ -474,10 +480,16 @@ def get_monthly_summary(year):
             end_date = date(year, month + 1, 1) - timedelta(days=1)
         
         # Query all invoices for this month
-        month_invoices = Invoice.query.filter(
+        query = Invoice.query.filter(
             Invoice.date >= start_date,
             Invoice.date <= end_date
-        ).all()
+        )
+        
+        # Apply workspace filter if provided
+        if workspace_id is not None:
+            query = query.filter_by(workspace_id=workspace_id)
+            
+        month_invoices = query.all()
         
         income = sum(inv.amount_excl_vat for inv in month_invoices if inv.invoice_type == 'income')
         expenses = sum(inv.amount_excl_vat for inv in month_invoices if inv.invoice_type == 'expense')
