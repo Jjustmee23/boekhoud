@@ -1345,6 +1345,9 @@ def bulk_upload_process():
     # Bepaal hoeveel bestanden er zijn
     file_count = int(request.form.get('file_count', 0))
     
+    # Bepaal welke actie gekozen is
+    action = request.form.get('action', 'process')
+    
     # Verwerk ieder bestand
     for i in range(file_count):
         file_info = {
@@ -1358,9 +1361,19 @@ def bulk_upload_process():
             'customer_id': request.form.get(f'customer_id_{i}')
         }
         
-        # Alleen verwerken als er een bedrag is ingevuld
-        if file_info['file_path'] and file_info['amount_incl_vat']:
-            file_data.append(file_info)
+        # Voeg bestanden toe aan de lijst
+        # Voor 'naar klantportaal' alleen filter op file_path en customer_id
+        if action == 'to_customer_portal':
+            if file_info['file_path'] and file_info['customer_id']:
+                file_data.append(file_info)
+        # Voor normale verwerking, alleen als er ook een bedrag is
+        else:
+            if file_info['file_path'] and file_info['amount_incl_vat']:
+                file_data.append(file_info)
+                
+    # Als de actie is om naar klantportaal te sturen
+    if action == 'to_customer_portal':
+        return process_to_customer_portal(file_data)
     
     # Resultaten voorbereiden
     results = {
@@ -1474,6 +1487,89 @@ def bulk_upload_process():
         flash('Er zijn geen facturen aangemaakt', 'warning')
     
     return redirect(url_for('bulk_upload_results'))
+
+def process_to_customer_portal(file_data):
+    """
+    Verwerk bestanden door ze naar het klantportaal te sturen als onbewerkte facturen
+    
+    Args:
+        file_data: lijst met bestandsgegevens uit het uploadformulier
+    """
+    results = {
+        'processed_count': 0,
+        'error_count': 0,
+        'customer_id': None
+    }
+    
+    for data in file_data:
+        try:
+            # Check of er een klant is geselecteerd
+            if not data['customer_id']:
+                continue
+                
+            # Bepaal standaardwaarden voor ontbrekende velden
+            invoice_date = datetime.now().date()
+            if data['invoice_date']:
+                try:
+                    invoice_date = datetime.strptime(data['invoice_date'], '%Y-%m-%d').date()
+                except ValueError:
+                    pass
+                    
+            # Probeer bedrag te converteren, default naar 0 als niet opgegeven
+            amount_incl_vat = 0.0
+            if data['amount_incl_vat']:
+                try:
+                    amount_incl_vat = float(data['amount_incl_vat'].replace(',', '.'))
+                except ValueError:
+                    pass
+                    
+            # BTW-tarief, default naar 21%
+            vat_rate = 21.0
+            if data['vat_rate']:
+                try:
+                    vat_rate = float(data['vat_rate'])
+                except ValueError:
+                    pass
+            
+            # Maak de factuur aan, expliciet gemarkeerd als 'unprocessed'
+            invoice_number = data['invoice_number']
+            if not invoice_number:
+                invoice_number = get_next_invoice_number()
+                
+            new_invoice = Invoice(
+                invoice_number=invoice_number,
+                customer_id=uuid.UUID(data['customer_id']),
+                date=invoice_date,
+                invoice_type=data['invoice_type'] or 'income',
+                amount_excl_vat=amount_incl_vat / (1 + (vat_rate / 100)),
+                amount_incl_vat=amount_incl_vat,
+                vat_rate=vat_rate,
+                vat_amount=amount_incl_vat - (amount_incl_vat / (1 + (vat_rate / 100))),
+                file_path=data['file_path'],
+                status='unprocessed'  # Hier markeren we de factuur expliciet als onbewerkt
+            )
+            
+            db.session.add(new_invoice)
+            db.session.commit()
+            
+            results['processed_count'] += 1
+            results['customer_id'] = data['customer_id']  # Onthoud customer_id voor redirect
+            
+        except Exception as e:
+            results['error_count'] += 1
+    
+    # Toon feedback
+    if results['processed_count'] > 0:
+        flash(f"{results['processed_count']} document(en) naar klantportaal gestuurd", 'success')
+        
+        # Redirect naar de klantpagina als er een customer_id is
+        if results['customer_id']:
+            return redirect(url_for('view_customer', customer_id=results['customer_id']))
+    else:
+        flash('Er zijn geen documenten naar het klantportaal gestuurd', 'warning')
+    
+    # Als geen klant gevonden of geen succes, dan terug naar de klantenlijst
+    return redirect(url_for('customers_list'))
 
 @app.route('/bulk-upload/results')
 def bulk_upload_results():
