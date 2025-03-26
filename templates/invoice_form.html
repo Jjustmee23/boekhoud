@@ -369,7 +369,7 @@
             formData.append('email', email);
             
             // Send AJAX request
-            fetch('{{ url_for("new_customer") }}', {
+            fetch('{{ url_for("customer.new_customer") }}', {
                 method: 'POST',
                 body: formData,
                 headers: {
