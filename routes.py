@@ -1231,7 +1231,7 @@ def bulk_upload():
         
         # Check if any files were uploaded
         if 'files[]' not in request.files:
-            flash('No files selected', 'danger')
+            flash('Geen bestanden geselecteerd', 'danger')
             customers_data = [customer.to_dict() for customer in Customer.query.all()]
             return render_template(
                 'bulk_upload.html',
@@ -1241,7 +1241,7 @@ def bulk_upload():
         
         files = request.files.getlist('files[]')
         if not files or all(not f.filename for f in files):
-            flash('No files selected', 'danger')
+            flash('Geen bestanden geselecteerd', 'danger')
             customers_data = [customer.to_dict() for customer in Customer.query.all()]
             return render_template(
                 'bulk_upload.html',
@@ -1249,33 +1249,60 @@ def bulk_upload():
                 now=datetime.now()
             )
         
-        # Process the uploaded files
+        # Alleen bestanden opslaan, niet verwerken
         processor = FileProcessor()
-        results = processor.process_files(files, customer_id)
+        saved_paths = processor.save_files(files)
         
-        # Store results in session for display
-        session['bulk_upload_results'] = results
+        # Voorinformatieformulieren voorbereiden
+        file_previews = []
+        customers_data = [customer.to_dict() for customer in Customer.query.all()]
         
-        # Create summary counts
-        summary = {
-            'total_files': len(results['saved_files']),
-            'processed_invoices': len(results['recognized_invoices']),
-            'new_customers': len(results['new_customers']),
-            'manual_review': len(results['manual_review']),
-            'errors': len(results['errors'])
-        }
+        for file_path in saved_paths:
+            # Basisinfo uit bestandsnaam halen (eenvoudige implementatie)
+            file_name = os.path.basename(file_path)
+            
+            # Voorlopige analyse
+            invoice_type = "expense"  # Standaard uitgaven
+            if "income" in file_name.lower() or "inkomst" in file_name.lower() or "sales" in file_name.lower():
+                invoice_type = "income"
+                
+            # Datum extraheren of huidige datum gebruiken
+            date_obj = datetime.now()
+            
+            # Maak een voorbeeldformulier voor dit bestand
+            preview = {
+                'file_path': file_path,
+                'file_name': file_name,
+                'invoice_date': date_obj.strftime('%Y-%m-%d'),
+                'invoice_type': invoice_type,
+                'invoice_number': '',
+                'amount_incl_vat': '',
+                'vat_rate': '21',  # Standaard BTW-tarief
+                'customer_id': customer_id if customer_id else ''
+            }
+            
+            file_previews.append(preview)
         
-        # Flash appropriate message
-        if summary['total_files'] > 0:
-            flash(f"Processed {summary['total_files']} files: "
-                  f"{summary['processed_invoices']} invoices created, "
-                  f"{summary['new_customers']} new customers, "
-                  f"{summary['manual_review']} need review", 'success')
+        if file_previews:
+            # Bewaar de previews in de sessie
+            session['file_previews'] = file_previews
+            
+            # Ga naar het reviewformulier
+            return render_template(
+                'bulk_upload_review.html',
+                file_previews=file_previews,
+                customers=customers_data,
+                vat_rates=get_vat_rates(),
+                now=datetime.now()
+            )
         else:
-            flash('No files were processed', 'warning')
-        
-        # Return to results page
-        return redirect(url_for('bulk_upload_results'))
+            flash('Geen bestanden werden geüpload', 'warning')
+            customers_data = [customer.to_dict() for customer in Customer.query.all()]
+            return render_template(
+                'bulk_upload.html',
+                customers=customers_data,
+                now=datetime.now()
+            )
     
     # GET request - show the form
     customers_data = [customer.to_dict() for customer in Customer.query.all()]
@@ -1296,6 +1323,136 @@ def bulk_upload():
         selected_customer=selected_customer,
         now=datetime.now()
     )
+
+@app.route('/bulk-upload/process', methods=['POST'])
+def bulk_upload_process():
+    # Haal de ingevulde formuliergegevens op
+    file_data = []
+    
+    # Bepaal hoeveel bestanden er zijn
+    file_count = int(request.form.get('file_count', 0))
+    
+    # Verwerk ieder bestand
+    for i in range(file_count):
+        file_info = {
+            'file_path': request.form.get(f'file_path_{i}'),
+            'file_name': request.form.get(f'file_name_{i}'),
+            'invoice_date': request.form.get(f'invoice_date_{i}'),
+            'invoice_type': request.form.get(f'invoice_type_{i}'),
+            'invoice_number': request.form.get(f'invoice_number_{i}'),
+            'amount_incl_vat': request.form.get(f'amount_incl_vat_{i}'),
+            'vat_rate': request.form.get(f'vat_rate_{i}'),
+            'customer_id': request.form.get(f'customer_id_{i}')
+        }
+        
+        # Alleen verwerken als er een bedrag is ingevuld
+        if file_info['file_path'] and file_info['amount_incl_vat']:
+            file_data.append(file_info)
+    
+    # Resultaten voorbereiden
+    results = {
+        'saved_files': [],
+        'recognized_invoices': [],
+        'new_customers': [],
+        'manual_review': [],
+        'errors': []
+    }
+    
+    # Invoices aanmaken op basis van de ingevulde gegevens
+    for data in file_data:
+        try:
+            # Basisvalidatie
+            if not data['customer_id'] or not data['amount_incl_vat'] or not data['invoice_date']:
+                results['manual_review'].append({
+                    'file_path': data['file_path'],
+                    'reason': 'Onvolledige gegevens',
+                    'metadata': {'document_type': 'invoice'}
+                })
+                continue
+                
+            # Converteer datums en bedragen
+            invoice_date = datetime.strptime(data['invoice_date'], '%Y-%m-%d').date()
+            amount_incl_vat = float(data['amount_incl_vat'].replace(',', '.'))
+            vat_rate = float(data['vat_rate'])
+            
+            # Maak een factuur aan
+            invoice_number = data['invoice_number']
+            if not invoice_number:
+                invoice_number = get_next_invoice_number()
+                
+            # Controleer of de factuur een duplicaat is
+            is_duplicate, duplicate_id = check_duplicate_invoice(
+                invoice_number=invoice_number,
+                customer_id=data['customer_id'],
+                date=invoice_date,
+                amount_incl_vat=amount_incl_vat
+            )
+            
+            if is_duplicate:
+                results['manual_review'].append({
+                    'file_path': data['file_path'],
+                    'reason': 'Mogelijk duplicaat',
+                    'duplicate_id': duplicate_id,
+                    'metadata': {'document_type': 'invoice'}
+                })
+                continue
+                
+            # Maak een nieuwe factuur aan
+            new_invoice = add_invoice(
+                customer_id=data['customer_id'],
+                date=invoice_date,
+                invoice_type=data['invoice_type'],
+                amount_incl_vat=amount_incl_vat,
+                vat_rate=vat_rate,
+                invoice_number=invoice_number,
+                file_path=data['file_path'],
+                check_duplicate=False
+            )
+            
+            # Voeg toe aan resultaten
+            customer = Customer.query.get(data['customer_id'])
+            
+            invoice_dict = {
+                'id': str(new_invoice.id),
+                'invoice_number': new_invoice.invoice_number,
+                'customer_id': str(new_invoice.customer_id),
+                'customer_name': customer.name if customer else 'Onbekende klant',
+                'date': new_invoice.date.strftime('%Y-%m-%d'),
+                'invoice_type': new_invoice.invoice_type,
+                'amount_incl_vat': new_invoice.amount_incl_vat
+            }
+            
+            results['recognized_invoices'].append(invoice_dict)
+            results['saved_files'].append(data['file_path'])
+            
+        except Exception as e:
+            results['errors'].append({
+                'file_path': data['file_path'],
+                'error': str(e)
+            })
+    
+    # Bewaar resultaten in sessie
+    session['bulk_upload_results'] = results
+    
+    # Bereid samenvatting voor
+    summary = {
+        'total_files': len(file_data),
+        'processed_invoices': len(results['recognized_invoices']),
+        'new_customers': len(results['new_customers']),
+        'manual_review': len(results['manual_review']),
+        'errors': len(results['errors'])
+    }
+    
+    # Toon geschikte melding
+    if summary['processed_invoices'] > 0:
+        flash(f"Verwerkt: {summary['processed_invoices']} facturen aangemaakt, "
+              f"{summary['manual_review']} bestanden voor handmatige controle", 'success')
+    elif summary['errors'] > 0:
+        flash('Er zijn fouten opgetreden bij het verwerken van de bestanden', 'danger')
+    else:
+        flash('Er zijn geen facturen aangemaakt', 'warning')
+    
+    return redirect(url_for('bulk_upload_results'))
 
 @app.route('/bulk-upload/results')
 def bulk_upload_results():

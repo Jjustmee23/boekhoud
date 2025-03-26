@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+
+{% block title %}Review Uploaded Files{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h1 class="mb-4">Review Uploaded Files</h1>
+    
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        Controleer de gegevens van ieder geüpload bestand en vul de ontbrekende informatie aan.
+        Bestanden zonder factuurgegevens worden niet verwerkt.
+    </div>
+    
+    <form action="{{ url_for('bulk_upload_process') }}" method="post">
+        <input type="hidden" name="file_count" value="{{ file_previews|length }}">
+        
+        <!-- Accordion voor alle bestanden -->
+        <div class="accordion mb-4" id="fileAccordion">
+            {% for preview in file_previews %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ loop.index }}">
+                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                            data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" 
+                            aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ loop.index }}">
+                        <div class="d-flex justify-content-between w-100 me-3">
+                            <div>
+                                <strong>Bestand {{ loop.index }}:</strong> {{ preview.file_name }}
+                            </div>
+                            <div class="text-muted">
+                                <small>
+                                    <span id="statusBadge{{ loop.index }}" class="badge bg-warning">Niet verwerkt</span>
+                                </small>
+                            </div>
+                        </div>
+                    </button>
+                </h2>
+                <div id="collapse{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
+                     aria-labelledby="heading{{ loop.index }}" data-bs-parent="#fileAccordion">
+                    <div class="accordion-body">
+                        <div class="row">
+                            <!-- Documentvoorbeeld -->
+                            <div class="col-md-6 mb-4">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">Document Preview</h5>
+                                    </div>
+                                    <div class="card-body d-flex align-items-center justify-content-center">
+                                        {% if preview.file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
+                                            <img src="/{{ preview.file_path }}" class="img-fluid" style="max-height: 400px;" alt="Document Preview">
+                                        {% elif preview.file_path.lower().endswith('.pdf') %}
+                                            <div class="text-center">
+                                                <i class="fas fa-file-pdf fa-5x text-danger mb-3"></i>
+                                                <p>PDF document - <a href="/{{ preview.file_path }}" target="_blank">Open PDF</a></p>
+                                            </div>
+                                        {% else %}
+                                            <div class="text-center">
+                                                <i class="fas fa-file fa-5x text-secondary mb-3"></i>
+                                                <p>Document - <a href="/{{ preview.file_path }}" target="_blank">Bekijk bestand</a></p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Factuurgegevens -->
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">Factuurgegevens</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Verborgen veldgegevens -->
+                                        <input type="hidden" name="file_path_{{ loop.index0 }}" value="{{ preview.file_path }}">
+                                        <input type="hidden" name="file_name_{{ loop.index0 }}" value="{{ preview.file_name }}">
+                                        
+                                        <!-- Factuurnummer -->
+                                        <div class="mb-3">
+                                            <label for="invoice_number_{{ loop.index0 }}" class="form-label">Factuurnummer</label>
+                                            <input type="text" class="form-control" id="invoice_number_{{ loop.index0 }}" 
+                                                   name="invoice_number_{{ loop.index0 }}" value="{{ preview.invoice_number }}">
+                                            <div class="form-text">Optioneel - laat leeg voor automatisch nummer</div>
+                                        </div>
+                                        
+                                        <!-- Factuurtype -->
+                                        <div class="mb-3">
+                                            <label for="invoice_type_{{ loop.index0 }}" class="form-label">Type</label>
+                                            <select class="form-select" id="invoice_type_{{ loop.index0 }}" 
+                                                    name="invoice_type_{{ loop.index0 }}">
+                                                <option value="income" {% if preview.invoice_type == 'income' %}selected{% endif %}>Inkomsten (verkoop)</option>
+                                                <option value="expense" {% if preview.invoice_type == 'expense' %}selected{% endif %}>Uitgaven (inkoop)</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <!-- Factuurdatum -->
+                                        <div class="mb-3">
+                                            <label for="invoice_date_{{ loop.index0 }}" class="form-label">Datum</label>
+                                            <input type="date" class="form-control" id="invoice_date_{{ loop.index0 }}" 
+                                                   name="invoice_date_{{ loop.index0 }}" value="{{ preview.invoice_date }}" required>
+                                        </div>
+                                        
+                                        <!-- Klant -->
+                                        <div class="mb-3">
+                                            <label for="customer_id_{{ loop.index0 }}" class="form-label">Klant/Leverancier</label>
+                                            <select class="form-select" id="customer_id_{{ loop.index0 }}" 
+                                                    name="customer_id_{{ loop.index0 }}" 
+                                                    onchange="updateVatRate({{ loop.index0 }})" required>
+                                                <option value="">-- Selecteer klant --</option>
+                                                {% for customer in customers %}
+                                                <option value="{{ customer.id }}" data-vat-rate="{{ customer.default_vat_rate }}"
+                                                        {% if customer.id|string == preview.customer_id|string %}selected{% endif %}>
+                                                    {{ customer.name }} ({{ customer.customer_type|capitalize }})
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        
+                                        <!-- Bedrag en BTW -->
+                                        <div class="row">
+                                            <div class="col-md-7">
+                                                <div class="mb-3">
+                                                    <label for="amount_incl_vat_{{ loop.index0 }}" class="form-label">Bedrag (incl. BTW)</label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">€</span>
+                                                        <input type="text" class="form-control" id="amount_incl_vat_{{ loop.index0 }}" 
+                                                               name="amount_incl_vat_{{ loop.index0 }}" 
+                                                               value="{{ preview.amount_incl_vat }}" required>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-5">
+                                                <div class="mb-3">
+                                                    <label for="vat_rate_{{ loop.index0 }}" class="form-label">BTW %</label>
+                                                    <select class="form-select" id="vat_rate_{{ loop.index0 }}" 
+                                                            name="vat_rate_{{ loop.index0 }}">
+                                                        <option value="">-- BTW --</option>
+                                                        {% for rate, label in vat_rates.items() %}
+                                                        <option value="{{ rate }}" {% if rate|string == preview.vat_rate|string %}selected{% endif %}>
+                                                            {{ label }}
+                                                        </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Validatiestatus -->
+                                        <div class="text-end mt-3">
+                                            <span id="validationMsg{{ loop.index0 }}" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('bulk_upload') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Terug
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-check me-2"></i> Facturen verwerken
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check alle formulieren bij laden
+        {% for preview in file_previews %}
+        validateForm({{ loop.index0 }});
+        {% endfor %}
+        
+        // Voeg event listeners toe voor validatie
+        {% for preview in file_previews %}
+        document.getElementById('amount_incl_vat_{{ loop.index0 }}').addEventListener('input', function() {
+            validateForm({{ loop.index0 }});
+        });
+        document.getElementById('customer_id_{{ loop.index0 }}').addEventListener('change', function() {
+            validateForm({{ loop.index0 }});
+        });
+        {% endfor %}
+    });
+    
+    function updateVatRate(index) {
+        const customerSelect = document.getElementById(`customer_id_${index}`);
+        const vatRateSelect = document.getElementById(`vat_rate_${index}`);
+        
+        if (customerSelect.selectedIndex > 0) {
+            const selectedOption = customerSelect.options[customerSelect.selectedIndex];
+            const defaultVatRate = selectedOption.getAttribute('data-vat-rate');
+            
+            if (defaultVatRate && defaultVatRate !== 'None') {
+                // Zoek naar de juiste optie in de BTW dropdown
+                for (let i = 0; i < vatRateSelect.options.length; i++) {
+                    if (vatRateSelect.options[i].value === defaultVatRate) {
+                        vatRateSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        validateForm(index);
+    }
+    
+    function validateForm(index) {
+        const amountInput = document.getElementById(`amount_incl_vat_${index}`);
+        const customerSelect = document.getElementById(`customer_id_${index}`);
+        const vatRateSelect = document.getElementById(`vat_rate_${index}`);
+        const statusBadge = document.getElementById(`statusBadge${index}`);
+        const validationMsg = document.getElementById(`validationMsg${index}`);
+        
+        let isValid = true;
+        let message = '';
+        
+        // Reset
+        statusBadge.className = 'badge bg-warning';
+        statusBadge.textContent = 'Niet verwerkt';
+        validationMsg.textContent = '';
+        
+        // Controleer invoer
+        if (!amountInput.value.trim()) {
+            isValid = false;
+            message = 'Bedrag is vereist';
+        } else if (isNaN(parseFloat(amountInput.value.replace(',', '.')))) {
+            isValid = false;
+            message = 'Bedrag moet een getal zijn';
+        }
+        
+        if (customerSelect.selectedIndex === 0) {
+            isValid = false;
+            if (message) message += ' en klant is vereist';
+            else message = 'Klant is vereist';
+        }
+        
+        // Update UI
+        if (isValid) {
+            statusBadge.className = 'badge bg-success';
+            statusBadge.textContent = 'Klaar voor verwerking';
+        } else {
+            statusBadge.className = 'badge bg-danger';
+            statusBadge.textContent = 'Onvolledig';
+            validationMsg.textContent = message;
+        }
+        
+        return isValid;
+    }
+</script>
+{% endblock %}
