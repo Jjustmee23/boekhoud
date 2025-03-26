@@ -294,11 +294,34 @@ def new_invoice():
     # GET request - show the form
     customers_query = Customer.query.all()
     customers_data = [customer.to_dict() for customer in customers_query]
+    
+    # Als een klant_id is opgegeven in de query parameter, zorg ervoor dat deze wordt vooringevuld
+    customer_id = request.args.get('customer_id')
+    invoice_data = {'date': datetime.now().strftime('%Y-%m-%d'), 'type': 'income'}
+    
+    if customer_id:
+        try:
+            # Zet de string om naar UUID
+            if isinstance(customer_id, str):
+                customer_id = uuid.UUID(customer_id)
+            
+            # Haal de klantgegevens op
+            customer = Customer.query.get(customer_id)
+            if customer:
+                invoice_data['customer_id'] = str(customer.id)
+                
+                # Neem het BTW-tarief over van de klant indien beschikbaar
+                if customer.default_vat_rate is not None:
+                    invoice_data['vat_rate'] = customer.default_vat_rate
+        except (ValueError, Exception) as e:
+            logging.error(f"Error getting customer for pre-filled invoice: {str(e)}")
+            # Ga verder zonder voorinvulling als er een fout optreedt
+    
     return render_template(
         'invoice_form.html',
         customers=customers_data,
         vat_rates=get_vat_rates(),
-        invoice={'date': datetime.now().strftime('%Y-%m-%d'), 'type': 'income'},
+        invoice=invoice_data,
         now=datetime.now()
     )
 

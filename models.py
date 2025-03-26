@@ -25,7 +25,7 @@ class Customer(db.Model):
     postal_code = db.Column(db.String(10))
     city = db.Column(db.String(50))
     country = db.Column(db.String(50), default='België')
-    customer_type = db.Column(db.String(20), default='business')  # business, individual
+    customer_type = db.Column(db.String(20), default='business')  # business, individual, supplier
     default_vat_rate = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, onupdate=datetime.now)
