@@ -607,12 +607,16 @@ class FileProcessor:
                             info['customer_address'] = '\n'.join(lines[1:]).strip()
                             
             # Special case for Hostio Solutions as seen in the example invoice
-            hostio_match = re.search(r'Hostio\s+Solutions', text, re.IGNORECASE)
-            if hostio_match and not info.get('customer_name'):
+            if 'Hostio' in text and 'Solutions' in text and not info.get('customer_name'):
                 info['customer_name'] = 'Hostio Solutions'
-                vat_match = re.search(r'VAT\s+Number:\s+(NL\d+\w+)', text, re.IGNORECASE)
-                if vat_match:
-                    info['customer_vat_number'] = vat_match.group(1).strip()
+                # Find VAT number pattern
+                vat_text = None
+                if 'VAT Number:' in text:
+                    vat_parts = text.split('VAT Number:')
+                    if len(vat_parts) > 1:
+                        vat_text = vat_parts[1].strip().split()[0]
+                if vat_text:
+                    info['customer_vat_number'] = vat_text
                             
             # Also try matching customer name from the "Invoiced To" line more generically
             if not info.get('customer_name'):
@@ -711,7 +715,9 @@ class FileProcessor:
             else:
                 info['customer_vat_number'] = ""
                 
-            info['customer_email'] = f"info@{re.sub(r'[^a-z0-9]', '', possible_customer_name.lower())}.com"
+            # Create a sanitized email from the customer name (removing special chars)
+            sanitized_name = ''.join(c for c in possible_customer_name.lower() if c.isalnum())
+            info['customer_email'] = f"info@{sanitized_name}.com"
             
         # Check if it looks like a bank statement
         elif 'bank' in lower_filename or 'statement' in lower_filename or 'afschrift' in lower_filename:
