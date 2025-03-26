@@ -960,6 +960,130 @@ def edit_customer(customer_id):
         flash('Ongeldige klant-ID', 'danger')
         return redirect(url_for('customers_list'))
 
+@app.route('/customers/bulk-action', methods=['POST'])
+def bulk_action_customers():
+    """Process bulk actions for selected customers"""
+    selected_ids = request.form.getlist('selected_ids[]')
+    bulk_action = request.form.get('bulk_action')
+    
+    if not selected_ids:
+        flash('Geen klanten geselecteerd', 'warning')
+        return redirect(url_for('customers_list'))
+    
+    if bulk_action == 'delete':
+        # Delete selected customers
+        delete_count = 0
+        error_count = 0
+        
+        for customer_id in selected_ids:
+            try:
+                # Convert string to UUID if needed
+                if isinstance(customer_id, str):
+                    customer_id = uuid.UUID(customer_id)
+                
+                customer = Customer.query.get(customer_id)
+                
+                if customer:
+                    # Check if customer has invoices
+                    invoice_count = Invoice.query.filter_by(customer_id=customer.id).count()
+                    
+                    if invoice_count > 0:
+                        flash(f'Klant "{customer.name}" heeft nog {invoice_count} facturen en kan niet worden verwijderd', 'warning')
+                        error_count += 1
+                    else:
+                        db.session.delete(customer)
+                        delete_count += 1
+            except Exception as e:
+                flash(f'Fout bij verwijderen klant: {str(e)}', 'danger')
+                error_count += 1
+        
+        if delete_count > 0:
+            db.session.commit()
+            flash(f'{delete_count} klanten succesvol verwijderd', 'success')
+        
+        if error_count > 0:
+            flash(f'{error_count} klanten konden niet worden verwijderd', 'warning')
+        
+    elif bulk_action == 'export_excel':
+        try:
+            # Get all selected customers
+            customers_data = []
+            for customer_id in selected_ids:
+                if isinstance(customer_id, str):
+                    customer_id = uuid.UUID(customer_id)
+                
+                customer = Customer.query.get(customer_id)
+                if customer:
+                    # Count invoices
+                    invoice_count = Invoice.query.filter_by(customer_id=customer.id).count()
+                    
+                    # Calculate total amounts
+                    income_invoices = Invoice.query.filter_by(customer_id=customer.id, invoice_type='income').all()
+                    expense_invoices = Invoice.query.filter_by(customer_id=customer.id, invoice_type='expense').all()
+                    
+                    total_income = sum(invoice.amount_incl_vat for invoice in income_invoices)
+                    total_expense = sum(invoice.amount_incl_vat for invoice in expense_invoices)
+                    
+                    customer_dict = customer.to_dict()
+                    customer_dict['invoice_count'] = invoice_count
+                    customer_dict['total_income'] = total_income
+                    customer_dict['total_expense'] = total_expense
+                    customers_data.append(customer_dict)
+            
+            if customers_data:
+                # Generate Excel file with customer data
+                excel_file = export_to_excel(
+                    customers_data, 
+                    'klanten_export.xlsx',
+                    columns=[
+                        'company_name', 'first_name', 'last_name', 'vat_number', 
+                        'email', 'phone', 'street', 'house_number', 
+                        'postal_code', 'city', 'country', 'customer_type',
+                        'invoice_count', 'total_income', 'total_expense'
+                    ]
+                )
+                
+                # Return Excel file as download
+                return send_file(
+                    excel_file,
+                    as_attachment=True,
+                    download_name='klanten_export.xlsx',
+                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+            else:
+                flash('Geen klantgegevens beschikbaar voor export', 'warning')
+        except Exception as e:
+            flash(f'Fout bij exporteren: {str(e)}', 'danger')
+    
+    elif bulk_action == 'change_type':
+        # Change customer type
+        new_type = request.form.get('new_type')
+        if not new_type or new_type not in ['business', 'individual', 'supplier']:
+            flash('Ongeldig klanttype geselecteerd', 'warning')
+            return redirect(url_for('customers_list'))
+        
+        updated_count = 0
+        for customer_id in selected_ids:
+            try:
+                if isinstance(customer_id, str):
+                    customer_id = uuid.UUID(customer_id)
+                
+                customer = Customer.query.get(customer_id)
+                if customer:
+                    customer.customer_type = new_type
+                    updated_count += 1
+            except Exception as e:
+                flash(f'Fout bij het wijzigen van klanttype: {str(e)}', 'danger')
+        
+        if updated_count > 0:
+            db.session.commit()
+            flash(f'Type van {updated_count} klanten succesvol gewijzigd naar {new_type}', 'success')
+    
+    else:
+        flash('Ongeldige bulk actie', 'warning')
+    
+    return redirect(url_for('customers_list'))
+
 @app.route('/customers/<customer_id>/delete', methods=['POST'])
 def delete_customer_route(customer_id):
     try:
