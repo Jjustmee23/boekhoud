@@ -201,7 +201,7 @@
                                 </a>
                             </td>
                             <td>{{ invoice.date }}</td>
-                            <td>{{ get_customer(invoice.customer_id).name }}</td>
+                            <td>{{ invoice.customer.company_name or (invoice.customer.first_name + ' ' + invoice.customer.last_name) }}</td>
                             <td>
                                 {% if invoice.invoice_type == 'income' %}
                                     <span class="badge bg-success">Inkomsten</span>
