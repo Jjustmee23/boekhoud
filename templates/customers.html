@@ -32,8 +32,8 @@
                                 <td>{{ customer.name }}</td>
                                 <td>{{ customer.vat_number }}</td>
                                 <td>{{ customer.email }}</td>
-                                <td class="text-center">{{ customer.invoice_count }}</td>
-                                <td class="text-end">{{ format_currency(customer.total_amount) }}</td>
+                                <td class="text-center">-</td>
+                                <td class="text-end">-</td>
                                 <td class="text-center">
                                     <div class="btn-group" role="group">
                                         <a href="{{ url_for('customer.view_customer', customer_id=customer.id) }}" class="btn btn-sm btn-outline-primary" title="Bekijken">
@@ -47,7 +47,7 @@
                                                 data-bs-target="#deleteCustomerModal" 
                                                 data-customer-id="{{ customer.id }}"
                                                 data-customer-name="{{ customer.name }}"
-                                                data-has-invoices="{{ customer.invoice_count > 0 }}"
+                                                data-has-invoices="False"
                                                 title="Verwijderen">
                                             <i class="fas fa-trash"></i>
                                         </button>
