@@ -1337,6 +1337,66 @@ def bulk_upload():
         now=datetime.now()
     )
 
+@app.route('/invoices/bulk-action', methods=['POST'])
+def bulk_action_invoices():
+    """Process bulk actions for selected invoices"""
+    selected_ids = request.form.getlist('selected_ids[]')
+    bulk_action = request.form.get('bulk_action')
+    
+    if not selected_ids:
+        flash('Geen facturen geselecteerd', 'warning')
+        return redirect(url_for('invoices_list'))
+    
+    if bulk_action == 'delete':
+        # Delete selected invoices
+        delete_count = 0
+        for invoice_id in selected_ids:
+            try:
+                # Convert string to UUID if needed
+                if isinstance(invoice_id, str):
+                    invoice_id = uuid.UUID(invoice_id)
+                
+                invoice = Invoice.query.get(invoice_id)
+                if invoice:
+                    db.session.delete(invoice)
+                    delete_count += 1
+            except Exception as e:
+                flash(f'Fout bij verwijderen factuur: {str(e)}', 'danger')
+        
+        if delete_count > 0:
+            db.session.commit()
+            flash(f'{delete_count} facturen succesvol verwijderd', 'success')
+        
+    elif bulk_action == 'export_pdf':
+        # Not implemented yet - would create a ZIP file with multiple PDFs
+        flash('PDF bulk export nog niet geïmplementeerd', 'info')
+        
+    elif bulk_action == 'change_status':
+        # Change the status of selected invoices (processed/unprocessed)
+        status_count = 0
+        new_status = request.form.get('new_status', 'processed')
+        
+        for invoice_id in selected_ids:
+            try:
+                if isinstance(invoice_id, str):
+                    invoice_id = uuid.UUID(invoice_id)
+                
+                invoice = Invoice.query.get(invoice_id)
+                if invoice:
+                    invoice.status = new_status
+                    status_count += 1
+            except Exception as e:
+                flash(f'Fout bij het wijzigen van status: {str(e)}', 'danger')
+        
+        if status_count > 0:
+            db.session.commit()
+            flash(f'Status van {status_count} facturen succesvol gewijzigd', 'success')
+            
+    else:
+        flash('Ongeldige bulk actie', 'warning')
+        
+    return redirect(url_for('invoices_list'))
+
 @app.route('/bulk-upload/process', methods=['POST'])
 def bulk_upload_process():
     # Haal de ingevulde formuliergegevens op

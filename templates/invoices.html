@@ -96,6 +96,12 @@
                         <tbody>
                             {% for invoice in invoices %}
                             <tr>
+                                <td class="text-center">
+                                    <div class="form-check">
+                                        <input class="form-check-input invoice-checkbox" type="checkbox" name="selected_ids[]" value="{{ invoice.id }}" id="invoice-{{ invoice.id }}">
+                                        <label class="form-check-label visually-hidden" for="invoice-{{ invoice.id }}">Selecteer factuur {{ invoice.invoice_number }}</label>
+                                    </div>
+                                </td>
                                 <td>
                                     {{ invoice.invoice_number }}
                                     {% if invoice.file_path %}
@@ -190,6 +196,61 @@
                 document.getElementById('deleteInvoiceForm').action = `/invoices/${invoiceId}/delete`;
             });
         }
+        
+        // Bulk action functionality
+        const selectAllCheckbox = document.getElementById('select-all');
+        const invoiceCheckboxes = document.querySelectorAll('.invoice-checkbox');
+        const bulkActionButton = document.getElementById('apply-bulk-action');
+        const bulkActionSelect = document.querySelector('select[name="bulk_action"]');
+        
+        // Function to update the state of the Apply button
+        function updateBulkActionButtonState() {
+            const hasSelection = Array.from(invoiceCheckboxes).some(checkbox => checkbox.checked);
+            const hasAction = bulkActionSelect.value !== '';
+            bulkActionButton.disabled = !(hasSelection && hasAction);
+        }
+        
+        // Handle "Select All" functionality
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                invoiceCheckboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                });
+                updateBulkActionButtonState();
+            });
+        }
+        
+        // Handle individual checkbox changes
+        invoiceCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Update "Select All" checkbox
+                selectAllCheckbox.checked = Array.from(invoiceCheckboxes).every(cb => cb.checked);
+                updateBulkActionButtonState();
+            });
+        });
+        
+        // Handle bulk action select changes
+        if (bulkActionSelect) {
+            bulkActionSelect.addEventListener('change', updateBulkActionButtonState);
+        }
+        
+        // Confirm bulk delete action
+        const bulkForm = document.getElementById('bulk-form');
+        if (bulkForm) {
+            bulkForm.addEventListener('submit', function(event) {
+                const action = bulkActionSelect.value;
+                if (action === 'delete') {
+                    const selectedCount = Array.from(invoiceCheckboxes).filter(cb => cb.checked).length;
+                    if (!confirm(`Weet u zeker dat u ${selectedCount} facturen wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.`)) {
+                        event.preventDefault();
+                    }
+                }
+            });
+        }
+        
+        // Initial button state update
+        updateBulkActionButtonState();
     });
 </script>
 {% endblock %}
