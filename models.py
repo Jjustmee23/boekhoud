@@ -408,6 +408,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    is_super_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
     
     def set_password(self, password):
@@ -522,3 +523,58 @@ def get_customer_summary():
     customer_data.sort(key=lambda x: x['income'], reverse=True)
     
     return customer_data
+
+# User management functions
+def get_users():
+    """Get all users"""
+    return User.query.order_by(User.username).all()
+
+def get_user(user_id):
+    """Get user by ID"""
+    return User.query.get(user_id)
+
+def create_user(username, email, password, is_admin=False, is_super_admin=False):
+    """Create a new user"""
+    user = User(username=username, email=email, is_admin=is_admin, is_super_admin=is_super_admin)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    return user
+
+def update_user(user_id, email=None, password=None, is_admin=None, is_super_admin=None):
+    """Update user information"""
+    user = get_user(user_id)
+    if not user:
+        return False
+    
+    if email:
+        user.email = email
+    
+    if password:
+        user.set_password(password)
+    
+    if is_admin is not None:
+        user.is_admin = is_admin
+    
+    if is_super_admin is not None:
+        user.is_super_admin = is_super_admin
+        # Super admins are always admins
+        if is_super_admin:
+            user.is_admin = True
+    
+    db.session.commit()
+    return user
+
+def delete_user(user_id):
+    """Delete a user"""
+    user = get_user(user_id)
+    if not user:
+        return False
+    
+    # Don't allow deleting the last super admin
+    if user.is_super_admin and User.query.filter_by(is_super_admin=True).count() <= 1:
+        return False
+    
+    db.session.delete(user)
+    db.session.commit()
+    return True

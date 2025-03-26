@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}- Beheerdersdashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Beheerdersdashboard</h1>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h2 class="h5 mb-0">Gebruikersbeheer</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Gebruikersnaam</th>
+                            <th>E-mail</th>
+                            <th>Beheerder</th>
+                            <th>Super Admin</th>
+                            <th>Aangemaakt op</th>
+                            <th>Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% if user.is_admin %}
+                                <span class="badge bg-success">Ja</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Nee</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_super_admin %}
+                                <span class="badge bg-danger">Ja</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Nee</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.created_at.strftime('%d-%m-%Y %H:%M') }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    {% if current_user.is_super_admin or (current_user.is_admin and not user.is_super_admin) %}
+                                    <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if not user.is_super_admin and not (user.id == current_user.id) %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal-{{ user.id }}">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Delete User Modal -->
+                                <div class="modal fade" id="deleteUserModal-{{ user.id }}" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteUserModalLabel">Gebruiker verwijderen</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Weet je zeker dat je de gebruiker <strong>{{ user.username }}</strong> wilt verwijderen?</p>
+                                                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Deze actie kan niet ongedaan worden gemaakt.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                                                <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" class="d-inline">
+                                                    <button type="submit" class="btn btn-danger">Verwijderen</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h2 class="h5 mb-0">Nieuwe gebruiker toevoegen</h2>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('admin_create_user') }}" method="POST">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="username" class="form-label">Gebruikersnaam</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="email" class="form-label">E-mailadres</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="password" class="form-label">Wachtwoord</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin">
+                            <label class="form-check-label" for="is_admin">
+                                Beheerder
+                            </label>
+                        </div>
+                    </div>
+                    {% if current_user.is_super_admin %}
+                    <div class="col-md-4 mb-3">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="is_super_admin" name="is_super_admin">
+                            <label class="form-check-label" for="is_super_admin">
+                                Super Admin
+                            </label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-4 mb-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary">Gebruiker toevoegen</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h2 class="h5 mb-0">Systeeminformatie</h2>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h3 class="h6">Database statistieken:</h3>
+                    <ul class="list-group">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Gebruikers
+                            <span class="badge bg-primary rounded-pill">{{ users|length }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Klanten
+                            <span class="badge bg-primary rounded-pill">{{ customer_count }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Facturen
+                            <span class="badge bg-primary rounded-pill">{{ invoice_count }}</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h3 class="h6">Systeem:</h3>
+                    <ul class="list-group">
+                        <li class="list-group-item">Applicatie: Facturatie & Boekhouding</li>
+                        <li class="list-group-item">Versie: 1.0.0</li>
+                        <li class="list-group-item">Huidige datum: {{ now.strftime('%d-%m-%Y %H:%M') }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

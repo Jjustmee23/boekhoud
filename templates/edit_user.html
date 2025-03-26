@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}- Gebruiker bewerken{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm my-5">
+                <div class="card-body p-4">
+                    <h2 class="card-title text-center mb-4">Gebruiker bewerken</h2>
+                    
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">{{ message }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST" action="{{ url_for('edit_user', user_id=user.id) }}">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Gebruikersnaam</label>
+                            <input type="text" class="form-control" id="username" value="{{ user.username }}" readonly>
+                            <small class="text-muted">Gebruikersnaam kan niet worden gewijzigd</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">E-mailadres</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                        </div>
+                        
+                        {% if current_user.is_super_admin or (current_user.is_admin and not user.is_super_admin) %}
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin" {% if user.is_admin %}checked{% endif %} {% if user.is_super_admin %}disabled checked{% endif %}>
+                                <label class="form-check-label" for="is_admin">
+                                    Beheerder
+                                </label>
+                                {% if user.is_super_admin %}
+                                <small class="d-block text-muted">Super Admin heeft altijd beheerdersstatus</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if current_user.is_super_admin and not user.id == current_user.id %}
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_super_admin" name="is_super_admin" {% if user.is_super_admin %}checked{% endif %}>
+                                <label class="form-check-label" for="is_super_admin">
+                                    Super Admin
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <h4 class="mt-4 mb-3">Wachtwoord wijzigen</h4>
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">Nieuw wachtwoord</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password">
+                            <small class="text-muted">Laat leeg als je het wachtwoord niet wilt wijzigen</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Bevestig nieuw wachtwoord</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password">
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">Wijzigingen opslaan</button>
+                            <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">Annuleren</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
