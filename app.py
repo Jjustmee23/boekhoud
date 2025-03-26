@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from flask import Flask, session
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -21,6 +22,17 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 # Initialize database
 db = SQLAlchemy(app)
+
+# Initialize Flask-Login
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Log in om toegang te krijgen tot deze pagina.'
+login_manager.login_message_category = 'info'
+
+@login_manager.user_loader
+def load_user(user_id):
+    from models import User
+    return User.query.get(int(user_id))
 
 def init_sample_data():
     """Function to add sample data to the database if none exists"""

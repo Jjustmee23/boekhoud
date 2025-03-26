@@ -4,9 +4,10 @@ import uuid
 from datetime import datetime, date
 from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session
+from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 from models import (
-    Customer, Invoice, get_next_invoice_number, check_duplicate_invoice, add_invoice,
+    Customer, Invoice, User, get_next_invoice_number, check_duplicate_invoice, add_invoice,
     calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary
 )
 from utils import (
@@ -16,8 +17,165 @@ from utils import (
 )
 from file_processor import FileProcessor
 
+# Authentication routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    # If user is already logged in, redirect to dashboard
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        # Get form data
+        username = request.form.get('username')
+        password = request.form.get('password')
+        remember = request.form.get('remember', 'false') == 'true'
+        
+        # Validate input
+        if not username or not password:
+            flash('Gebruikersnaam en wachtwoord zijn verplicht', 'danger')
+            return render_template('login.html', now=datetime.now())
+        
+        # Find user
+        user = User.query.filter_by(username=username).first()
+        
+        # Check if user exists and password is correct
+        if user and user.check_password(password):
+            # Log in user
+            login_user(user, remember=remember)
+            flash(f'Welkom terug, {user.username}!', 'success')
+            
+            # Redirect to requested page or dashboard
+            next_page = request.args.get('next')
+            if next_page and next_page.startswith('/'):
+                return redirect(next_page)
+            else:
+                return redirect(url_for('dashboard'))
+        else:
+            flash('Ongeldige gebruikersnaam of wachtwoord', 'danger')
+            return render_template('login.html', now=datetime.now())
+    
+    # GET request - show login form
+    return render_template('login.html', now=datetime.now())
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    # If user is already logged in, redirect to dashboard
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        # Get form data
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Validate input
+        if not all([username, email, password, confirm_password]):
+            flash('Alle velden zijn verplicht', 'danger')
+            return render_template('register.html', now=datetime.now())
+        
+        if password != confirm_password:
+            flash('Wachtwoorden komen niet overeen', 'danger')
+            return render_template('register.html', now=datetime.now())
+        
+        # Check if username or email already exists
+        existing_user = User.query.filter(
+            (User.username == username) | (User.email == email)
+        ).first()
+        
+        if existing_user:
+            if existing_user.username == username:
+                flash('Deze gebruikersnaam is al in gebruik', 'danger')
+            else:
+                flash('Dit e-mailadres is al in gebruik', 'danger')
+            return render_template('register.html', now=datetime.now())
+        
+        # Create new user
+        new_user = User(username=username, email=email)
+        new_user.set_password(password)
+        
+        # Set first user as admin
+        if User.query.count() == 0:
+            new_user.is_admin = True
+        
+        # Save to database
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Account succesvol aangemaakt! Je kunt nu inloggen.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error creating user: {str(e)}")
+            flash('Er is een fout opgetreden bij het aanmaken van je account.', 'danger')
+            return render_template('register.html', now=datetime.now())
+    
+    # GET request - show registration form
+    return render_template('register.html', now=datetime.now())
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Je bent uitgelogd', 'info')
+    return redirect(url_for('login'))
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        # Get form data
+        email = request.form.get('email')
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Update email if provided
+        if email and email != current_user.email:
+            # Check if email already exists
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user and existing_user.id != current_user.id:
+                flash('Dit e-mailadres is al in gebruik', 'danger')
+                return render_template('profile.html', now=datetime.now())
+            
+            current_user.email = email
+            db.session.add(current_user)
+            flash('E-mailadres bijgewerkt', 'success')
+        
+        # Update password if provided
+        if current_password and new_password and confirm_password:
+            # Check if current password is correct
+            if not current_user.check_password(current_password):
+                flash('Huidig wachtwoord is onjuist', 'danger')
+                return render_template('profile.html', now=datetime.now())
+            
+            # Check if new passwords match
+            if new_password != confirm_password:
+                flash('Nieuwe wachtwoorden komen niet overeen', 'danger')
+                return render_template('profile.html', now=datetime.now())
+            
+            # Update password
+            current_user.set_password(new_password)
+            db.session.add(current_user)
+            flash('Wachtwoord bijgewerkt', 'success')
+        
+        # Commit changes
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating profile: {str(e)}")
+            flash('Er is een fout opgetreden bij het bijwerken van je profiel.', 'danger')
+        
+        return redirect(url_for('profile'))
+    
+    # GET request - show profile form
+    return render_template('profile.html', now=datetime.now())
+
 # Dashboard routes
 @app.route('/')
+@login_required
 def dashboard():
     # Get current year
     current_year = datetime.now().year
@@ -103,6 +261,7 @@ def api_quarterly_data(year):
 
 # Invoice management routes
 @app.route('/invoices')
+@login_required
 def invoices_list():
     # Get filter parameters
     customer_id = request.args.get('customer_id')
@@ -167,6 +326,7 @@ def invoices_list():
     )
 
 @app.route('/invoices/new', methods=['GET', 'POST'])
+@login_required
 def new_invoice():
     if request.method == 'POST':
         # Get form data
@@ -326,6 +486,7 @@ def new_invoice():
     )
 
 @app.route('/invoices/<invoice_id>')
+@login_required
 def view_invoice(invoice_id):
     try:
         # Convert invoice_id from string to UUID if needed
@@ -360,6 +521,7 @@ def view_invoice(invoice_id):
         return redirect(url_for('invoices_list'))
 
 @app.route('/invoices/<invoice_id>/edit', methods=['GET', 'POST'])
+@login_required
 def edit_invoice(invoice_id):
     try:
         # Convert invoice_id from string to UUID if needed
