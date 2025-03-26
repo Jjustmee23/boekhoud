@@ -74,9 +74,45 @@ class InvoiceDocument(Document):
         return invoice_data
         
     def get_customer_data(self):
-        """Return customer data for creating a customer."""
-        # Only return customer data if we find a customer name
-        if self.invoice_data.get('customer_name'):
+        """
+        Return customer/supplier data for creating a customer or supplier record.
+        For expense invoices, this returns the supplier data.
+        For income invoices, this returns the customer data.
+        """
+        # For expense invoices, return supplier data if present
+        if self.invoice_data.get('invoice_type') == 'expense' and self.invoice_data.get('supplier_name'):
+            # This is a supplier (vendor sending us an invoice)
+            supplier_data = {
+                'name': self.invoice_data.get('supplier_name', ''),
+                'group': self.invoice_data.get('supplier_group', ''),
+                'street': self.invoice_data.get('supplier_street', ''),
+                'postal_city': self.invoice_data.get('supplier_postal_city', ''),
+                'country': self.invoice_data.get('supplier_country', ''),
+                'vat_number': self.invoice_data.get('supplier_vat_number', ''),
+                'iban': self.invoice_data.get('supplier_iban', ''),
+                'bic': self.invoice_data.get('supplier_bic', ''),
+                'email': self.invoice_data.get('supplier_email', '')
+            }
+            
+            # Build a formatted address
+            address_parts = []
+            if supplier_data['street']:
+                address_parts.append(supplier_data['street'])
+            if supplier_data['postal_city']:
+                address_parts.append(supplier_data['postal_city'])
+            if supplier_data['country']:
+                address_parts.append(supplier_data['country'])
+                
+            supplier_data['address'] = '\n'.join(address_parts)
+            
+            # For logging purposes
+            logger.info(f"Returning supplier data for {supplier_data['name']}")
+            logger.info(f"Supplier VAT Number: {supplier_data['vat_number']}")
+            
+            return supplier_data
+            
+        # Otherwise, return customer data for normal cases
+        elif self.invoice_data.get('customer_name'):
             # Build a complete customer data structure based on all extracted info
             customer_data = {
                 'name': self.invoice_data.get('customer_name', ''),
@@ -111,7 +147,13 @@ class InvoiceDocument(Document):
                 
             customer_data['address'] = '\n'.join(address_parts)
             
+            # For logging purposes
+            logger.info(f"Returning customer data for {customer_data['name']}")
+            logger.info(f"Customer VAT Number: {customer_data['vat_number']}")
+            
             return customer_data
+            
+        # No relevant data found
         return None
         
 class BankStatementDocument(Document):
@@ -497,15 +539,66 @@ class FileProcessor:
                     info['customer_vat_number'] = vat_match.group(1).strip()
                     logger.info(f"Detected customer VAT number: {info['customer_vat_number']}")
         
-        # Check if this is an invoice to our company
+        # Check if this is an invoice to our company (expense) or from our company (income)
         if 'nexon solutions' in text.lower() and 'BE0537.664.664' in text:
             logger.info("This is an invoice TO our company FROM Hostio Solutions")
             info['invoice_type'] = 'expense'
             
+            # In this case, Hostio Solutions is the supplier, and we're the customer
+            # So the customer_name etc. should be stored separately for creating a supplier record
+            info['supplier_name'] = info['customer_name']
+            info['supplier_group'] = info.get('customer_group', '')
+            info['supplier_street'] = info.get('customer_street', '')
+            info['supplier_postal_city'] = info.get('customer_postal_city', '')
+            info['supplier_country'] = info.get('customer_country', '')
+            info['supplier_iban'] = info.get('customer_iban', '')
+            info['supplier_bic'] = info.get('customer_bic', '')
+            info['supplier_vat_number'] = info.get('customer_vat_number', '')
+            
+            # Clear the customer info, as we're going to extract our own details
+            info['customer_name'] = 'nexon solutions'
+            info['customer_vat_number'] = 'BE0537664664'
+            
+            # Try to extract our company details from "Invoiced To" section
+            if 'Invoiced To' in text:
+                parts = text.split('Invoiced To')
+                if len(parts) > 1:
+                    customer_text = parts[1].strip()
+                    lines = customer_text.split('\n')
+                    
+                    # Skip the first line as we already know it's "nexon solutions"
+                    # Look for address in next lines
+                    if len(lines) > 1:
+                        # Some invoices have "ATTN: Danny Verheyen" on the second line
+                        attn_line_idx = -1
+                        for i, line in enumerate(lines):
+                            if 'ATTN:' in line:
+                                attn_line_idx = i
+                                break
+                                
+                        # Skip the ATTN line if present
+                        address_start_idx = 1
+                        if attn_line_idx > 0:
+                            address_start_idx = attn_line_idx + 1
+                            
+                        # Get the street address
+                        if address_start_idx < len(lines):
+                            info['customer_street'] = lines[address_start_idx].strip()
+                            logger.info(f"Detected our street: {info['customer_street']}")
+                        
+                        # Next line might have city, province, postal code
+                        if address_start_idx + 1 < len(lines):
+                            info['customer_postal_city'] = lines[address_start_idx + 1].strip()
+                            logger.info(f"Detected our postal code and city: {info['customer_postal_city']}")
+                        
+                        # Next line should have country
+                        if address_start_idx + 2 < len(lines):
+                            info['customer_country'] = lines[address_start_idx + 2].strip()
+                            logger.info(f"Detected our country: {info['customer_country']}")
+            
             # Store our own VAT number if found
-            if 'BE0537.664.664' in text or 'BE 0537.664.664' in text:
-                logger.info("Found company VAT number: BE0537664664")
-                info['own_vat_number'] = 'BE0537664664'
+            logger.info("Found our VAT number: BE0537664664")
+            info['own_vat_number'] = 'BE0537664664'
         else:
             logger.info("This is an invoice FROM our company TO another client")
             info['invoice_type'] = 'income'
