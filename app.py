@@ -19,8 +19,10 @@ if os.environ.get('MS_GRAPH_SENDER_EMAIL') != 'danny.v@nexonsolutions.be':
     logging.info("Updated MS_GRAPH_SENDER_EMAIL environment variable")
     
 # Update MS Graph Client Secret to the 'mail' secret from Azure portal
-if os.environ.get('MS_GRAPH_CLIENT_SECRET') != 'HZT8Q~uhruzDCtsOMFRpe3GW.C5tbGwb~cUtpbDk':
-    os.environ['MS_GRAPH_CLIENT_SECRET'] = 'HZT8Q~uhruzDCtsOMFRpe3GW.C5tbGwb~cUtpbDk'
+# Let op: Zorg dat er geen karakters worden gemist of verkeerd worden overgenomen
+client_secret_value = 'HZT8Q~uhruzDCtsOMFRpe3GW-C5tbGwb~cUtpbDk'  # Vervangen '.' met '-'
+if os.environ.get('MS_GRAPH_CLIENT_SECRET') != client_secret_value:
+    os.environ['MS_GRAPH_CLIENT_SECRET'] = client_secret_value
     logging.info("Updated MS_GRAPH_CLIENT_SECRET environment variable")
 
 # Create Flask app
