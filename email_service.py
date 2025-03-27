@@ -99,21 +99,38 @@ class EmailService:
             self.logger.error("Microsoft Graph API is niet geconfigureerd.")
             return None
             
-        # Configureer de client credential volgens MSAL specificaties
-        # Volgens de documentatie: https://msal-python.readthedocs.io/en/latest/#msal.ClientApplication.params.client_credential
-        app = msal.ConfidentialClientApplication(
-            client_id=self.ms_graph_config.client_id,
-            authority=self.ms_graph_config.authority,
-            client_credential=self.ms_graph_config.client_secret,
-        )
-        
-        result = app.acquire_token_for_client(scopes=self.ms_graph_config.scope)
-        
-        if "access_token" in result:
-            return result["access_token"]
+        # Log de waarden voor debug doeleinden (zonder het volledige secret te tonen)
+        self.logger.info(f"MS Graph authenticatie met Client ID: {self.ms_graph_config.client_id}")
+        self.logger.info(f"MS Graph Authority: {self.ms_graph_config.authority}")
+        if self.ms_graph_config.client_secret:
+            # Toon alleen de eerste vier karakters voor beveiliging
+            secret_preview = self.ms_graph_config.client_secret[:4] + "..." if len(self.ms_graph_config.client_secret) > 4 else "****"
+            self.logger.info(f"Client Secret is beschikbaar (begint met: {secret_preview})")
+            self.logger.info(f"Client Secret lengte: {len(self.ms_graph_config.client_secret)}")
         else:
-            self.logger.error(f"Error bij het verkrijgen van toegangstoken: {result.get('error')}")
-            self.logger.error(f"Beschrijving: {result.get('error_description')}")
+            self.logger.error("Client Secret is niet beschikbaar")
+        
+        try:
+            # Client credential is een string volgens MSAL docs
+            self.logger.info("Gebruik client_credential als string...")
+            app = msal.ConfidentialClientApplication(
+                client_id=self.ms_graph_config.client_id,
+                authority=self.ms_graph_config.authority,
+                client_credential=self.ms_graph_config.client_secret,
+            )
+            
+            result = app.acquire_token_for_client(scopes=self.ms_graph_config.scope)
+            
+            if "access_token" in result:
+                self.logger.info("Toegangstoken succesvol verkregen")
+                return result["access_token"]
+            else:
+                self.logger.error(f"Error bij het verkrijgen van toegangstoken: {result.get('error')}")
+                self.logger.error(f"Beschrijving: {result.get('error_description')}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Exception bij het verkrijgen van access token: {str(e)}")
             return None
     
     def send_via_smtp(self, recipient_email, subject, body_html, cc=None, attachments=None):
