@@ -201,7 +201,14 @@
                                 </a>
                             </td>
                             <td>{{ invoice.date }}</td>
-                            <td>{{ invoice.customer.company_name or (invoice.customer.first_name + ' ' + invoice.customer.last_name) }}</td>
+                            <td>
+                              {% if invoice.customer_id %}
+                                {% set customer = customers[invoice.customer_id]|default({}) %}
+                                {{ customer.company_name or (customer.first_name + ' ' + customer.last_name) if customer else 'Unknown Customer' }}
+                              {% else %}
+                                Unknown Customer
+                              {% endif %}
+                            </td>
                             <td>
                                 {% if invoice.invoice_type == 'income' %}
                                     <span class="badge bg-success">Inkomsten</span>

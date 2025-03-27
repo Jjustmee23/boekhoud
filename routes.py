@@ -1601,11 +1601,19 @@ def generate_vat_report():
                 mimetype='text/csv'
             )
     
+    # Get customer information for invoices
+    customer_ids = [invoice.get('customer_id') for invoice in report.get('invoices', [])]
+    customers_query = Customer.query.filter(Customer.id.in_(customer_ids) if customer_ids else False)
+    
+    # Create dictionary of customers by ID for easy lookup in template
+    customers = {str(customer.id): customer.to_dict() for customer in customers_query}
+    
     # Regular HTML response
     return render_template(
         'vat_report.html',
         report=report,
         period_name=period_name,
+        customers=customers,
         years=get_years(),
         quarters=get_quarters(),
         months=get_months(),
