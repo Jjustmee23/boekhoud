@@ -14,6 +14,7 @@ import logging
 class MSGraphConfig:
     def __init__(self, settings=None):
         from models import EmailSettings
+        from app import app
         
         # Als workspace-specifieke instellingen worden meegegeven, gebruik deze
         if settings and settings.use_ms_graph:
@@ -23,27 +24,29 @@ class MSGraphConfig:
             self.sender_email = settings.ms_graph_sender_email
         else:
             # Anders gebruik de systeem-instellingen uit de database
-            try:
-                # Haal de systeem-instellingen op (workspace_id is NULL voor systeem-instellingen)
-                system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
-                if system_settings and system_settings.use_ms_graph:
-                    self.client_id = system_settings.ms_graph_client_id
-                    self.client_secret = EmailSettings.decrypt_secret(system_settings.ms_graph_client_secret)
-                    self.tenant_id = system_settings.ms_graph_tenant_id
-                    self.sender_email = system_settings.ms_graph_sender_email
-                else:
-                    # Noodoplossing: omgevingsvariabelen als fallback
+            # Gebruik app context om database queries uit te voeren
+            with app.app_context():
+                try:
+                    # Haal de systeem-instellingen op (workspace_id is NULL voor systeem-instellingen)
+                    system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+                    if system_settings and system_settings.use_ms_graph:
+                        self.client_id = system_settings.ms_graph_client_id
+                        self.client_secret = EmailSettings.decrypt_secret(system_settings.ms_graph_client_secret)
+                        self.tenant_id = system_settings.ms_graph_tenant_id
+                        self.sender_email = system_settings.ms_graph_sender_email
+                    else:
+                        # Noodoplossing: omgevingsvariabelen als fallback
+                        self.client_id = os.environ.get('MS_GRAPH_CLIENT_ID')
+                        self.client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET')
+                        self.tenant_id = os.environ.get('MS_GRAPH_TENANT_ID')
+                        self.sender_email = os.environ.get('MS_GRAPH_SENDER_EMAIL')
+                except Exception as e:
+                    # Bij fouten, gebruik omgevingsvariabelen als fallback
+                    logging.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
                     self.client_id = os.environ.get('MS_GRAPH_CLIENT_ID')
                     self.client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET')
                     self.tenant_id = os.environ.get('MS_GRAPH_TENANT_ID')
                     self.sender_email = os.environ.get('MS_GRAPH_SENDER_EMAIL')
-            except Exception as e:
-                # Bij fouten, gebruik omgevingsvariabelen als fallback
-                logging.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
-                self.client_id = os.environ.get('MS_GRAPH_CLIENT_ID')
-                self.client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET')
-                self.tenant_id = os.environ.get('MS_GRAPH_TENANT_ID')
-                self.sender_email = os.environ.get('MS_GRAPH_SENDER_EMAIL')
             
         # Altijd authority en scope instellen
         self.authority = f'https://login.microsoftonline.com/{self.tenant_id}' if self.tenant_id else None
@@ -60,6 +63,7 @@ class MSGraphConfig:
 class SMTPConfig:
     def __init__(self, settings=None):
         from models import EmailSettings
+        from app import app
         
         if settings:
             self.server = settings.smtp_server
@@ -69,33 +73,35 @@ class SMTPConfig:
             self.from_email = settings.email_from
             self.from_name = settings.email_from_name
         else:
-            try:
-                # Haal de systeem-instellingen op (workspace_id is NULL voor systeem-instellingen)
-                system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
-                if system_settings and not system_settings.use_ms_graph:
-                    self.server = system_settings.smtp_server
-                    self.port = system_settings.smtp_port
-                    self.username = system_settings.smtp_username
-                    self.password = EmailSettings.decrypt_secret(system_settings.smtp_password)
-                    self.from_email = system_settings.email_from
-                    self.from_name = system_settings.email_from_name
-                else:
-                    # Noodoplossing: omgevingsvariabelen als fallback
+            # Gebruik app context om database queries uit te voeren
+            with app.app_context():
+                try:
+                    # Haal de systeem-instellingen op (workspace_id is NULL voor systeem-instellingen)
+                    system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+                    if system_settings and not system_settings.use_ms_graph:
+                        self.server = system_settings.smtp_server
+                        self.port = system_settings.smtp_port
+                        self.username = system_settings.smtp_username
+                        self.password = EmailSettings.decrypt_secret(system_settings.smtp_password)
+                        self.from_email = system_settings.email_from
+                        self.from_name = system_settings.email_from_name
+                    else:
+                        # Noodoplossing: omgevingsvariabelen als fallback
+                        self.server = os.environ.get('SMTP_SERVER')
+                        self.port = os.environ.get('SMTP_PORT')
+                        self.username = os.environ.get('SMTP_USERNAME')
+                        self.password = os.environ.get('SMTP_PASSWORD')
+                        self.from_email = os.environ.get('EMAIL_FROM')
+                        self.from_name = os.environ.get('EMAIL_FROM_NAME')
+                except Exception as e:
+                    # Bij fouten, gebruik omgevingsvariabelen als fallback
+                    logging.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
                     self.server = os.environ.get('SMTP_SERVER')
                     self.port = os.environ.get('SMTP_PORT')
                     self.username = os.environ.get('SMTP_USERNAME')
                     self.password = os.environ.get('SMTP_PASSWORD')
                     self.from_email = os.environ.get('EMAIL_FROM')
                     self.from_name = os.environ.get('EMAIL_FROM_NAME')
-            except Exception as e:
-                # Bij fouten, gebruik omgevingsvariabelen als fallback
-                logging.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
-                self.server = os.environ.get('SMTP_SERVER')
-                self.port = os.environ.get('SMTP_PORT')
-                self.username = os.environ.get('SMTP_USERNAME')
-                self.password = os.environ.get('SMTP_PASSWORD')
-                self.from_email = os.environ.get('EMAIL_FROM')
-                self.from_name = os.environ.get('EMAIL_FROM_NAME')
             
         # Convert port to integer if it's a string
         if isinstance(self.port, str) and self.port.isdigit():
@@ -121,19 +127,41 @@ class EmailService:
         self.logger = logging.getLogger(__name__)
         self.email_settings = email_settings
         
-        # Maak configuratie objecten op basis van de instellingen
-        self.ms_graph_config = MSGraphConfig(email_settings)
-        self.smtp_config = SMTPConfig(email_settings)
+        # Gebruik app context voor database operaties indien nodig
+        from app import app  # Import app hier om circulaire imports te voorkomen
         
-        # Bepaal de methode van verzenden
-        if email_settings and email_settings.use_ms_graph:
-            self.use_ms_graph = True
-        elif self.ms_graph_config.is_configured():
-            self.use_ms_graph = True
-        elif self.smtp_config.is_configured():
-            self.use_ms_graph = False
+        # Als we binnen de app context zijn, blijven we er in
+        # Anders maken we een nieuwe context voor de initialisatie
+        if not app.app_context().push():
+            with app.app_context():
+                # Maak configuratie objecten op basis van de instellingen
+                self.ms_graph_config = MSGraphConfig(email_settings)
+                self.smtp_config = SMTPConfig(email_settings)
+                
+                # Bepaal de methode van verzenden
+                if email_settings and email_settings.use_ms_graph:
+                    self.use_ms_graph = True
+                elif self.ms_graph_config.is_configured():
+                    self.use_ms_graph = True
+                elif self.smtp_config.is_configured():
+                    self.use_ms_graph = False
+                else:
+                    self.use_ms_graph = True  # Default naar MS Graph als niets beschikbaar
         else:
-            self.use_ms_graph = True  # Default naar MS Graph als nichts beschikbaar
+            # We zijn al in een app context
+            # Maak configuratie objecten op basis van de instellingen
+            self.ms_graph_config = MSGraphConfig(email_settings)
+            self.smtp_config = SMTPConfig(email_settings)
+            
+            # Bepaal de methode van verzenden
+            if email_settings and email_settings.use_ms_graph:
+                self.use_ms_graph = True
+            elif self.ms_graph_config.is_configured():
+                self.use_ms_graph = True
+            elif self.smtp_config.is_configured():
+                self.use_ms_graph = False
+            else:
+                self.use_ms_graph = True  # Default naar MS Graph als niets beschikbaar
         
     def get_token(self):
         """Verkrijg een toegangstoken van Microsoft Identity Platform"""
