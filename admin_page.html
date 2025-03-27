@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="nl" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facturatie & BoekhoudingInloggen - Facturatie & Boekhouding</title>
+    <!-- Bootstrap CSS (Replit-themed) -->
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+    
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg bg-dark-subtle navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-file-invoice-dollar"></i> Facturatie & Boekhouding
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/login">
+                            <i class="fas fa-sign-in-alt"></i> Inloggen
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/register">
+                            <i class="fas fa-user-plus"></i> Registreren
+                        </a>
+                    </li>
+                    
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container my-4">
+        <!-- Flash Messages -->
+        
+            
+                
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        Log in om toegang te krijgen tot deze pagina.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                
+            
+        
+
+        <!-- Error Message (if provided) -->
+        
+
+        <!-- Content Block -->
+        
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-sm my-5">
+                <div class="card-body p-4">
+                    <h2 class="card-title text-center mb-4">Inloggen</h2>
+                    
+                    
+                        
+                            
+                                <div class="alert alert-info">Log in om toegang te krijgen tot deze pagina.</div>
+                            
+                        
+                    
+                    
+                    <form method="POST" action="/login">
+                        
+                        <div class="mb-3">
+                            <label for="workspace" class="form-label">Werkruimte</label>
+                            <select class="form-select" id="workspace" name="workspace_id" required>
+                                
+                                <option value="1">teste uitnodiging </option>
+                                
+                                <option value="2">test</option>
+                                
+                                <option value="3">test2 </option>
+                                
+                            </select>
+                            <div class="form-text">Selecteer uw werkruimte om in te loggen.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Gebruikersnaam</label>
+                            <input type="text" class="form-control" id="username" name="username" required autofocus>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Wachtwoord</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="remember" name="remember" value="true">
+                            <label class="form-check-label" for="remember">Aangemeld blijven</label>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Inloggen</button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-3">
+                        <p>Nog geen account? <a href="/register">Registreer hier</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-auto py-3 bg-dark-subtle">
+        <div class="container text-center">
+            <span class="text-muted">Facturatie & Boekhouding Systeem &copy; 2025</span>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JavaScript -->
+    <script src="/static/js/main.js"></script>
+    
+    
+</body>
+</html>
