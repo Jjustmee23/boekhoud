@@ -27,6 +27,10 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
+    # Check if there are any workspaces in the database
+    workspaces = Workspace.query.all()
+    workspaces_exist = len(workspaces) > 0
+    
     if request.method == 'POST':
         # Get form data
         username = request.form.get('username')
@@ -34,19 +38,43 @@ def login():
         workspace_id = request.form.get('workspace_id')
         remember = request.form.get('remember', 'false') == 'true'
         
-        # Validate input
-        if not username or not password or not workspace_id:
-            flash('Gebruikersnaam, wachtwoord en werkruimte zijn verplicht', 'danger')
-            return render_template('login.html', workspaces=Workspace.query.all(), now=datetime.now())
+        # Special case: if no workspaces exist yet, allow login with admin/admin123
+        if not workspaces_exist and username == 'admin' and password == 'admin123':
+            # Create a new super admin user on first login if no workspaces exist
+            new_admin = User.query.filter_by(username='admin', is_super_admin=True).first()
+            if not new_admin:
+                new_admin = User(
+                    username='admin',
+                    email='admin@example.com',
+                    is_admin=True,
+                    is_super_admin=True,
+                    password_change_required=True
+                )
+                new_admin.set_password('admin123')
+                db.session.add(new_admin)
+                db.session.commit()
+                flash('Eerste admin-account aangemaakt. Wijzig alstublieft het wachtwoord.', 'success')
+            login_user(new_admin, remember=remember)
+            return redirect(url_for('dashboard'))
         
-        # Find user by username in the selected workspace
-        user = User.query.filter_by(username=username, workspace_id=workspace_id).first()
+        # Initialize user variable to avoid "possibly unbound" error
+        user = None
         
-        # If not found in regular workspace, check if they're a super admin
-        if not user:
-            super_admin = User.query.filter_by(username=username, is_super_admin=True).first()
-            if super_admin and super_admin.check_password(password):
-                user = super_admin
+        # Regular login flow for when workspaces exist
+        if workspaces_exist:
+            # Validate input
+            if not username or not password or not workspace_id:
+                flash('Gebruikersnaam, wachtwoord en werkruimte zijn verplicht', 'danger')
+                return render_template('login.html', workspaces=workspaces, no_workspaces=not workspaces_exist, now=datetime.now())
+            
+            # Find user by username in the selected workspace
+            user = User.query.filter_by(username=username, workspace_id=workspace_id).first()
+            
+            # If not found in regular workspace, check if they're a super admin
+            if not user:
+                super_admin = User.query.filter_by(username=username, is_super_admin=True).first()
+                if super_admin and super_admin.check_password(password):
+                    user = super_admin
         
         # Check if user exists and password is correct
         if user and user.check_password(password):

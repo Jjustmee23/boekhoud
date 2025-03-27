@@ -19,6 +19,7 @@
                     {% endwith %}
                     
                     <form method="POST" action="{{ url_for('login') }}">
+                        {% if workspaces|length > 0 %}
                         <div class="mb-3">
                             <label for="workspace" class="form-label">Werkruimte</label>
                             <select class="form-select" id="workspace" name="workspace_id" required>
@@ -28,6 +29,13 @@
                             </select>
                             <div class="form-text">Selecteer uw werkruimte om in te loggen.</div>
                         </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <p class="mb-0"><i class="fas fa-info-circle me-2"></i>Er zijn nog geen werkruimtes aangemaakt.</p>
+                            <p class="mb-0">Log in met gebruikersnaam <strong>admin</strong> en wachtwoord <strong>admin123</strong> om te beginnen.</p>
+                        </div>
+                        <input type="hidden" name="workspace_id" value="0">
+                        {% endif %}
                         <div class="mb-3">
                             <label for="username" class="form-label">Gebruikersnaam</label>
                             <input type="text" class="form-control" id="username" name="username" required autofocus>

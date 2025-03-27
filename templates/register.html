@@ -39,6 +39,7 @@
                         <hr class="my-4">
                         <h5>Werkruimte</h5>
                         
+                        {% if workspaces|length > 0 %}
                         <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="workspace_option" id="join_workspace" value="join" checked>
@@ -70,6 +71,16 @@
                             <label for="workspace_description" class="form-label mt-2">Werkruimte beschrijving</label>
                             <textarea class="form-control" id="workspace_description" name="workspace_description" rows="2"></textarea>
                         </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <p class="mb-0"><i class="fas fa-info-circle me-2"></i>Er zijn nog geen werkruimtes aangemaakt.</p>
+                            <p class="mb-0">Log in met gebruikersnaam <strong>admin</strong> en wachtwoord <strong>admin123</strong> om te beginnen.</p>
+                        </div>
+                        <input type="hidden" name="workspace_option" value="create">
+                        <input type="hidden" id="workspace_id" name="workspace_id" value="">
+                        <input type="hidden" id="workspace_name" name="workspace_name" value="">
+                        <input type="hidden" id="workspace_description" name="workspace_description" value="">
+                        {% endif %}
                         
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">Registreren</button>
