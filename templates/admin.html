@@ -239,21 +239,36 @@
             <div class="tab-content p-3 border border-top-0 rounded-bottom" id="emailConfigTabsContent">
                 <!-- Microsoft Graph API Instellingen -->
                 <div class="tab-pane fade {% if use_ms_graph %}show active{% endif %}" id="ms-graph-config" role="tabpanel" aria-labelledby="ms-graph-tab">
+                    <div class="alert alert-info mb-4">
+                        <h5><i class="fas fa-info-circle me-2"></i>Microsoft Graph API Instructies</h5>
+                        <p>Om e-mail te versturen via Microsoft Graph API heeft u de volgende gegevens nodig uit de Azure Portal:</p>
+                        <ol>
+                            <li><strong>Client ID</strong> - De applicatie ID van uw geregistreerde app in Azure AD</li>
+                            <li><strong>Tenant ID</strong> - De directory (tenant) ID van uw Azure AD tenant</li>
+                            <li><strong>Client Secret</strong> - De <em>Value</em> (niet de ID!) van een client secret die u heeft aangemaakt</li>
+                            <li><strong>Hoofdgebruiker E-mailadres</strong> - Het e-mailadres dat u wilt gebruiken voor authenticatie</li>
+                        </ol>
+                        <p class="mb-0"><strong>Let op:</strong> Bij het invoeren van de Client Secret, zorg ervoor dat u de volledige waarde (Value) kopieert en niet de ID. De waarde is meestal langer en complexer dan de ID.</p>
+                    </div>
+                    
                     <form action="{{ url_for('update_ms_graph_settings') }}" method="POST" class="row g-3">
                         <div class="col-md-6">
                             <label for="ms_graph_client_id" class="form-label">Client ID</label>
                             <input type="text" class="form-control" id="ms_graph_client_id" name="ms_graph_client_id" 
                                    value="{{ ms_graph_client_id }}" required>
+                            <small class="form-text text-muted">De applicatie (client) ID uit Azure Portal</small>
                         </div>
                         <div class="col-md-6">
                             <label for="ms_graph_tenant_id" class="form-label">Tenant ID</label>
                             <input type="text" class="form-control" id="ms_graph_tenant_id" name="ms_graph_tenant_id" 
                                    value="{{ ms_graph_tenant_id }}" required>
+                            <small class="form-text text-muted">De directory (tenant) ID uit Azure Portal</small>
                         </div>
                         <div class="col-md-6">
                             <label for="ms_graph_client_secret" class="form-label">Client Secret</label>
                             <input type="password" class="form-control" id="ms_graph_client_secret" name="ms_graph_client_secret" 
                                    value="{{ ms_graph_client_secret }}" required>
+                            <small class="form-text text-muted">De <em>waarde (VALUE)</em> van het client secret, niet de ID</small>
                         </div>
                         <div class="col-md-6">
                             <label for="ms_graph_sender_email" class="form-label">Hoofdgebruiker E-mailadres</label>

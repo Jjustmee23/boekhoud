@@ -8,22 +8,18 @@ from flask_login import LoginManager
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Update MS Graph Client ID if not already set correctly
-if os.environ.get('MS_GRAPH_CLIENT_ID') != '574d2096-15c1-436c-b8c6-603ae54fd28b':
+# Alleen standaardwaarden gebruiken als er geen omgevingsvariabelen zijn ingesteld
+# Dit voorkomt dat hardcoded waarden omgevingsvariabelen overschrijven
+if not os.environ.get('MS_GRAPH_CLIENT_ID'):
     os.environ['MS_GRAPH_CLIENT_ID'] = '574d2096-15c1-436c-b8c6-603ae54fd28b'
-    logging.info("Updated MS_GRAPH_CLIENT_ID environment variable")
+    logging.info("Set default MS_GRAPH_CLIENT_ID environment variable")
 
-# Update MS Graph Sender Email if not already set correctly
-if os.environ.get('MS_GRAPH_SENDER_EMAIL') != 'danny.v@nexonsolutions.be':
+if not os.environ.get('MS_GRAPH_SENDER_EMAIL'):
     os.environ['MS_GRAPH_SENDER_EMAIL'] = 'danny.v@nexonsolutions.be'
-    logging.info("Updated MS_GRAPH_SENDER_EMAIL environment variable")
-    
-# Update MS Graph Client Secret to the 'mail' secret from Azure portal
-# Let op: Zorg dat er geen karakters worden gemist of verkeerd worden overgenomen
-client_secret_value = 'HZT8Q~uhruzDCtsOMFRpe3GW-C5tbGwb~cUtpbDk'  # Vervangen '.' met '-'
-if os.environ.get('MS_GRAPH_CLIENT_SECRET') != client_secret_value:
-    os.environ['MS_GRAPH_CLIENT_SECRET'] = client_secret_value
-    logging.info("Updated MS_GRAPH_CLIENT_SECRET environment variable")
+    logging.info("Set default MS_GRAPH_SENDER_EMAIL environment variable")
+
+# MS_GRAPH_CLIENT_SECRET wordt niet standaard ingesteld - deze moet worden opgegeven
+# via een environment secret of via het admin panel
 
 # Create Flask app
 app = Flask(__name__)
