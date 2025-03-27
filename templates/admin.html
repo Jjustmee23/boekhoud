@@ -519,6 +519,11 @@
                             <td><span class="badge bg-secondary rounded-pill">{{ workspace.invoices|length }}</span></td>
                             <td>
                                 <div class="btn-group">
+                                    {% if current_user.is_super_admin %}
+                                    <a href="{{ url_for('access_workspace', workspace_id=workspace.id) }}" class="btn btn-sm btn-outline-success" title="Open werkruimte als beheerder">
+                                        <i class="fas fa-sign-in-alt"></i>
+                                    </a>
+                                    {% endif %}
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editWorkspaceModal-{{ workspace.id }}">
                                         <i class="fas fa-edit"></i>
                                     </button>

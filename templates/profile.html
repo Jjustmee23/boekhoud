@@ -76,6 +76,23 @@
                             <button type="submit" class="btn btn-primary">Wijzigingen opslaan</button>
                         </div>
                     </form>
+                    
+                    <!-- Super Admin terug knop - alleen tonen als er een super_admin_id in de sessie zit -->
+                    {% if session.get('super_admin_id') %}
+                    <hr class="my-4">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Je bent momenteel ingelogd als een werkruimte gebruiker. Je kunt terugkeren naar je super admin account.
+                    </div>
+                    <form action="{{ url_for('return_to_super_admin') }}" method="POST">
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-outline-secondary">
+                                <i class="fas fa-sync-alt me-2"></i>
+                                Terug naar Super Admin
+                            </button>
+                        </div>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -7,7 +7,7 @@ from flask import render_template, request, redirect, url_for, flash, send_file,
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 from models import (
-    Customer, Invoice, User, Workspace, EmailSettings, get_next_invoice_number, check_duplicate_invoice, add_invoice,
+    Customer, Invoice, User, Workspace, EmailSettings, EmailMessage, get_next_invoice_number, check_duplicate_invoice, add_invoice,
     calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary,
     get_users, get_user, create_user, update_user, delete_user
 )
@@ -254,6 +254,33 @@ def profile():
     
     # GET request - show profile form
     return render_template('profile.html', now=datetime.now())
+
+@app.route('/return-to-super-admin', methods=['POST'])
+@login_required
+def return_to_super_admin():
+    """Route om terug te keren naar super admin account na toegang tot een werkruimte"""
+    # Controleer of er een super_admin_id in de sessie staat
+    super_admin_id = session.get('super_admin_id')
+    if not super_admin_id:
+        flash('Er is geen super admin sessie actief', 'danger')
+        return redirect(url_for('profile'))
+    
+    # Vind de super admin gebruiker
+    super_admin = User.query.get(super_admin_id)
+    if not super_admin or not super_admin.is_super_admin:
+        flash('Super admin account niet gevonden', 'danger')
+        session.pop('super_admin_id', None)  # Verwijder de ongeldige sessie data
+        return redirect(url_for('dashboard'))
+    
+    # Log uit huidige gebruiker en log in als super admin
+    logout_user()
+    login_user(super_admin)
+    
+    # Verwijder super_admin_id uit sessie
+    session.pop('super_admin_id', None)
+    
+    flash('Je bent teruggekeerd naar je super admin account', 'success')
+    return redirect(url_for('admin'))
 
 # Dashboard routes
 @app.route('/')
@@ -2664,6 +2691,40 @@ def assign_workspace_to_user(user_id):
         flash('Er is een fout opgetreden bij het toewijzen van de werkruimte', 'danger')
     
     return redirect(url_for('admin'))
+
+@app.route('/admin/workspace/<int:workspace_id>/access', methods=['GET'])
+@login_required
+def access_workspace(workspace_id):
+    """Access a workspace as an admin (super admin only)"""
+    # Check if user is super admin
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze functie.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Find workspace
+    workspace = Workspace.query.get(workspace_id)
+    if not workspace:
+        flash('Werkruimte niet gevonden.', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Store the original user ID in the session so we can restore it later
+    session['super_admin_id'] = current_user.id
+    
+    # Find an admin user in this workspace or the first user if no admins
+    admin_user = User.query.filter_by(workspace_id=workspace_id, is_admin=True).first()
+    if not admin_user:
+        admin_user = User.query.filter_by(workspace_id=workspace_id).first()
+        
+    if not admin_user:
+        flash('Er zijn geen gebruikers in deze werkruimte om als in te loggen.', 'warning')
+        return redirect(url_for('admin'))
+    
+    # Login as the workspace admin
+    logout_user()
+    login_user(admin_user)
+    
+    flash(f'Je bent nu ingelogd als "{admin_user.username}" in werkruimte "{workspace.name}". Je kunt terugkeren naar je super admin account via het profielmenu.', 'info')
+    return redirect(url_for('dashboard'))
 
 # Client/Workspace onboarding routes
 @app.route("/admin/client/create", methods=["GET", "POST"])

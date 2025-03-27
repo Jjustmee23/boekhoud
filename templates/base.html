@@ -63,13 +63,29 @@
                     {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-user"></i> {{ current_user.username }}
+                            <i class="fas fa-user"></i> 
+                            {% if session.get('super_admin_id') %}
+                            <span class="badge bg-warning text-dark me-1" title="Je bent ingelogd als werkruimte beheerder"><i class="fas fa-user-secret"></i></span>
+                            {% endif %}
+                            {{ current_user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                             <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="fas fa-user-cog"></i> Mijn Profiel</a></li>
                             {% if current_user.is_admin %}
                             <li><a class="dropdown-item" href="{{ url_for('admin') }}"><i class="fas fa-users-cog"></i> Beheerdersdashboard</a></li>
                             {% endif %}
+                            
+                            {% if session.get('super_admin_id') %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="{{ url_for('return_to_super_admin') }}" method="POST" style="margin:0;">
+                                    <button type="submit" class="dropdown-item text-warning">
+                                        <i class="fas fa-user-secret"></i> Terug naar Super Admin
+                                    </button>
+                                </form>
+                            </li>
+                            {% endif %}
+                            
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Uitloggen</a></li>
                         </ul>
