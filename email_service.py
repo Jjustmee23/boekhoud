@@ -102,7 +102,7 @@ class EmailService:
         app = msal.ConfidentialClientApplication(
             self.ms_graph_config.client_id,
             authority=self.ms_graph_config.authority,
-            client_credential=self.ms_graph_config.client_secret,
+            client_credential={"client_secret": self.ms_graph_config.client_secret},
         )
         
         result = app.acquire_token_for_client(scopes=self.ms_graph_config.scope)
