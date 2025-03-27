@@ -242,6 +242,30 @@
                 
                 <!-- SMTP Instellingen -->
                 <div class="tab-pane fade" id="smtp-config" role="tabpanel" aria-labelledby="smtp-tab">
+                    <div class="mb-4">
+                        <label class="form-label">Voorgedefinieerde instellingen</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-outline-primary" onclick="setSmtpPreset('office365')">
+                                <i class="fas fa-envelope me-1"></i> Office 365
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="setSmtpPreset('gmail')">
+                                <i class="fab fa-google me-1"></i> Gmail
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="setSmtpPreset('outlook')">
+                                <i class="fab fa-microsoft me-1"></i> Outlook/Hotmail
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="setSmtpPreset('yahoo')">
+                                <i class="fab fa-yahoo me-1"></i> Yahoo Mail
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="setSmtpPreset('zoho')">
+                                <i class="fas fa-at me-1"></i> Zoho Mail
+                            </button>
+                        </div>
+                        <small class="form-text text-muted mt-2">
+                            Klik op een provider om de standaard SMTP-instellingen in te vullen. U moet nog wel uw eigen gebruikersnaam, wachtwoord en e-mailadres invullen.
+                        </small>
+                    </div>
+                    
                     <form action="{{ url_for('update_smtp_settings') }}" method="POST" class="row g-3">
                         <div class="col-md-6">
                             <label for="smtp_server" class="form-label">SMTP Server</label>
@@ -281,6 +305,46 @@
                         </div>
                     </form>
                 </div>
+
+                <script>
+                    function setSmtpPreset(provider) {
+                        // SMTP presets voor verschillende providers
+                        const presets = {
+                            office365: {
+                                server: 'smtp.office365.com',
+                                port: 587
+                            },
+                            gmail: {
+                                server: 'smtp.gmail.com',
+                                port: 587
+                            },
+                            outlook: {
+                                server: 'smtp-mail.outlook.com',
+                                port: 587
+                            },
+                            yahoo: {
+                                server: 'smtp.mail.yahoo.com',
+                                port: 587
+                            },
+                            zoho: {
+                                server: 'smtp.zoho.com',
+                                port: 587
+                            }
+                        };
+                        
+                        // Zorg ervoor dat de provider bestaat in onze presets
+                        if (presets[provider]) {
+                            const preset = presets[provider];
+                            
+                            // Vul de velden in
+                            document.getElementById('smtp_server').value = preset.server;
+                            document.getElementById('smtp_port').value = preset.port;
+                            
+                            // Focus op gebruikersnaam veld zodat de gebruiker direct kan typen
+                            document.getElementById('smtp_username').focus();
+                        }
+                    }
+                </script>
             </div>
         </div>
     </div>
