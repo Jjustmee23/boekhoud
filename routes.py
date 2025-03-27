@@ -2762,6 +2762,14 @@ def create_client():
     # GET request - show client creation form
     return render_template("create_client.html", now=datetime.now())
 
+@app.route("/activate/workspace/", methods=["GET"])
+def activate_workspace_missing_token():
+    """
+    Route voor wanneer een gebruiker de werkruimte-activatie-URL zonder token probeert te gebruiken
+    """
+    flash("Ongeldige activatie-URL. Er ontbreekt een activatiecode in de link.", "danger")
+    return redirect(url_for("login"))
+
 @app.route("/activate/workspace/<token>", methods=["GET", "POST"])
 def activate_workspace(token):
     """
@@ -3163,6 +3171,14 @@ def invite_user():
         workspaces = Workspace.query.all()
     
     return render_template("invite_user.html", workspaces=workspaces, now=datetime.now())
+
+@app.route("/activate/user/", methods=["GET"])
+def activate_user_missing_token():
+    """
+    Route voor wanneer een gebruiker de activatie-URL zonder token probeert te gebruiken
+    """
+    flash("Ongeldige activatie-URL. Er ontbreekt een activatiecode in de link.", "danger")
+    return redirect(url_for("login"))
 
 @app.route("/activate/user/<token>", methods=["GET", "POST"])
 def activate_user(token):
