@@ -2228,6 +2228,9 @@ def admin():
             smtp_password = '********' if system_settings.smtp_password else ''  # Beveiliging: altijd sterretjes tonen
             email_from = system_settings.email_from or ''
             email_from_name = system_settings.email_from_name or ''
+            
+            # Provider selectie
+            use_ms_graph = system_settings.use_ms_graph
         else:
             # Fallback naar omgevingsvariabelen voor compatibiliteit
             ms_graph_client_id = os.environ.get('MS_GRAPH_CLIENT_ID', '')
@@ -2241,6 +2244,9 @@ def admin():
             smtp_password = os.environ.get('SMTP_PASSWORD', '')
             email_from = os.environ.get('EMAIL_FROM', '')
             email_from_name = os.environ.get('EMAIL_FROM_NAME', '')
+            
+            # Standaard provider selectie
+            use_ms_graph = True  # Default naar MS Graph als er geen instellingen zijn
     else:
         # Regular admins can only see users in their workspace
         users = User.query.filter_by(workspace_id=current_user.workspace_id).all()
@@ -2253,6 +2259,7 @@ def admin():
         # Voor normale admins geen e-mailinstellingen
         ms_graph_client_id = ms_graph_tenant_id = ms_graph_client_secret = ms_graph_sender_email = ''
         smtp_server = smtp_port = smtp_username = smtp_password = email_from = email_from_name = ''
+        use_ms_graph = True  # Default voor normale admins
     
     return render_template('admin.html', 
                            users=users, 
@@ -2270,7 +2277,8 @@ def admin():
                            smtp_username=smtp_username,
                            smtp_password=smtp_password,
                            email_from=email_from,
-                           email_from_name=email_from_name)
+                           email_from_name=email_from_name,
+                           use_ms_graph=use_ms_graph if 'use_ms_graph' in locals() else True)
 
 @app.route('/admin/user/create', methods=['POST'])
 @login_required
@@ -2798,6 +2806,42 @@ def activate_workspace(token):
         email=email,
         now=datetime.now()
     )
+
+@app.route('/admin/email/provider', methods=['POST'])
+@login_required
+def update_email_provider():
+    """Update de e-mail provider (Microsoft Graph API of SMTP)"""
+    # Alleen super-admins kunnen e-mailinstellingen wijzigen
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Haal de selected provider op (1 = MS Graph, 0 = SMTP)
+    use_ms_graph = request.form.get('use_ms_graph') == '1'
+    
+    # Zoek de system-wide email settings
+    from models import EmailSettings
+    email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+    
+    if not email_settings:
+        # Als er nog geen systeem-instellingen zijn, maak ze aan
+        email_settings = EmailSettings(workspace_id=None)
+        db.session.add(email_settings)
+    
+    # Update de provider selectie
+    email_settings.use_ms_graph = use_ms_graph
+    
+    # Sla de wijzigingen op
+    db.session.commit()
+    
+    # Log de wijziging
+    app.logger.info(f"Email provider gewijzigd naar {'Microsoft Graph API' if use_ms_graph else 'SMTP'} door gebruiker {current_user.username}")
+    
+    # Toon een bevestiging aan de gebruiker
+    flash(f"E-mail verzendmethode is gewijzigd naar {'Microsoft Graph API' if use_ms_graph else 'SMTP Server'}", 'success')
+    
+    # Ga terug naar admin pagina
+    return redirect(url_for('admin'))
 
 @app.route('/admin/email/ms-graph', methods=['POST'])
 @login_required

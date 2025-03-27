@@ -191,16 +191,46 @@
             <h2 class="h5 mb-0">E-mail Configuratie</h2>
         </div>
         <div class="card-body">
+            <!-- E-mail Provider Selectie -->
+            <div class="mb-4">
+                <form action="{{ url_for('update_email_provider') }}" method="POST" class="row align-items-center">
+                    <div class="col-md-6">
+                        <label for="email_provider" class="form-label fw-bold">E-mail Provider</label>
+                        <div class="d-flex align-items-center">
+                            <select class="form-select" id="email_provider" name="use_ms_graph">
+                                <option value="1" {% if use_ms_graph %}selected{% endif %}>Microsoft Graph API (Office 365)</option>
+                                <option value="0" {% if not use_ms_graph %}selected{% endif %}>SMTP Server</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary ms-3">Opslaan</button>
+                        </div>
+                        <small class="form-text text-muted">
+                            Selecteer welke methode u wilt gebruiken voor het verzenden van e-mails.
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> 
+                            <strong>Huidige verzendmethode:</strong> 
+                            {% if use_ms_graph %}
+                                Microsoft Graph API (verzenden via: <strong>{{ ms_graph_sender_email }}</strong>)
+                            {% else %}
+                                SMTP Server (verzenden via: <strong>{{ email_from }}</strong>)
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
             <ul class="nav nav-tabs" id="emailConfigTabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="ms-graph-tab" data-bs-toggle="tab" data-bs-target="#ms-graph-config" 
-                            type="button" role="tab" aria-controls="ms-graph-config" aria-selected="true">
+                    <button class="nav-link {% if use_ms_graph %}active{% endif %}" id="ms-graph-tab" data-bs-toggle="tab" data-bs-target="#ms-graph-config" 
+                            type="button" role="tab" aria-controls="ms-graph-config" aria-selected="{{ 'true' if use_ms_graph else 'false' }}">
                         Microsoft Graph API
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="smtp-tab" data-bs-toggle="tab" data-bs-target="#smtp-config" 
-                            type="button" role="tab" aria-controls="smtp-config" aria-selected="false">
+                    <button class="nav-link {% if not use_ms_graph %}active{% endif %}" id="smtp-tab" data-bs-toggle="tab" data-bs-target="#smtp-config" 
+                            type="button" role="tab" aria-controls="smtp-config" aria-selected="{{ 'true' if not use_ms_graph else 'false' }}">
                         SMTP Instellingen
                     </button>
                 </li>
@@ -208,7 +238,7 @@
             
             <div class="tab-content p-3 border border-top-0 rounded-bottom" id="emailConfigTabsContent">
                 <!-- Microsoft Graph API Instellingen -->
-                <div class="tab-pane fade show active" id="ms-graph-config" role="tabpanel" aria-labelledby="ms-graph-tab">
+                <div class="tab-pane fade {% if use_ms_graph %}show active{% endif %}" id="ms-graph-config" role="tabpanel" aria-labelledby="ms-graph-tab">
                     <form action="{{ url_for('update_ms_graph_settings') }}" method="POST" class="row g-3">
                         <div class="col-md-6">
                             <label for="ms_graph_client_id" class="form-label">Client ID</label>
@@ -241,7 +271,7 @@
                 </div>
                 
                 <!-- SMTP Instellingen -->
-                <div class="tab-pane fade" id="smtp-config" role="tabpanel" aria-labelledby="smtp-tab">
+                <div class="tab-pane fade {% if not use_ms_graph %}show active{% endif %}" id="smtp-config" role="tabpanel" aria-labelledby="smtp-tab">
                     <div class="mb-4">
                         <label class="form-label">Voorgedefinieerde instellingen</label>
                         <div class="d-flex flex-wrap gap-2">
