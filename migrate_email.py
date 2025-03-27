@@ -28,12 +28,12 @@ def migrate_database():
                     smtp_server VARCHAR(100),
                     smtp_port INTEGER,
                     smtp_username VARCHAR(100),
-                    smtp_password VARCHAR(100),
+                    smtp_password VARCHAR(255),
                     email_from VARCHAR(100),
                     email_from_name VARCHAR(100),
                     use_ms_graph BOOLEAN DEFAULT FALSE,
                     ms_graph_client_id VARCHAR(100),
-                    ms_graph_client_secret VARCHAR(100),
+                    ms_graph_client_secret VARCHAR(255),
                     ms_graph_tenant_id VARCHAR(100),
                     ms_graph_sender_email VARCHAR(100),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -78,45 +78,119 @@ def migrate_database():
                 )
             """))
             
-            # Set global system email settings using environment variables
-            system_settings_sql = text("""
-                INSERT INTO email_settings (
-                    workspace_id, use_ms_graph, ms_graph_client_id, 
-                    ms_graph_client_secret, ms_graph_tenant_id, ms_graph_sender_email
-                ) VALUES (
-                    (SELECT id FROM workspaces LIMIT 1), 
-                    true, 
-                    :client_id, :client_secret, :tenant_id, :sender_email
-                ) ON CONFLICT (workspace_id) DO UPDATE SET
-                    use_ms_graph = EXCLUDED.use_ms_graph,
-                    ms_graph_client_id = EXCLUDED.ms_graph_client_id,
-                    ms_graph_client_secret = EXCLUDED.ms_graph_client_secret,
-                    ms_graph_tenant_id = EXCLUDED.ms_graph_tenant_id,
-                    ms_graph_sender_email = EXCLUDED.ms_graph_sender_email
-            """)
+            # Encrypt secrets functie
+            def encrypt_secret(secret):
+                """Eenvoudige implementatie voor demo-doeleinden - zou een sterkere encryptie moeten gebruiken in productie"""
+                if not secret:
+                    return None
+                try:
+                    import base64
+                    return base64.b64encode(secret.encode()).decode()
+                except Exception as e:
+                    logging.error(f"Fout bij versleutelen: {str(e)}")
+                    return secret
             
-            # Only attempt to set defaults if there are workspaces
+            # Import omgevingsvariabelen
             import os
-            client_id = os.environ.get('MS_GRAPH_CLIENT_ID')
-            client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET')
-            tenant_id = os.environ.get('MS_GRAPH_TENANT_ID')
-            sender_email = os.environ.get('MS_GRAPH_SENDER_EMAIL')
             
-            # Controleer of er workspaces bestaan
+            # Microsoft Graph API instellingen
+            ms_graph_client_id = os.environ.get('MS_GRAPH_CLIENT_ID')
+            ms_graph_client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET')
+            ms_graph_tenant_id = os.environ.get('MS_GRAPH_TENANT_ID')
+            ms_graph_sender_email = os.environ.get('MS_GRAPH_SENDER_EMAIL')
+            
+            # SMTP instellingen
+            smtp_server = os.environ.get('SMTP_SERVER')
+            smtp_port = os.environ.get('SMTP_PORT')
+            smtp_username = os.environ.get('SMTP_USERNAME')
+            smtp_password = os.environ.get('SMTP_PASSWORD')
+            email_from = os.environ.get('EMAIL_FROM')
+            email_from_name = os.environ.get('EMAIL_FROM_NAME')
+            
+            # Stel in welke methode standaard is
+            use_ms_graph = bool(all([ms_graph_client_id, ms_graph_client_secret, ms_graph_tenant_id, ms_graph_sender_email]))
+            use_smtp = bool(all([smtp_server, smtp_port, smtp_username, smtp_password, email_from]))
+            
+            # SQL voor systeem-instellingen (workspace_id IS NULL)
+            if use_ms_graph or use_smtp:
+                # Versleutel de geheimen
+                if ms_graph_client_secret:
+                    ms_graph_client_secret = encrypt_secret(ms_graph_client_secret)
+                if smtp_password:
+                    smtp_password = encrypt_secret(smtp_password)
+                
+                # Stel de juiste SQL samen op basis van beschikbare instellingen
+                if use_ms_graph:
+                    system_settings_sql = text("""
+                        INSERT INTO email_settings (
+                            workspace_id, use_ms_graph, ms_graph_client_id, 
+                            ms_graph_client_secret, ms_graph_tenant_id, ms_graph_sender_email,
+                            smtp_server, smtp_port, smtp_username, smtp_password,
+                            email_from, email_from_name, created_at
+                        ) VALUES (
+                            NULL, true, 
+                            :client_id, :client_secret, :tenant_id, :sender_email,
+                            :smtp_server, :smtp_port, :smtp_username, :smtp_password, 
+                            :email_from, :email_from_name, CURRENT_TIMESTAMP
+                        ) ON CONFLICT (workspace_id) WHERE workspace_id IS NULL DO UPDATE SET
+                            use_ms_graph = true,
+                            ms_graph_client_id = EXCLUDED.ms_graph_client_id,
+                            ms_graph_client_secret = EXCLUDED.ms_graph_client_secret,
+                            ms_graph_tenant_id = EXCLUDED.ms_graph_tenant_id,
+                            ms_graph_sender_email = EXCLUDED.ms_graph_sender_email,
+                            smtp_server = EXCLUDED.smtp_server,
+                            smtp_port = EXCLUDED.smtp_port,
+                            smtp_username = EXCLUDED.smtp_username, 
+                            smtp_password = EXCLUDED.smtp_password,
+                            email_from = EXCLUDED.email_from,
+                            email_from_name = EXCLUDED.email_from_name,
+                            updated_at = CURRENT_TIMESTAMP
+                    """)
+                else:
+                    system_settings_sql = text("""
+                        INSERT INTO email_settings (
+                            workspace_id, use_ms_graph, 
+                            smtp_server, smtp_port, smtp_username, smtp_password,
+                            email_from, email_from_name, created_at
+                        ) VALUES (
+                            NULL, false,
+                            :smtp_server, :smtp_port, :smtp_username, :smtp_password, 
+                            :email_from, :email_from_name, CURRENT_TIMESTAMP
+                        ) ON CONFLICT (workspace_id) WHERE workspace_id IS NULL DO UPDATE SET
+                            use_ms_graph = false,
+                            smtp_server = EXCLUDED.smtp_server,
+                            smtp_port = EXCLUDED.smtp_port,
+                            smtp_username = EXCLUDED.smtp_username, 
+                            smtp_password = EXCLUDED.smtp_password,
+                            email_from = EXCLUDED.email_from,
+                            email_from_name = EXCLUDED.email_from_name,
+                            updated_at = CURRENT_TIMESTAMP
+                    """)
+                
+                try:
+                    # Voer de database-update uit
+                    db.session.execute(
+                        system_settings_sql, 
+                        {
+                            'client_id': ms_graph_client_id,
+                            'client_secret': ms_graph_client_secret,
+                            'tenant_id': ms_graph_tenant_id,
+                            'sender_email': ms_graph_sender_email,
+                            'smtp_server': smtp_server,
+                            'smtp_port': smtp_port if smtp_port and smtp_port.isdigit() else None,
+                            'smtp_username': smtp_username,
+                            'smtp_password': smtp_password,
+                            'email_from': email_from,
+                            'email_from_name': email_from_name
+                        }
+                    )
+                    logging.info("Added system email settings from environment variables")
+                except Exception as e:
+                    logging.error(f"Error saving system email settings: {str(e)}")
+                
+            # Controleer of er workspaces bestaan voor workspace-specifieke instellingen
             result = db.session.execute(text("SELECT COUNT(*) FROM workspaces"))
             workspace_exists = result.scalar() > 0
-            
-            if workspace_exists and all([client_id, client_secret, tenant_id, sender_email]):
-                db.session.execute(
-                    system_settings_sql, 
-                    {
-                        'client_id': client_id, 
-                        'client_secret': client_secret, 
-                        'tenant_id': tenant_id, 
-                        'sender_email': sender_email
-                    }
-                )
-                logging.info("Added global email settings using environment variables")
             
             # Create a couple of default email templates for the first workspace
             templates = [

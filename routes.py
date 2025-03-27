@@ -2200,7 +2200,7 @@ def admin():
         flash('U heeft geen toegang tot deze pagina', 'danger')
         return redirect(url_for('dashboard'))
     
-    from models import get_users
+    from models import get_users, EmailSettings
     
     # Filter users based on workspace for regular admins
     if current_user.is_super_admin:
@@ -2212,19 +2212,35 @@ def admin():
         customer_count = Customer.query.count()
         invoice_count = Invoice.query.count()
         
-        # Haal huidige e-mailinstellingen op voor Microsoft Graph API
-        ms_graph_client_id = os.environ.get('MS_GRAPH_CLIENT_ID', '')
-        ms_graph_tenant_id = os.environ.get('MS_GRAPH_TENANT_ID', '')
-        ms_graph_client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET', '')
-        ms_graph_sender_email = os.environ.get('MS_GRAPH_SENDER_EMAIL', '')
+        # Haal huidige e-mailinstellingen op uit de database of fallback naar omgevingsvariabelen
+        system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
         
-        # Haal huidige SMTP-instellingen op
-        smtp_server = os.environ.get('SMTP_SERVER', '')
-        smtp_port = os.environ.get('SMTP_PORT', '')
-        smtp_username = os.environ.get('SMTP_USERNAME', '')
-        smtp_password = os.environ.get('SMTP_PASSWORD', '')
-        email_from = os.environ.get('EMAIL_FROM', '')
-        email_from_name = os.environ.get('EMAIL_FROM_NAME', '')
+        if system_settings:
+            # Gebruik instellingen uit database
+            ms_graph_client_id = system_settings.ms_graph_client_id or ''
+            ms_graph_tenant_id = system_settings.ms_graph_tenant_id or ''
+            ms_graph_client_secret = '********' if system_settings.ms_graph_client_secret else ''  # Beveiliging: altijd sterretjes tonen
+            ms_graph_sender_email = system_settings.ms_graph_sender_email or ''
+            
+            smtp_server = system_settings.smtp_server or ''
+            smtp_port = str(system_settings.smtp_port) if system_settings.smtp_port else ''
+            smtp_username = system_settings.smtp_username or ''
+            smtp_password = '********' if system_settings.smtp_password else ''  # Beveiliging: altijd sterretjes tonen
+            email_from = system_settings.email_from or ''
+            email_from_name = system_settings.email_from_name or ''
+        else:
+            # Fallback naar omgevingsvariabelen voor compatibiliteit
+            ms_graph_client_id = os.environ.get('MS_GRAPH_CLIENT_ID', '')
+            ms_graph_tenant_id = os.environ.get('MS_GRAPH_TENANT_ID', '')
+            ms_graph_client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET', '')
+            ms_graph_sender_email = os.environ.get('MS_GRAPH_SENDER_EMAIL', '')
+            
+            smtp_server = os.environ.get('SMTP_SERVER', '')
+            smtp_port = os.environ.get('SMTP_PORT', '')
+            smtp_username = os.environ.get('SMTP_USERNAME', '')
+            smtp_password = os.environ.get('SMTP_PASSWORD', '')
+            email_from = os.environ.get('EMAIL_FROM', '')
+            email_from_name = os.environ.get('EMAIL_FROM_NAME', '')
     else:
         # Regular admins can only see users in their workspace
         users = User.query.filter_by(workspace_id=current_user.workspace_id).all()
@@ -2804,14 +2820,32 @@ def update_ms_graph_settings():
         return redirect(url_for('admin'))
     
     try:
-        # Update de omgevingsvariabelen
+        from models import EmailSettings, db
+        
+        # Zoek bestaande systeeminstellingen of maak nieuwe aan
+        system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+        if not system_settings:
+            system_settings = EmailSettings(workspace_id=None)
+            db.session.add(system_settings)
+        
+        # Werk de instellingen bij
+        system_settings.ms_graph_client_id = client_id
+        system_settings.ms_graph_tenant_id = tenant_id
+        system_settings.ms_graph_client_secret = EmailSettings.encrypt_secret(client_secret)
+        system_settings.ms_graph_sender_email = sender_email
+        system_settings.use_ms_graph = True
+        
+        # Sla de wijzigingen op in de database
+        db.session.commit()
+        
+        # Voor compatibiliteit, update ook de omgevingsvariabelen
         os.environ['MS_GRAPH_CLIENT_ID'] = client_id
         os.environ['MS_GRAPH_TENANT_ID'] = tenant_id
         os.environ['MS_GRAPH_CLIENT_SECRET'] = client_secret
         os.environ['MS_GRAPH_SENDER_EMAIL'] = sender_email
         
         # Bevestigingsmelding
-        flash('Microsoft Graph API instellingen zijn bijgewerkt', 'success')
+        flash('Microsoft Graph API instellingen zijn bijgewerkt en beveiligd opgeslagen', 'success')
         logging.info("MS Graph API instellingen bijgewerkt door gebruiker %s", current_user.username)
     except Exception as e:
         logging.error(f"Fout bij bijwerken van MS Graph instellingen: {str(e)}")
@@ -2842,7 +2876,28 @@ def update_smtp_settings():
         return redirect(url_for('admin'))
     
     try:
-        # Update de omgevingsvariabelen als ze zijn opgegeven
+        from models import EmailSettings, db
+        
+        # Zoek bestaande systeeminstellingen of maak nieuwe aan
+        system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+        if not system_settings:
+            system_settings = EmailSettings(workspace_id=None)
+            db.session.add(system_settings)
+        
+        # Werk de instellingen bij als ze zijn opgegeven
+        if all([smtp_server, smtp_port, smtp_username, smtp_password, email_from]):
+            system_settings.smtp_server = smtp_server
+            system_settings.smtp_port = int(smtp_port) if smtp_port.isdigit() else None
+            system_settings.smtp_username = smtp_username
+            system_settings.smtp_password = EmailSettings.encrypt_secret(smtp_password)
+            system_settings.email_from = email_from
+            system_settings.email_from_name = email_from_name
+            system_settings.use_ms_graph = False
+            
+            # Sla de wijzigingen op in de database
+            db.session.commit()
+        
+        # Voor compatibiliteit, update ook de omgevingsvariabelen
         if smtp_server:
             os.environ['SMTP_SERVER'] = smtp_server
         if smtp_port:
@@ -2857,7 +2912,7 @@ def update_smtp_settings():
             os.environ['EMAIL_FROM_NAME'] = email_from_name
         
         # Bevestigingsmelding
-        flash('SMTP instellingen zijn bijgewerkt', 'success')
+        flash('SMTP instellingen zijn bijgewerkt en beveiligd opgeslagen', 'success')
         logging.info("SMTP instellingen bijgewerkt door gebruiker %s", current_user.username)
     except Exception as e:
         logging.error(f"Fout bij bijwerken van SMTP instellingen: {str(e)}")

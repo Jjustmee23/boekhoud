@@ -1,6 +1,7 @@
 from datetime import datetime, date, timedelta
 import uuid
 import json
+import os
 from decimal import Decimal
 from app import db
 import sqlalchemy as sa
@@ -439,7 +440,7 @@ class EmailSettings(db.Model):
     smtp_server = db.Column(db.String(100))
     smtp_port = db.Column(db.Integer)
     smtp_username = db.Column(db.String(100))
-    smtp_password = db.Column(db.String(100))
+    smtp_password = db.Column(db.String(255))  # Verlengen voor beveiligde opslag
     email_from = db.Column(db.String(100))
     email_from_name = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.now)
@@ -448,12 +449,50 @@ class EmailSettings(db.Model):
     # Gebruik Microsoft Graph API (Office 365) voor deze werkruimte
     use_ms_graph = db.Column(db.Boolean, default=False)
     ms_graph_client_id = db.Column(db.String(100))
-    ms_graph_client_secret = db.Column(db.String(100))
+    ms_graph_client_secret = db.Column(db.String(255))  # Verlengen voor beveiligde opslag
     ms_graph_tenant_id = db.Column(db.String(100))
     ms_graph_sender_email = db.Column(db.String(100))
     
     # Relatie met Workspace
     workspace = db.relationship('Workspace', back_populates='email_settings')
+    
+    @staticmethod
+    def encrypt_secret(secret):
+        """
+        Versleutel een geheim voor opslag. In een productie-omgeving zou dit
+        een sterkere encryptie gebruiken met sleutelbeheer.
+        
+        Eenvoudige implementatie voor demo-doeleinden - in productie zou je
+        een oplossing zoals Fernet uit de cryptography-bibliotheek gebruiken.
+        """
+        if not secret:
+            return None
+        
+        # Eenvoudige 'obfuscation' voor demo
+        import base64
+        from hashlib import sha256
+        
+        # Salt toevoegen om de encoding sterker te maken
+        salt = sha256(os.environ.get('SESSION_SECRET', 'default-salt').encode()).hexdigest()[:16]
+        return base64.b64encode(f"{salt}:{secret}".encode()).decode()
+    
+    @staticmethod
+    def decrypt_secret(encrypted_secret):
+        """
+        Ontsleutel een opgeslagen geheim
+        """
+        if not encrypted_secret:
+            return None
+            
+        # Ontsleutel de eenvoudige 'obfuscation'
+        import base64
+        
+        try:
+            decoded = base64.b64decode(encrypted_secret.encode()).decode()
+            # Verwijder salt prefix
+            return decoded.split(':', 1)[1]
+        except:
+            return None
     
     def to_dict(self):
         return {
