@@ -240,15 +240,29 @@
                 <!-- Microsoft Graph API Instellingen -->
                 <div class="tab-pane fade {% if use_ms_graph %}show active{% endif %}" id="ms-graph-config" role="tabpanel" aria-labelledby="ms-graph-tab">
                     <div class="alert alert-info mb-4">
-                        <h5><i class="fas fa-info-circle me-2"></i>Microsoft Graph API Instructies</h5>
-                        <p>Om e-mail te versturen via Microsoft Graph API heeft u de volgende gegevens nodig uit de Azure Portal:</p>
+                        <h5><i class="fas fa-info-circle me-2"></i>Microsoft 365 OAuth Instructies</h5>
+                        <p>Om e-mail te versturen via Microsoft 365 met OAuth2 authenticatie heeft u de volgende gegevens nodig uit de Azure Portal:</p>
                         <ol>
                             <li><strong>Client ID</strong> - De applicatie ID van uw geregistreerde app in Azure AD</li>
                             <li><strong>Tenant ID</strong> - De directory (tenant) ID van uw Azure AD tenant</li>
                             <li><strong>Client Secret</strong> - De <em>Value</em> (niet de ID!) van een client secret die u heeft aangemaakt</li>
                             <li><strong>Hoofdgebruiker E-mailadres</strong> - Het e-mailadres dat u wilt gebruiken voor authenticatie</li>
                         </ol>
-                        <p class="mb-0"><strong>Let op:</strong> Bij het invoeren van de Client Secret, zorg ervoor dat u de volledige waarde (Value) kopieert en niet de ID. De waarde is meestal langer en complexer dan de ID.</p>
+                        <p><strong>Let op:</strong> Bij het invoeren van de Client Secret, zorg ervoor dat u de volledige waarde (Value) kopieert en niet de ID. De waarde is meestal langer en complexer dan de ID.</p>
+                        <div class="alert alert-warning mt-2">
+                            <strong><i class="fas fa-exclamation-triangle me-2"></i>Belangrijke opmerking over Client Secret:</strong>
+                            <p class="mb-0">Als u de foutmelding <code>AADSTS7000215: Invalid client secret provided</code> krijgt, controleer dan of u de juiste waarde heeft ingevoerd. In Azure Portal moet u de <strong>Value</strong> (waarde) gebruiken van het client secret, niet de ID. Deze waarde is alleen zichtbaar direct na het aanmaken van de secret.</p>
+                        </div>
+                        <h6><i class="fas fa-wrench me-2"></i>Stappen om een app te registreren in Azure:</h6>
+                        <ol>
+                            <li>Ga naar <a href="https://portal.azure.com" target="_blank">https://portal.azure.com</a></li>
+                            <li>Navigeer naar Azure Active Directory > App registrations</li>
+                            <li>Klik op "New registration"</li>
+                            <li>Kies een naam, en stel http://localhost in als redirect URI (voor desktop)</li>
+                            <li>Na registratie, noteer de Application (client) ID en Directory (tenant) ID</li>
+                            <li>Ga naar Certificates & secrets, en voeg een Client Secret toe</li>
+                            <li>Onder API Permissions: voeg toe SMTP.Send via Microsoft Graph en klik op "Grant admin consent"</li>
+                        </ol>
                     </div>
                     
                     <form action="{{ url_for('update_ms_graph_settings') }}" method="POST" class="row g-3">
@@ -306,10 +320,11 @@
                         </div>
                         <div class="col-12">
                             <div class="form-text mb-3">
-                                Deze instellingen worden gebruikt voor het verzenden van e-mails via Microsoft Graph API (Office 365).
+                                Deze instellingen worden gebruikt voor het verzenden van e-mails via Microsoft 365 met OAuth 2.0 authenticatie.
                                 <ul class="mt-2">
-                                    <li>Zorg ervoor dat de applicatie de juiste permissies heeft: <code>Mail.Send</code> en <code>Mail.Send.Shared</code> (voor gedeelde mailboxen)</li>
-                                    <li>Voor gedeelde mailboxen: de applicatie moet juiste permissies hebben en de gebruiker moet toegang hebben tot de mailbox</li>
+                                    <li>Zorg ervoor dat de applicatie de juiste permissies heeft: <code>SMTP.Send</code> (via Microsoft Graph)</li>
+                                    <li>Voor gedeelde mailboxen: de applicatie moet juiste permissies hebben en het hoofdaccount moet toegang hebben tot de mailbox</li>
+                                    <li>De instellingen worden opgeslagen in de database, niet in het .env bestand</li>
                                     <li>Test met de "Test e-mail versturen" knop om te controleren of alles correct werkt</li>
                                 </ul>
                             </div>
