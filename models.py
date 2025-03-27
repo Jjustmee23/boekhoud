@@ -464,6 +464,8 @@ class EmailSettings(db.Model):
     ms_graph_client_secret = db.Column(db.String(255))  # Versleuteld opgeslagen
     ms_graph_tenant_id = db.Column(db.String(100))
     ms_graph_sender_email = db.Column(db.String(100))
+    ms_graph_shared_mailbox = db.Column(db.String(100))  # E-mailadres van gedeelde mailbox
+    ms_graph_use_shared_mailbox = db.Column(db.Boolean, default=False)  # Indien true, gebruik gedeelde mailbox
     
     # Relatie met Workspace (nullable voor systeem-instellingen)
     workspace = db.relationship('Workspace', back_populates='email_settings')
@@ -523,6 +525,8 @@ class EmailSettings(db.Model):
             'ms_graph_client_id': self.ms_graph_client_id,
             'ms_graph_sender_email': self.ms_graph_sender_email,
             'ms_graph_tenant_id': self.ms_graph_tenant_id,
+            'ms_graph_shared_mailbox': self.ms_graph_shared_mailbox if hasattr(self, 'ms_graph_shared_mailbox') else None,
+            'ms_graph_use_shared_mailbox': self.ms_graph_use_shared_mailbox if hasattr(self, 'ms_graph_use_shared_mailbox') else False,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }

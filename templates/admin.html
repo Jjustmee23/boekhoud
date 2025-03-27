@@ -256,15 +256,32 @@
                                    value="{{ ms_graph_client_secret }}" required>
                         </div>
                         <div class="col-md-6">
-                            <label for="ms_graph_sender_email" class="form-label">Afzender E-mailadres</label>
+                            <label for="ms_graph_sender_email" class="form-label">Hoofdgebruiker E-mailadres</label>
                             <input type="email" class="form-control" id="ms_graph_sender_email" name="ms_graph_sender_email" 
                                    value="{{ ms_graph_sender_email }}" required>
+                            <small class="form-text text-muted">Het hoofdaccount dat wordt gebruikt voor authenticatie</small>
                         </div>
                         <div class="col-md-6">
                             <label for="default_sender_name" class="form-label">Naam Afzender</label>
                             <input type="text" class="form-control" id="default_sender_name" name="default_sender_name" 
                                    value="{{ default_sender_name }}" placeholder="MidaWeb">
                             <small class="form-text text-muted">De naam die wordt weergegeven als afzender van e-mails</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ms_graph_shared_mailbox" class="form-label">Gedeelde Mailbox</label>
+                            <input type="email" class="form-control" id="ms_graph_shared_mailbox" name="ms_graph_shared_mailbox" 
+                                   value="{{ ms_graph_shared_mailbox or '' }}">
+                            <small class="form-text text-muted">Optioneel e-mailadres van een gedeelde mailbox</small>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="ms_graph_use_shared_mailbox" name="ms_graph_use_shared_mailbox"
+                                       {% if ms_graph_use_shared_mailbox %}checked{% endif %}>
+                                <label class="form-check-label" for="ms_graph_use_shared_mailbox">
+                                    Gedeelde mailbox gebruiken voor verzenden
+                                </label>
+                                <small class="form-text text-muted d-block">Schakel dit in als u e-mails wilt versturen via een gedeelde mailbox</small>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label for="reply_to" class="form-label">Reply-To E-mailadres</label>

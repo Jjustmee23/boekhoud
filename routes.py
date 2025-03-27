@@ -2245,6 +2245,9 @@ def admin():
             ms_graph_tenant_id = system_settings.ms_graph_tenant_id or ''
             ms_graph_client_secret = '********' if system_settings.ms_graph_client_secret else ''  # Beveiliging: altijd sterretjes tonen
             ms_graph_sender_email = system_settings.ms_graph_sender_email or ''
+            # Nieuwe velden voor gedeelde mailbox
+            ms_graph_shared_mailbox = system_settings.ms_graph_shared_mailbox if hasattr(system_settings, 'ms_graph_shared_mailbox') else ''
+            ms_graph_use_shared_mailbox = system_settings.ms_graph_use_shared_mailbox if hasattr(system_settings, 'ms_graph_use_shared_mailbox') else False
             
             smtp_server = system_settings.smtp_server or ''
             smtp_port = str(system_settings.smtp_port) if system_settings.smtp_port else ''
@@ -2311,6 +2314,10 @@ def admin():
                            ms_graph_tenant_id=ms_graph_tenant_id,
                            ms_graph_client_secret=ms_graph_client_secret,
                            ms_graph_sender_email=ms_graph_sender_email,
+                           # Nieuwe velden voor gedeelde mailbox
+                           ms_graph_shared_mailbox=ms_graph_shared_mailbox if 'ms_graph_shared_mailbox' in locals() else '',
+                           ms_graph_use_shared_mailbox=ms_graph_use_shared_mailbox if 'ms_graph_use_shared_mailbox' in locals() else False,
+                           # SMTP instellingen
                            smtp_server=smtp_server,
                            smtp_port=smtp_port,
                            smtp_username=smtp_username,
@@ -2961,6 +2968,9 @@ def update_ms_graph_settings():
     sender_email = request.form.get('ms_graph_sender_email', '')
     default_sender_name = request.form.get('default_sender_name', 'MidaWeb')
     reply_to = request.form.get('reply_to', '')
+    # Nieuwe velden voor gedeelde mailbox
+    shared_mailbox = request.form.get('ms_graph_shared_mailbox', '')
+    use_shared_mailbox = request.form.get('ms_graph_use_shared_mailbox') == 'on'
     
     # Valideer invoer
     if not all([client_id, tenant_id, client_secret, sender_email]):
@@ -2984,6 +2994,10 @@ def update_ms_graph_settings():
         system_settings.default_sender_name = default_sender_name
         system_settings.reply_to = reply_to
         system_settings.use_ms_graph = True
+        
+        # Nieuwe velden voor gedeelde mailbox
+        system_settings.ms_graph_shared_mailbox = shared_mailbox
+        system_settings.ms_graph_use_shared_mailbox = use_shared_mailbox
         
         # Sla de wijzigingen op in de database
         db.session.commit()

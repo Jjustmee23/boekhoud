@@ -76,7 +76,18 @@ class MSGraphProvider(EmailProvider):
         self.client_id = settings.ms_graph_client_id
         self.client_secret = EmailSettings.decrypt_secret(settings.ms_graph_client_secret)
         self.tenant_id = settings.ms_graph_tenant_id
-        self.sender_email = settings.ms_graph_sender_email
+        
+        # Bepaal het afzenderadres - gebruik een gedeelde mailbox indien ingesteld
+        if hasattr(settings, 'ms_graph_use_shared_mailbox') and settings.ms_graph_use_shared_mailbox:
+            if hasattr(settings, 'ms_graph_shared_mailbox') and settings.ms_graph_shared_mailbox:
+                self.sender_email = settings.ms_graph_shared_mailbox
+            else:
+                # Fallback naar regulier afzenderadres
+                self.sender_email = settings.ms_graph_sender_email
+        else:
+            self.sender_email = settings.ms_graph_sender_email
+            
+        # Stel afzendernaam in
         if settings.default_sender_name:
             self.default_sender_name = settings.default_sender_name
             
