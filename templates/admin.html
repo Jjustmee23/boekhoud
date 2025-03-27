@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container">
     <h1 class="mb-4">Beheerdersdashboard</h1>
-
+    
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -13,7 +13,7 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
-
+    
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <h2 class="h5 mb-0">Gebruikersbeheer</h2>
@@ -81,7 +81,7 @@
                                     {% endif %}
                                     {% endif %}
                                 </div>
-
+                                
                                 <!-- Delete User Modal -->
                                 <div class="modal fade" id="deleteUserModal-{{ user.id }}" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
                                     <div class="modal-dialog">
@@ -111,7 +111,7 @@
             </div>
         </div>
     </div>
-
+    
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-primary text-white">
             <h2 class="h5 mb-0">Nieuwe gebruiker toevoegen</h2>
@@ -183,7 +183,7 @@
             </form>
         </div>
     </div>
-
+    
     {% if current_user.is_super_admin %}
     <!-- E-mail Configuratie -->
     <div class="card shadow-sm mb-4">
@@ -220,7 +220,7 @@
                     </div>
                 </form>
             </div>
-
+            
             <ul class="nav nav-tabs" id="emailConfigTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link {% if use_ms_graph %}active{% endif %}" id="ms-graph-tab" data-bs-toggle="tab" data-bs-target="#ms-graph-config" 
@@ -235,7 +235,7 @@
                     </button>
                 </li>
             </ul>
-
+            
             <div class="tab-content p-3 border border-top-0 rounded-bottom" id="emailConfigTabsContent">
                 <!-- Microsoft Graph API Instellingen -->
                 <div class="tab-pane fade {% if use_ms_graph %}show active{% endif %}" id="ms-graph-config" role="tabpanel" aria-labelledby="ms-graph-tab">
@@ -264,7 +264,7 @@
                             <li>Onder API Permissions: voeg toe SMTP.Send via Microsoft Graph en klik op "Grant admin consent"</li>
                         </ol>
                     </div>
-
+                    
                     <form action="{{ url_for('update_ms_graph_settings') }}" method="POST" class="row g-3">
                         <div class="col-md-6">
                             <label for="ms_graph_client_id" class="form-label">Client ID</label>
@@ -337,7 +337,7 @@
                         </div>
                     </form>
                 </div>
-
+                
                 <!-- SMTP Instellingen -->
                 <div class="tab-pane fade {% if not use_ms_graph %}show active{% endif %}" id="smtp-config" role="tabpanel" aria-labelledby="smtp-tab">
                     <div class="mb-4">
@@ -363,7 +363,7 @@
                             Klik op een provider om de standaard SMTP-instellingen in te vullen. U moet nog wel uw eigen gebruikersnaam, wachtwoord en e-mailadres invullen.
                         </small>
                     </div>
-
+                    
                     <form action="{{ url_for('update_smtp_settings') }}" method="POST" class="row g-3">
                         <div class="col-md-6">
                             <label for="smtp_server" class="form-label">SMTP Server</label>
@@ -465,15 +465,15 @@
                                 port: 587
                             }
                         };
-
+                        
                         // Zorg ervoor dat de provider bestaat in onze presets
                         if (presets[provider]) {
                             const preset = presets[provider];
-
+                            
                             // Vul de velden in
                             document.getElementById('smtp_server').value = preset.server;
                             document.getElementById('smtp_port').value = preset.port;
-
+                            
                             // Focus op gebruikersnaam veld zodat de gebruiker direct kan typen
                             document.getElementById('smtp_username').focus();
                         }
@@ -482,7 +482,7 @@
             </div>
         </div>
     </div>
-
+    
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
             <h2 class="h5 mb-0">Werkruimte beheer</h2>
@@ -523,7 +523,7 @@
                                         <i class="fas fa-edit"></i>
                                     </button>
                                 </div>
-
+                                
                                 <!-- Edit Workspace Modal -->
                                 <div class="modal fade" id="editWorkspaceModal-{{ workspace.id }}" tabindex="-1" aria-labelledby="editWorkspaceModalLabel" aria-hidden="true">
                                     <div class="modal-dialog">
@@ -557,7 +557,7 @@
                     </tbody>
                 </table>
             </div>
-
+            
             <!-- Add Workspace Form -->
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
@@ -582,14 +582,15 @@
         </div>
     </div>
     {% endif %}
-
+    
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-info text-white">
             <h2 class="h5 mb-0">Systeeminformatie</h2>
         </div>
         <div class="card-body">
             <div class="row">
-                <div class="col-md-6">                    <h3 class="h6">Database statistieken:</h3>
+                <div class="col-md-6">
+                    <h3 class="h6">Database statistieken:</h3>
                     <ul class="list-group">
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             Gebruikers

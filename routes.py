@@ -2226,17 +2226,49 @@ def admin():
     
     from models import get_users, EmailSettings
     
-    # Filter users based on workspace for regular admins
+    # Bepaal de werkruimte context
+    workspace_id = None
+    # Voor superadmin, gebruik een geselecteerde werkruimte als die is ingesteld in de sessie
     if current_user.is_super_admin:
-        # Super admins can see all users
-        users = get_users()
-        # Get all workspaces for super admin
-        workspaces = Workspace.query.all()
-        # Get counts across all workspaces
-        customer_count = Customer.query.count()
-        invoice_count = Invoice.query.count()
+        workspace_id = session.get('active_workspace_id')
         
-        # Haal huidige e-mailinstellingen op uit de database of fallback naar omgevingsvariabelen
+        # Als er geen actieve werkruimte is geselecteerd, laat de werkruimte-selectie zien
+        if not workspace_id:
+            workspaces = Workspace.query.all()
+            return render_template(
+                'admin_workspace_select.html', 
+                workspaces=workspaces,
+                now=datetime.now()
+            )
+        
+        # Controleer of de geselecteerde werkruimte geldig is
+        workspace = Workspace.query.get(workspace_id)
+        if not workspace:
+            session.pop('active_workspace_id', None)
+            flash('De geselecteerde werkruimte is niet geldig. Selecteer een werkruimte.', 'warning')
+            return redirect(url_for('admin'))
+            
+    else:
+        # Normale admins gebruiken altijd hun eigen werkruimte
+        workspace_id = current_user.workspace_id
+        
+    # Haal gebruikers op voor de betreffende werkruimte
+    users = User.query.filter_by(workspace_id=workspace_id).all()
+    workspaces = [Workspace.query.get(workspace_id)]
+    
+    # Haal tellingen op voor de geselecteerde werkruimte
+    customer_count = Customer.query.filter_by(workspace_id=workspace_id).count()
+    invoice_count = Invoice.query.filter_by(workspace_id=workspace_id).count()
+    
+    # Haal e-mail instellingen op voor de werkruimte
+    workspace_settings = EmailSettings.query.filter_by(workspace_id=workspace_id).first()
+    system_settings = None
+    
+    # Email instellingen voor de geselecteerde werkruimte
+    if workspace_settings:
+        system_settings = workspace_settings
+    elif EmailSettings.query.filter_by(workspace_id=None).first():
+        # Fallback naar systeem-instellingen als er geen workspace-specifieke instellingen zijn
         system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
         
         if system_settings:
@@ -2286,22 +2318,16 @@ def admin():
             
             # Standaard provider selectie
             use_ms_graph = True  # Default naar MS Graph als er geen instellingen zijn
-    else:
-        # Regular admins can only see users in their workspace
-        users = User.query.filter_by(workspace_id=current_user.workspace_id).all()
-        # Only their workspace
-        workspaces = [current_user.workspace] if current_user.workspace else []
-        # Get counts for their workspace only
-        customer_count = Customer.query.filter_by(workspace_id=current_user.workspace_id).count()
-        invoice_count = Invoice.query.filter_by(workspace_id=current_user.workspace_id).count()
-        
-        # Voor normale admins geen e-mailinstellingen
-        ms_graph_client_id = ms_graph_tenant_id = ms_graph_client_secret = ms_graph_sender_email = ''
-        smtp_server = smtp_port = smtp_username = smtp_password = email_from = email_from_name = ''
-        default_sender_name = reply_to = ''
-        smtp_use_ssl = True
-        smtp_use_tls = False
-        use_ms_graph = True  # Default voor normale admins
+    # Als er geen instellingen zijn, stel standaardwaarden in
+    # Voor normale admins geen e-mailinstellingen of standaardwaarden
+    ms_graph_client_id = ms_graph_tenant_id = ms_graph_client_secret = ms_graph_sender_email = ''
+    smtp_server = smtp_port = smtp_username = smtp_password = email_from = email_from_name = ''
+    default_sender_name = reply_to = ''
+    smtp_use_ssl = True
+    smtp_use_tls = False
+    use_ms_graph = True  # Default voor normale admins
+    ms_graph_shared_mailbox = ''
+    ms_graph_use_shared_mailbox = False
     
     return render_template('admin.html', 
                            users=users, 
@@ -2578,6 +2604,39 @@ def edit_workspace(workspace_id):
         db.session.rollback()
         logging.error(f"Error updating workspace: {str(e)}")
         flash('Er is een fout opgetreden bij het bijwerken van de werkruimte', 'danger')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/select_workspace', methods=['POST'])
+@login_required
+def select_active_workspace():
+    """Superadmin route om een werkruimte te selecteren om te beheren"""
+    # Alleen superadmins mogen werkruimtes selecteren
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze functie', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    workspace_id = request.form.get('workspace_id')
+    if not workspace_id:
+        flash('Geen werkruimte geselecteerd', 'warning')
+        return redirect(url_for('admin'))
+    
+    try:
+        workspace_id = int(workspace_id)
+        workspace = Workspace.query.get(workspace_id)
+        
+        if not workspace:
+            flash('Ongeldige werkruimte geselecteerd', 'danger')
+            return redirect(url_for('admin'))
+        
+        # Stel de actieve werkruimte in voor de sessie
+        session['active_workspace_id'] = workspace_id
+        flash(f'Werkruimte "{workspace.name}" geselecteerd voor beheer', 'success')
+    except ValueError:
+        flash('Ongeldige werkruimte-ID', 'danger')
+    except Exception as e:
+        logging.error(f"Fout bij het selecteren van de werkruimte: {str(e)}")
+        flash('Er is een fout opgetreden bij het selecteren van de werkruimte', 'danger')
     
     return redirect(url_for('admin'))
 
@@ -2877,22 +2936,68 @@ def activate_workspace(token):
 @login_required
 def update_email_provider():
     """Update de e-mail provider (Microsoft Graph API of SMTP)"""
-    # Alleen super-admins kunnen e-mailinstellingen wijzigen
-    if not current_user.is_super_admin:
+    # Alleen admins kunnen e-mailinstellingen wijzigen
+    if not current_user.is_admin:
         flash('U heeft geen toegang tot deze pagina', 'danger')
         return redirect(url_for('dashboard'))
     
     # Haal de selected provider op (1 = MS Graph, 0 = SMTP)
     use_ms_graph = request.form.get('use_ms_graph') == '1'
     
-    # Zoek de system-wide email settings
     from models import EmailSettings
-    email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
     
-    if not email_settings:
-        # Als er nog geen systeem-instellingen zijn, maak ze aan
-        email_settings = EmailSettings(workspace_id=None)
-        db.session.add(email_settings)
+    # Bepaal voor welke werkruimte de instellingen worden aangepast
+    workspace_id = None
+    
+    # Super admins kunnen system-wide instellingen of werkruimte-specifieke instellingen wijzigen
+    if current_user.is_super_admin:
+        workspace_id_input = request.form.get('workspace_id')
+        
+        # Als expliciet None is geselecteerd (voor system-wide instellingen)
+        if workspace_id_input == 'system':
+            workspace_id = None
+        # Als een specifieke werkruimte is gekozen (voor superadmins die werkruimte selecteerden)
+        elif workspace_id_input:
+            try:
+                workspace_id = int(workspace_id_input)
+            except ValueError:
+                # Gebruik de actieve werkruimte als fallback (als die er is)
+                workspace_id = session.get('active_workspace_id')
+        else:
+            # Geen werkruimte gespecificeerd, gebruik actieve werkruimte (als die er is)
+            workspace_id = session.get('active_workspace_id')
+    else:
+        # Gewone admins kunnen alleen instellingen van hun eigen werkruimte wijzigen
+        workspace_id = current_user.workspace_id
+    
+    # Zoek de juiste e-mail instellingen of maak ze aan
+    if workspace_id is None and current_user.is_super_admin:
+        # Super admin past system-wide instellingen aan
+        email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+        
+        if not email_settings:
+            # Als er nog geen systeem-instellingen zijn, maak ze aan
+            email_settings = EmailSettings(workspace_id=None)
+            db.session.add(email_settings)
+            
+        setting_type = "systeem"
+    else:
+        # Werkruimte-specifieke instellingen
+        if not workspace_id:
+            flash('Geen geldige werkruimte geselecteerd', 'warning')
+            return redirect(url_for('admin'))
+            
+        # Gebruik de helper functie om werkruimte-instellingen aan te maken of op te halen
+        from email_service import EmailServiceHelper
+        email_settings = EmailServiceHelper.ensure_workspace_email_settings(workspace_id)
+        
+        if not email_settings:
+            flash('Kon geen e-mail instellingen maken voor deze werkruimte', 'danger')
+            return redirect(url_for('admin'))
+            
+        # Haal werkruimtenaam op voor meldingen
+        workspace = Workspace.query.get(workspace_id)
+        setting_type = f"werkruimte '{workspace.name}'" if workspace else f"werkruimte (ID: {workspace_id})"
     
     # Update de provider selectie
     email_settings.use_ms_graph = use_ms_graph
@@ -2901,10 +3006,10 @@ def update_email_provider():
     db.session.commit()
     
     # Log de wijziging
-    app.logger.info(f"Email provider gewijzigd naar {'Microsoft Graph API' if use_ms_graph else 'SMTP'} door gebruiker {current_user.username}")
+    app.logger.info(f"Email provider gewijzigd naar {'Microsoft Graph API' if use_ms_graph else 'SMTP'} voor {setting_type} door gebruiker {current_user.username}")
     
     # Toon een bevestiging aan de gebruiker
-    flash(f"E-mail verzendmethode is gewijzigd naar {'Microsoft Graph API' if use_ms_graph else 'SMTP Server'}", 'success')
+    flash(f"E-mail verzendmethode is gewijzigd naar {'Microsoft Graph API' if use_ms_graph else 'SMTP Server'} voor {setting_type}", 'success')
     
     # Ga terug naar admin pagina
     return redirect(url_for('admin'))
@@ -2913,27 +3018,74 @@ def update_email_provider():
 @app.route('/admin/test-email/<provider>', methods=['GET'])
 @login_required
 def send_test_email(provider):
-    # Only super admins can send test emails
-    if not current_user.is_super_admin:
-        flash('Alleen super admins kunnen test e-mails verzenden', 'danger')
-        return redirect(url_for('admin'))
+    # Alleen admins kunnen test e-mails versturen
+    if not current_user.is_admin:
+        flash('U heeft geen toegang tot deze functie', 'danger')
+        return redirect(url_for('dashboard'))
     
-    # Get the system email settings
-    email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+    # Bepaal voor welke werkruimte de instellingen worden gebruikt
+    workspace_id = None
     
-    if not email_settings:
-        flash('E-mailinstellingen zijn niet geconfigureerd', 'danger')
-        return redirect(url_for('admin'))
+    # Super admins kunnen system-wide instellingen of werkruimte-specifieke instellingen testen
+    if current_user.is_super_admin:
+        # Controleer of de super admin een actieve werkruimte heeft geselecteerd
+        workspace_id = session.get('active_workspace_id')
+        
+        # Als er geen werkruimte is geselecteerd, gebruik systeem-instellingen
+        if not workspace_id:
+            # Wanneer de superadmin de systeeminstellingen wil testen
+            workspace_id = None
+    else:
+        # Gewone admins kunnen alleen instellingen van hun eigen werkruimte testen
+        workspace_id = current_user.workspace_id
+    
+    from models import EmailSettings
+    from email_service import EmailServiceHelper
+    
+    # Bepaal welke e-mail instellingen gebruikt moeten worden
+    if workspace_id is None and current_user.is_super_admin:
+        # Get systeem e-mail instellingen
+        email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+        setting_type = "systeem"
+        
+        if not email_settings:
+            flash('Systeem e-mailinstellingen zijn niet geconfigureerd', 'danger')
+            return redirect(url_for('admin'))
+    else:
+        # Get werkruimte-specifieke e-mailinstellingen
+        # Controleer of de werkruimte geldig is
+        if workspace_id:
+            workspace = Workspace.query.get(workspace_id)
+            
+            if not workspace:
+                flash('Ongeldige werkruimte geselecteerd', 'danger')
+                return redirect(url_for('admin'))
+                
+            # Zoek de werkruimte-specifieke e-mail instellingen
+            email_settings = EmailSettings.query.filter_by(workspace_id=workspace_id).first()
+            setting_type = f"werkruimte '{workspace.name}'"
+            
+            # Als er geen werkruimte-specifieke instellingen zijn, gebruik de system-wide instellingen
+            if not email_settings:
+                email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+                setting_type = f"systeem (voor werkruimte '{workspace.name}')"
+                
+                if not email_settings:
+                    flash('E-mailinstellingen zijn niet geconfigureerd', 'danger')
+                    return redirect(url_for('admin'))
+        else:
+            flash('Geen geldige werkruimte geselecteerd', 'danger')
+            return redirect(url_for('admin'))
     
     # Create an email service based on the provider
     email_service = EmailService(email_settings)
     
     # Determine the subject and content based on provider
-    subject = f"Test e-mail van MidaWeb via {provider}"
+    subject = f"Test e-mail van MidaWeb via {provider} ({setting_type})"
     body_html = f"""
     <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
         <h2 style="color: #4a6ee0;">Test E-mail</h2>
-        <p>Dit is een test e-mail verzonden via {provider} provider.</p>
+        <p>Dit is een test e-mail verzonden via {provider} provider voor {setting_type}.</p>
         <p>Als u deze e-mail ontvangt, zijn uw e-mailinstellingen correct geconfigureerd.</p>
         <p>Verzonden op: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</p>
         <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
@@ -2959,9 +3111,9 @@ def send_test_email(provider):
     )
     
     if success:
-        flash(f'Test e-mail succesvol verzonden naar {current_user.email} via {provider} provider', 'success')
+        flash(f'Test e-mail succesvol verzonden naar {current_user.email} via {provider} provider voor {setting_type}', 'success')
     else:
-        flash(f'Fout bij het verzenden van test e-mail via {provider} provider. Controleer de instellingen en probeer het opnieuw.', 'danger')
+        flash(f'Fout bij het verzenden van test e-mail via {provider} provider voor {setting_type}. Controleer de instellingen en probeer het opnieuw.', 'danger')
     
     return redirect(url_for('admin'))
 
@@ -2969,8 +3121,8 @@ def send_test_email(provider):
 @login_required
 def update_ms_graph_settings():
     """Update Microsoft Graph API instellingen voor e-mail"""
-    # Alleen super-admins kunnen e-mailinstellingen wijzigen
-    if not current_user.is_super_admin:
+    # Alleen admins kunnen e-mailinstellingen wijzigen
+    if not current_user.is_admin:
         flash('U heeft geen toegang tot deze pagina', 'danger')
         return redirect(url_for('dashboard'))
     
@@ -2986,44 +3138,95 @@ def update_ms_graph_settings():
     use_shared_mailbox = request.form.get('ms_graph_use_shared_mailbox') == 'on'
     
     # Valideer invoer
-    if not all([client_id, tenant_id, client_secret, sender_email]):
-        flash('Alle verplichte velden zijn nodig voor Microsoft Graph API configuratie', 'danger')
+    if not all([client_id, tenant_id, sender_email]):
+        flash('Client ID, Tenant ID, en afzender e-mail zijn vereist voor Microsoft Graph API configuratie', 'danger')
         return redirect(url_for('admin'))
+    
+    # Client Secret behandelen: alleen bijwerken als een nieuwe is ingevoerd
+    update_secret = client_secret != '' and client_secret != '********'
+    
+    # Bepaal voor welke werkruimte de instellingen worden aangepast
+    workspace_id = None
+    
+    # Super admins kunnen system-wide instellingen of werkruimte-specifieke instellingen wijzigen
+    if current_user.is_super_admin:
+        workspace_id_input = request.form.get('workspace_id')
+        
+        # Als expliciet None is geselecteerd (voor system-wide instellingen)
+        if workspace_id_input == 'system':
+            workspace_id = None
+        # Als een specifieke werkruimte is gekozen
+        elif workspace_id_input:
+            try:
+                workspace_id = int(workspace_id_input)
+            except ValueError:
+                # Gebruik de actieve werkruimte als fallback (als die er is)
+                workspace_id = session.get('active_workspace_id')
+        else:
+            # Geen werkruimte gespecificeerd, gebruik actieve werkruimte (als die er is)
+            workspace_id = session.get('active_workspace_id')
+    else:
+        # Gewone admins kunnen alleen instellingen van hun eigen werkruimte wijzigen
+        workspace_id = current_user.workspace_id
     
     try:
         from models import EmailSettings, db
+        from email_service import EmailServiceHelper
         
-        # Zoek bestaande systeeminstellingen of maak nieuwe aan
-        system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
-        if not system_settings:
-            system_settings = EmailSettings(workspace_id=None)
-            db.session.add(system_settings)
+        # Haal de juiste instellingen op of maak ze aan
+        if workspace_id is None and current_user.is_super_admin:
+            # Voor systeem-instellingen
+            email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+            if not email_settings:
+                email_settings = EmailSettings(workspace_id=None)
+                db.session.add(email_settings)
+                
+            setting_type = "systeem"
+        else:
+            # Voor werkruimte-specifieke instellingen
+            if not workspace_id:
+                flash('Geen geldige werkruimte geselecteerd', 'warning')
+                return redirect(url_for('admin'))
+                
+            # Gebruik de helper functie om werkruimte-instellingen te maken of op te halen
+            email_settings = EmailServiceHelper.ensure_workspace_email_settings(workspace_id)
+            
+            if not email_settings:
+                flash('Kon geen e-mail instellingen maken voor deze werkruimte', 'danger')
+                return redirect(url_for('admin'))
+                
+            # Haal werkruimtenaam op voor meldingen
+            workspace = Workspace.query.get(workspace_id)
+            setting_type = f"werkruimte '{workspace.name}'" if workspace else f"werkruimte (ID: {workspace_id})"
         
         # Werk de instellingen bij
-        system_settings.ms_graph_client_id = client_id
-        system_settings.ms_graph_tenant_id = tenant_id
-        system_settings.ms_graph_client_secret = EmailSettings.encrypt_secret(client_secret)
-        system_settings.ms_graph_sender_email = sender_email
-        system_settings.default_sender_name = default_sender_name
-        system_settings.reply_to = reply_to
-        system_settings.use_ms_graph = True
+        email_settings.ms_graph_client_id = client_id
+        email_settings.ms_graph_tenant_id = tenant_id
+        if update_secret:
+            email_settings.ms_graph_client_secret = EmailSettings.encrypt_secret(client_secret)
+        email_settings.ms_graph_sender_email = sender_email
+        email_settings.default_sender_name = default_sender_name
+        email_settings.reply_to = reply_to
+        email_settings.use_ms_graph = True
         
         # Nieuwe velden voor gedeelde mailbox
-        system_settings.ms_graph_shared_mailbox = shared_mailbox
-        system_settings.ms_graph_use_shared_mailbox = use_shared_mailbox
+        email_settings.ms_graph_shared_mailbox = shared_mailbox
+        email_settings.ms_graph_use_shared_mailbox = use_shared_mailbox
         
         # Sla de wijzigingen op in de database
         db.session.commit()
         
-        # Voor compatibiliteit, update ook de omgevingsvariabelen
-        os.environ['MS_GRAPH_CLIENT_ID'] = client_id
-        os.environ['MS_GRAPH_TENANT_ID'] = tenant_id
-        os.environ['MS_GRAPH_CLIENT_SECRET'] = client_secret
-        os.environ['MS_GRAPH_SENDER_EMAIL'] = sender_email
+        # Alleen voor systeem-instellingen, update ook omgevingsvariabelen voor compatibiliteit
+        if workspace_id is None:
+            os.environ['MS_GRAPH_CLIENT_ID'] = client_id
+            os.environ['MS_GRAPH_TENANT_ID'] = tenant_id
+            if update_secret:
+                os.environ['MS_GRAPH_CLIENT_SECRET'] = client_secret
+            os.environ['MS_GRAPH_SENDER_EMAIL'] = sender_email
         
         # Bevestigingsmelding
-        flash('Microsoft Graph API instellingen zijn bijgewerkt en beveiligd opgeslagen', 'success')
-        logging.info("MS Graph API instellingen bijgewerkt door gebruiker %s", current_user.username)
+        flash(f'Microsoft Graph API instellingen zijn bijgewerkt voor {setting_type}', 'success')
+        logging.info(f"MS Graph API instellingen bijgewerkt voor {setting_type} door gebruiker {current_user.username}")
     except Exception as e:
         logging.error(f"Fout bij bijwerken van MS Graph instellingen: {str(e)}")
         flash('Er is een fout opgetreden bij het bijwerken van de instellingen', 'danger')
@@ -3034,8 +3237,8 @@ def update_ms_graph_settings():
 @login_required
 def update_smtp_settings():
     """Update SMTP instellingen voor e-mail"""
-    # Alleen super-admins kunnen e-mailinstellingen wijzigen
-    if not current_user.is_super_admin:
+    # Alleen admins kunnen e-mailinstellingen wijzigen
+    if not current_user.is_admin:
         flash('U heeft geen toegang tot deze pagina', 'danger')
         return redirect(url_for('dashboard'))
     
@@ -3052,53 +3255,103 @@ def update_smtp_settings():
     smtp_use_tls = request.form.get('smtp_use_tls') == 'true'
     
     # Valideer de essentiële velden als de gebruiker SMTP wil gebruiken
-    if any([smtp_server, smtp_port, smtp_username, smtp_password, email_from]) and not all([smtp_server, smtp_port, smtp_username, smtp_password, email_from]):
-        flash('Alle verplichte SMTP velden moeten worden ingevuld (server, poort, gebruikersnaam, wachtwoord, e-mail van)', 'warning')
+    if any([smtp_server, smtp_port, smtp_username, email_from]) and not all([smtp_server, smtp_port, smtp_username, email_from]):
+        flash('Vul alle verplichte SMTP velden in (server, poort, gebruikersnaam, e-mail van)', 'warning')
         return redirect(url_for('admin'))
+    
+    # Wachtwoord behandelen: alleen bijwerken als een nieuw is ingevoerd
+    update_password = smtp_password != '' and smtp_password != '********'
+    
+    # Bepaal voor welke werkruimte de instellingen worden aangepast
+    workspace_id = None
+    
+    # Super admins kunnen system-wide instellingen of werkruimte-specifieke instellingen wijzigen
+    if current_user.is_super_admin:
+        workspace_id_input = request.form.get('workspace_id')
+        
+        # Als expliciet None is geselecteerd (voor system-wide instellingen)
+        if workspace_id_input == 'system':
+            workspace_id = None
+        # Als een specifieke werkruimte is gekozen
+        elif workspace_id_input:
+            try:
+                workspace_id = int(workspace_id_input)
+            except ValueError:
+                # Gebruik de actieve werkruimte als fallback (als die er is)
+                workspace_id = session.get('active_workspace_id')
+        else:
+            # Geen werkruimte gespecificeerd, gebruik actieve werkruimte (als die er is)
+            workspace_id = session.get('active_workspace_id')
+    else:
+        # Gewone admins kunnen alleen instellingen van hun eigen werkruimte wijzigen
+        workspace_id = current_user.workspace_id
     
     try:
         from models import EmailSettings, db
+        from email_service import EmailServiceHelper
         
-        # Zoek bestaande systeeminstellingen of maak nieuwe aan
-        system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
-        if not system_settings:
-            system_settings = EmailSettings(workspace_id=None)
-            db.session.add(system_settings)
+        # Haal de juiste instellingen op of maak ze aan
+        if workspace_id is None and current_user.is_super_admin:
+            # Voor systeem-instellingen
+            email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+            if not email_settings:
+                email_settings = EmailSettings(workspace_id=None)
+                db.session.add(email_settings)
+                
+            setting_type = "systeem"
+        else:
+            # Voor werkruimte-specifieke instellingen
+            if not workspace_id:
+                flash('Geen geldige werkruimte geselecteerd', 'warning')
+                return redirect(url_for('admin'))
+                
+            # Gebruik de helper functie om werkruimte-instellingen te maken of op te halen
+            email_settings = EmailServiceHelper.ensure_workspace_email_settings(workspace_id)
+            
+            if not email_settings:
+                flash('Kon geen e-mail instellingen maken voor deze werkruimte', 'danger')
+                return redirect(url_for('admin'))
+                
+            # Haal werkruimtenaam op voor meldingen
+            workspace = Workspace.query.get(workspace_id)
+            setting_type = f"werkruimte '{workspace.name}'" if workspace else f"werkruimte (ID: {workspace_id})"
         
         # Werk de instellingen bij als ze zijn opgegeven
-        if all([smtp_server, smtp_port, smtp_username, smtp_password, email_from]):
-            system_settings.smtp_server = smtp_server
-            system_settings.smtp_port = int(smtp_port) if smtp_port.isdigit() else None
-            system_settings.smtp_username = smtp_username
-            system_settings.smtp_password = EmailSettings.encrypt_secret(smtp_password)
-            system_settings.email_from = email_from
-            system_settings.email_from_name = email_from_name
-            system_settings.default_sender_name = default_sender_name or email_from_name
-            system_settings.reply_to = reply_to
-            system_settings.smtp_use_ssl = smtp_use_ssl
-            system_settings.smtp_use_tls = smtp_use_tls
-            system_settings.use_ms_graph = False
+        if all([smtp_server, smtp_port, smtp_username, email_from]):
+            email_settings.smtp_server = smtp_server
+            email_settings.smtp_port = int(smtp_port) if smtp_port.isdigit() else None
+            email_settings.smtp_username = smtp_username
+            if update_password:
+                email_settings.smtp_password = EmailSettings.encrypt_secret(smtp_password)
+            email_settings.email_from = email_from
+            email_settings.email_from_name = email_from_name
+            email_settings.default_sender_name = default_sender_name or email_from_name
+            email_settings.reply_to = reply_to
+            email_settings.smtp_use_ssl = smtp_use_ssl
+            email_settings.smtp_use_tls = smtp_use_tls
+            email_settings.use_ms_graph = False
             
             # Sla de wijzigingen op in de database
             db.session.commit()
         
-        # Voor compatibiliteit, update ook de omgevingsvariabelen
-        if smtp_server:
-            os.environ['SMTP_SERVER'] = smtp_server
-        if smtp_port:
-            os.environ['SMTP_PORT'] = smtp_port
-        if smtp_username:
-            os.environ['SMTP_USERNAME'] = smtp_username
-        if smtp_password:
-            os.environ['SMTP_PASSWORD'] = smtp_password
-        if email_from:
-            os.environ['EMAIL_FROM'] = email_from
-        if email_from_name:
-            os.environ['EMAIL_FROM_NAME'] = email_from_name
+        # Alleen voor systeem-instellingen, update ook omgevingsvariabelen voor compatibiliteit
+        if workspace_id is None and current_user.is_super_admin:
+            if smtp_server:
+                os.environ['SMTP_SERVER'] = smtp_server
+            if smtp_port:
+                os.environ['SMTP_PORT'] = smtp_port
+            if smtp_username:
+                os.environ['SMTP_USERNAME'] = smtp_username
+            if update_password and smtp_password:
+                os.environ['SMTP_PASSWORD'] = smtp_password
+            if email_from:
+                os.environ['EMAIL_FROM'] = email_from
+            if email_from_name:
+                os.environ['EMAIL_FROM_NAME'] = email_from_name
         
         # Bevestigingsmelding
-        flash('SMTP instellingen zijn bijgewerkt en beveiligd opgeslagen', 'success')
-        logging.info("SMTP instellingen bijgewerkt door gebruiker %s", current_user.username)
+        flash(f'SMTP instellingen zijn bijgewerkt voor {setting_type}', 'success')
+        logging.info(f"SMTP instellingen bijgewerkt voor {setting_type} door gebruiker {current_user.username}")
     except Exception as e:
         logging.error(f"Fout bij bijwerken van SMTP instellingen: {str(e)}")
         flash('Er is een fout opgetreden bij het bijwerken van de instellingen', 'danger')
@@ -3313,24 +3566,4 @@ def privacy_policy(lang='nl'):
         lang = 'nl'
         
     return render_template('privacy_policy.html', lang=lang, now=datetime.now())
-
-@app.route('/admin/logs')
-@login_required
-def view_logs():
-    """Route voor het bekijken van systeemlogboeken"""
-    if not current_user.is_super_admin:
-        flash('U heeft geen toegang tot deze pagina', 'danger')
-        return redirect(url_for('dashboard'))
-    
-    try:
-        with open('app.log', 'r') as f:
-            logs = f.readlines()
-        logs.reverse()  # Nieuwste logs bovenaan
-        return render_template('logs.html', logs=logs, now=datetime.now())
-    except FileNotFoundError:
-        flash('Logbestand niet gevonden', 'warning')
-        return redirect(url_for('admin'))
-    except Exception as e:
-        flash(f'Fout bij het lezen van logbestand: {str(e)}', 'danger')
-        return redirect(url_for('admin'))
 
