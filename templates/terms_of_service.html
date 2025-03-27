@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if lang == 'nl' %}Gebruiksrechtovereenkomst{% elif lang == 'fr' %}Conditions d'utilisation{% else %}Terms of Service{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h1 class="h3 mb-0">
+                        {% if lang == 'nl' %}
+                            Gebruiksrechtovereenkomst
+                        {% elif lang == 'fr' %}
+                            Conditions d'utilisation
+                        {% else %}
+                            Terms of Service
+                        {% endif %}
+                    </h1>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-end mb-4">
+                            <div class="btn-group">
+                                <a href="{{ url_for('terms_of_service', lang='nl') }}" class="btn btn-sm {% if lang == 'nl' %}btn-primary{% else %}btn-outline-primary{% endif %}">Nederlands</a>
+                                <a href="{{ url_for('terms_of_service', lang='en') }}" class="btn btn-sm {% if lang == 'en' %}btn-primary{% else %}btn-outline-primary{% endif %}">English</a>
+                                <a href="{{ url_for('terms_of_service', lang='fr') }}" class="btn btn-sm {% if lang == 'fr' %}btn-primary{% else %}btn-outline-primary{% endif %}">Français</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Content based on language -->
+                    {% if lang == 'nl' %}
+                        <!-- Dutch Terms of Service -->
+                        <h2 class="h4">1. Inleiding</h2>
+                        <p>Welkom bij onze applicatie voor facturatie en boekhouding. Deze gebruiksrechtovereenkomst ("Overeenkomst") is een juridisch bindende overeenkomst tussen u, hetzij een individu of een entiteit ("Gebruiker") en onze onderneming ("Dienstverlener", "wij", "ons" of "onze") betreffende uw gebruik van onze software, diensten, en website (gezamenlijk aangeduid als de "Dienst").</p>
+                        <p>Door de Dienst te gebruiken, geeft u aan dat u akkoord gaat met deze Overeenkomst. Als u niet akkoord gaat met enig onderdeel van deze Overeenkomst, mag u de Dienst niet gebruiken.</p>
+
+                        <h2 class="h4">2. Beschrijving van de Dienst</h2>
+                        <p>Onze Dienst biedt een online facturatie- en boekhoudplatform dat is ontworpen om Belgische en Nederlandse bedrijven te helpen bij het beheren van hun financiële administratie, waaronder maar niet beperkt tot facturatie, klantbeheer, btw-aangiftes, en financiële rapportages.</p>
+
+                        <h2 class="h4">3. Gebruiksrecht</h2>
+                        <p>Onder voorbehoud van uw naleving van deze Overeenkomst verleent de Dienstverlener u een beperkt, niet-exclusief, niet-overdraagbaar, niet-sublicentieerbaar recht om toegang te hebben tot en gebruik te maken van de Dienst voor uw interne zakelijke doeleinden.</p>
+
+                        <h2 class="h4">4. Gebruikersaccounts</h2>
+                        <p>Om de Dienst te gebruiken, moet u een account aanmaken. U bent verantwoordelijk voor het handhaven van de vertrouwelijkheid van uw accountgegevens en wachtwoord, en voor het beperken van toegang tot uw computer. U gaat ermee akkoord dat u de volledige verantwoordelijkheid aanvaardt voor alle activiteiten die plaatsvinden onder uw account.</p>
+                        <p>U mag geen account delen met anderen of anderen toestaan om uw account te gebruiken namens u, tenzij uitdrukkelijk toegestaan door de Dienstverlener. U moet de Dienstverlener onmiddellijk informeren over elke ongeautoriseerde toegang tot of gebruik van uw account.</p>
+
+                        <h2 class="h4">5. Gebruikerscontent</h2>
+                        <p>U behoudt alle rechten op en bent verantwoordelijk voor alle gegevens, informatie en materialen die u uploadt, verzendt of opslaat via de Dienst ("Gebruikerscontent"). U verklaart en garandeert dat u alle rechten bezit om dergelijke Gebruikerscontent te verstrekken en dat het verstrekken van dergelijke Gebruikerscontent geen inbreuk maakt op de rechten van derden.</p>
+                        <p>U verleent de Dienstverlener een wereldwijde, royaltyvrije licentie om uw Gebruikerscontent te gebruiken, reproduceren, en distribueren uitsluitend voor het leveren van de Dienst aan u.</p>
+
+                        <h2 class="h4">6. Verboden Gebruik</h2>
+                        <p>U stemt ermee in om de Dienst niet te gebruiken voor:</p>
+                        <ul>
+                            <li>Het overtreden van toepasselijke wetten of regelgeving;</li>
+                            <li>Het inbreuk maken op intellectuele eigendomsrechten van anderen;</li>
+                            <li>Het verzenden van ongevraagde commerciële communicatie ("spam");</li>
+                            <li>Het verzenden van schadelijke code, zoals virussen of malware;</li>
+                            <li>Het verstoren, hinderen of negatief beïnvloeden van de Dienst of de servers en netwerken die verbonden zijn met de Dienst;</li>
+                            <li>Het verzamelen of opslaan van persoonlijke gegevens van andere gebruikers zonder hun toestemming;</li>
+                            <li>Het zich voordoen als een andere persoon of entiteit.</li>
+                        </ul>
+
+                        <h2 class="h4">7. Betaling en Facturering</h2>
+                        <p>Bepaalde functies van de Dienst kunnen onderhevig zijn aan vergoedingen. Door zich in te schrijven voor dergelijke functies, gaat u ermee akkoord om alle toepasselijke vergoedingen te betalen zoals beschreven op onze website of anderszins aan u gecommuniceerd. Alle betalingen zijn niet-restitueerbaar, behalve zoals uitdrukkelijk vermeld in deze Overeenkomst.</p>
+                        
+                        <h2 class="h4">8. Wijzigingen van de Dienst</h2>
+                        <p>De Dienstverlener behoudt zich het recht voor om naar eigen goeddunken en zonder voorafgaande kennisgeving wijzigingen aan te brengen in de Dienst, waaronder het toevoegen of verwijderen van functies of functionaliteiten. De Dienstverlener is niet aansprakelijk jegens u of een derde partij voor dergelijke wijzigingen.</p>
+
+                        <h2 class="h4">9. Opschorting en Beëindiging</h2>
+                        <p>De Dienstverlener kan uw toegang tot de Dienst opschorten of beëindigen als u deze Overeenkomst schendt of als de Dienstverlener redelijkerwijs vermoedt dat u deze Overeenkomst heeft geschonden.</p>
+                        <p>U kunt uw account op elk moment beëindigen door contact op te nemen met de klantenservice. Bij beëindiging, om welke reden dan ook, eindigt uw recht om de Dienst te gebruiken onmiddellijk.</p>
+
+                        <h2 class="h4">10. Vrijwaring</h2>
+                        <p>U gaat ermee akkoord om de Dienstverlener en zijn bestuurders, functionarissen, werknemers en agenten te verdedigen, vrijwaren en schadeloos te stellen tegen elke claim, verplichting, schade, verlies en kosten, waaronder redelijke advocaatkosten, die voortvloeien uit of verband houden met: (a) uw schending van deze Overeenkomst; (b) uw Gebruikerscontent; of (c) uw schending van enige rechten van een andere persoon of entiteit.</p>
+
+                        <h2 class="h4">11. Beperking van Aansprakelijkheid</h2>
+                        <p>Voor zover toegestaan door de wet, zal de Dienstverlener in geen geval aansprakelijk zijn voor indirecte, incidentele, speciale, gevolgschade of punitieve schade, waaronder winstderving, gegevensverlies, of kosten voor de aanschaf van vervangende goederen of diensten, die voortvloeien uit of verband houden met deze Overeenkomst, ongeacht de theorie van aansprakelijkheid (contract, onrechtmatige daad, of anderszins), zelfs als de Dienstverlener op de hoogte was gebracht van de mogelijkheid van dergelijke schade.</p>
+                        <p>De totale aansprakelijkheid van de Dienstverlener die voortvloeit uit of verband houdt met deze Overeenkomst zal niet hoger zijn dan het bedrag dat u daadwerkelijk hebt betaald aan de Dienstverlener voor het gebruik van de Dienst gedurende de drie maanden voorafgaand aan de gebeurtenis die aanleiding geeft tot dergelijke aansprakelijkheid.</p>
+
+                        <h2 class="h4">12. Disclaimer van Garanties</h2>
+                        <p>De Dienst wordt geleverd "zoals is" en "zoals beschikbaar", zonder enige garantie, expliciet of impliciet, inclusief maar niet beperkt tot garanties van verkoopbaarheid, geschiktheid voor een bepaald doel, en niet-inbreuk. De Dienstverlener garandeert niet dat de Dienst foutloos of ononderbroken zal zijn, dat defecten zullen worden gecorrigeerd, of dat de Dienst vrij zal zijn van virussen of andere schadelijke componenten.</p>
+
+                        <h2 class="h4">13. Intellectuele Eigendom</h2>
+                        <p>De Dienst en al zijn oorspronkelijke inhoud, functies en functionaliteit zijn en blijven het exclusieve eigendom van de Dienstverlener en zijn licentiegevers. De Dienst is beschermd door auteursrecht, handelsmerk, octrooien, handelsgeheimen en andere intellectuele eigendomsrechten of eigendomsrechten in België, Nederland en andere landen.</p>
+                        <p>Ons handelsmerk en handelskleding mogen niet worden gebruikt in verband met een product of dienst zonder voorafgaande schriftelijke toestemming van de Dienstverlener.</p>
+
+                        <h2 class="h4">14. Wijzigingen van de Overeenkomst</h2>
+                        <p>De Dienstverlener behoudt zich het recht voor om deze Overeenkomst op elk moment te wijzigen. Als we een materiële wijziging aanbrengen, zullen we u hiervan op de hoogte stellen door een e-mail te sturen naar het e-mailadres dat aan uw account is gekoppeld of door een opvallende kennisgeving te plaatsen op onze website vóór de inwerkingtreding van de wijziging.</p>
+                        <p>Uw voortgezet gebruik van de Dienst na de publicatie van wijzigingen aan deze Overeenkomst betekent dat u akkoord gaat met die wijzigingen. Als u niet akkoord gaat met de herziene voorwaarden, moet u stoppen met het gebruik van de Dienst.</p>
+
+                        <h2 class="h4">15. Toepasselijk Recht en Geschillenbeslechting</h2>
+                        <p>Deze Overeenkomst wordt beheerst door en geïnterpreteerd in overeenstemming met de wetten van België, zonder rekening te houden met zijn conflicterende wetsbepalingen.</p>
+                        <p>Elk geschil dat voortvloeit uit of verband houdt met deze Overeenkomst, inclusief vragen over het bestaan, de geldigheid of beëindiging ervan, zal definitief worden beslecht door de bevoegde rechtbanken van Brussel, België.</p>
+
+                        <h2 class="h4">16. Algemene Bepalingen</h2>
+                        <p><strong>Volledige Overeenkomst.</strong> Deze Overeenkomst vormt de volledige overeenkomst tussen u en de Dienstverlener met betrekking tot uw gebruik van de Dienst en vervangt alle voorgaande of gelijktijdige communicaties en voorstellen, hetzij elektronisch, mondeling of schriftelijk, tussen u en de Dienstverlener met betrekking tot de Dienst.</p>
+                        <p><strong>Scheidbaarheid.</strong> Als een bepaling van deze Overeenkomst onwettig, nietig of om welke reden dan ook niet afdwingbaar wordt geacht, zal die bepaling worden gescheiden van deze Overeenkomst en zal dit geen invloed hebben op de geldigheid en afdwingbaarheid van de resterende bepalingen.</p>
+                        <p><strong>Geen Verklaring van Afstand.</strong> Het niet uitoefenen of afdwingen door de Dienstverlener van enig recht of bepaling van deze Overeenkomst vormt geen verklaring van afstand van dat recht of die bepaling. Geen enkele verklaring van afstand zal van kracht zijn tenzij schriftelijk en ondertekend door de Dienstverlener.</p>
+                        <p><strong>Overdracht.</strong> U mag uw rechten of verplichtingen onder deze Overeenkomst niet overdragen of delegeren zonder voorafgaande schriftelijke toestemming van de Dienstverlener. Elke poging tot dergelijke overdracht of delegatie zonder dergelijke toestemming zal nietig en zonder gevolg zijn.</p>
+
+                        <h2 class="h4">17. Contact</h2>
+                        <p>Als u vragen heeft over deze Overeenkomst, neem dan contact met ons op via de contactgegevens die op onze website worden vermeld.</p>
+
+                        <p class="mt-4">Laatste update: 27 maart 2025</p>
+
+                    {% elif lang == 'fr' %}
+                        <!-- French Terms of Service -->
+                        <h2 class="h4">1. Introduction</h2>
+                        <p>Bienvenue sur notre application de facturation et de comptabilité. Ces conditions d'utilisation (le "Contrat") constituent un accord juridiquement contraignant entre vous, qu'il s'agisse d'un individu ou d'une entité ("Utilisateur"), et notre société ("Prestataire de services", "nous", "notre" ou "nos") concernant votre utilisation de notre logiciel, services et site web (collectivement désignés comme le "Service").</p>
+                        <p>En utilisant le Service, vous indiquez que vous acceptez ce Contrat. Si vous n'acceptez pas une partie quelconque de ce Contrat, vous ne devez pas utiliser le Service.</p>
+
+                        <h2 class="h4">2. Description du Service</h2>
+                        <p>Notre Service propose une plateforme de facturation et de comptabilité en ligne conçue pour aider les entreprises belges et néerlandaises à gérer leur administration financière, y compris, mais sans s'y limiter, la facturation, la gestion des clients, les déclarations de TVA et les rapports financiers.</p>
+
+                        <h2 class="h4">3. Droit d'utilisation</h2>
+                        <p>Sous réserve de votre respect du présent Contrat, le Prestataire de services vous accorde un droit limité, non exclusif, non transférable et non sous-licenciable d'accéder et d'utiliser le Service à des fins professionnelles internes.</p>
+
+                        <h2 class="h4">4. Comptes d'utilisateurs</h2>
+                        <p>Pour utiliser le Service, vous devez créer un compte. Vous êtes responsable du maintien de la confidentialité de vos informations de compte et de votre mot de passe, ainsi que de la restriction de l'accès à votre ordinateur. Vous acceptez d'assumer l'entière responsabilité de toutes les activités qui se déroulent sous votre compte.</p>
+                        <p>Vous ne pouvez pas partager un compte avec d'autres ou permettre à d'autres d'utiliser votre compte en votre nom, sauf autorisation expresse du Prestataire de services. Vous devez informer immédiatement le Prestataire de services de tout accès non autorisé à votre compte ou de toute utilisation non autorisée de celui-ci.</p>
+
+                        <h2 class="h4">5. Contenu de l'utilisateur</h2>
+                        <p>Vous conservez tous les droits sur et êtes responsable de toutes les données, informations et matériels que vous téléchargez, transmettez ou stockez via le Service ("Contenu de l'utilisateur"). Vous déclarez et garantissez que vous possédez tous les droits nécessaires pour fournir ce Contenu de l'utilisateur et que la fourniture de ce Contenu de l'utilisateur ne porte pas atteinte aux droits de tiers.</p>
+                        <p>Vous accordez au Prestataire de services une licence mondiale, libre de redevances, pour utiliser, reproduire et distribuer votre Contenu d'utilisateur uniquement dans le but de vous fournir le Service.</p>
+
+                        <h2 class="h4">6. Utilisations interdites</h2>
+                        <p>Vous acceptez de ne pas utiliser le Service pour :</p>
+                        <ul>
+                            <li>Violer les lois ou réglementations applicables;</li>
+                            <li>Enfreindre les droits de propriété intellectuelle d'autrui;</li>
+                            <li>Envoyer des communications commerciales non sollicitées ("spam");</li>
+                            <li>Transmettre des codes malveillants, tels que des virus ou des logiciels malveillants;</li>
+                            <li>Perturber, interférer avec ou affecter négativement le Service ou les serveurs et réseaux connectés au Service;</li>
+                            <li>Collecter ou stocker des données personnelles d'autres utilisateurs sans leur consentement;</li>
+                            <li>Se faire passer pour une autre personne ou entité.</li>
+                        </ul>
+
+                        <h2 class="h4">7. Paiement et facturation</h2>
+                        <p>Certaines fonctionnalités du Service peuvent être soumises à des frais. En vous inscrivant à ces fonctionnalités, vous acceptez de payer tous les frais applicables tels que décrits sur notre site web ou qui vous ont été communiqués. Tous les paiements sont non remboursables, sauf mention expresse dans le présent Contrat.</p>
+                        
+                        <h2 class="h4">8. Modifications du Service</h2>
+                        <p>Le Prestataire de services se réserve le droit, à sa seule discrétion et sans préavis, d'apporter des modifications au Service, y compris l'ajout ou la suppression de fonctionnalités ou de fonctions. Le Prestataire de services n'est pas responsable envers vous ou un tiers pour de telles modifications.</p>
+
+                        <h2 class="h4">9. Suspension et résiliation</h2>
+                        <p>Le Prestataire de services peut suspendre ou résilier votre accès au Service si vous violez le présent Contrat ou si le Prestataire de services a des motifs raisonnables de soupçonner que vous avez violé le présent Contrat.</p>
+                        <p>Vous pouvez résilier votre compte à tout moment en contactant le service client. À la résiliation, pour quelque raison que ce soit, votre droit d'utiliser le Service prend fin immédiatement.</p>
+
+                        <h2 class="h4">10. Indemnisation</h2>
+                        <p>Vous acceptez de défendre, d'indemniser et de dégager de toute responsabilité le Prestataire de services et ses administrateurs, dirigeants, employés et agents contre toute réclamation, responsabilité, dommage, perte et dépense, y compris les honoraires d'avocat raisonnables, découlant de ou liés à : (a) votre violation du présent Contrat ; (b) votre Contenu d'utilisateur ; ou (c) votre violation des droits d'une autre personne ou entité.</p>
+
+                        <h2 class="h4">11. Limitation de responsabilité</h2>
+                        <p>Dans toute la mesure permise par la loi, le Prestataire de services ne sera en aucun cas responsable des dommages indirects, accessoires, spéciaux, consécutifs ou punitifs, y compris la perte de profits, la perte de données ou le coût d'acquisition de biens ou de services de substitution, découlant de ou liés au présent Contrat, quelle que soit la théorie de la responsabilité (contractuelle, délictuelle ou autre), même si le Prestataire de services a été informé de la possibilité de tels dommages.</p>
+                        <p>La responsabilité totale du Prestataire de services découlant de ou liée au présent Contrat ne dépassera pas le montant que vous avez effectivement payé au Prestataire de services pour l'utilisation du Service au cours des trois mois précédant l'événement donnant lieu à cette responsabilité.</p>
+
+                        <h2 class="h4">12. Exclusion de garanties</h2>
+                        <p>Le Service est fourni "tel quel" et "tel que disponible", sans aucune garantie, expresse ou implicite, y compris, mais sans s'y limiter, les garanties de qualité marchande, d'adéquation à un usage particulier et de non-violation. Le Prestataire de services ne garantit pas que le Service sera exempt d'erreurs ou ininterrompu, que les défauts seront corrigés ou que le Service sera exempt de virus ou d'autres composants nuisibles.</p>
+
+                        <h2 class="h4">13. Propriété intellectuelle</h2>
+                        <p>Le Service et tout son contenu, ses caractéristiques et ses fonctionnalités originales sont et resteront la propriété exclusive du Prestataire de services et de ses concédants de licence. Le Service est protégé par le droit d'auteur, la marque de commerce, les brevets, les secrets commerciaux et d'autres droits de propriété intellectuelle ou droits de propriété en Belgique, aux Pays-Bas et dans d'autres pays.</p>
+                        <p>Notre marque de commerce et notre habillage commercial ne peuvent pas être utilisés en relation avec un produit ou un service sans l'autorisation écrite préalable du Prestataire de services.</p>
+
+                        <h2 class="h4">14. Modifications du Contrat</h2>
+                        <p>Le Prestataire de services se réserve le droit de modifier le présent Contrat à tout moment. Si nous apportons une modification substantielle, nous vous en informerons en envoyant un courriel à l'adresse associée à votre compte ou en affichant un avis bien visible sur notre site web avant l'entrée en vigueur de la modification.</p>
+                        <p>Votre utilisation continue du Service après la publication des modifications du présent Contrat signifie que vous acceptez ces modifications. Si vous n'acceptez pas les conditions révisées, vous devez cesser d'utiliser le Service.</p>
+
+                        <h2 class="h4">15. Loi applicable et règlement des différends</h2>
+                        <p>Le présent Contrat est régi et interprété conformément aux lois de la Belgique, sans tenir compte de ses dispositions en matière de conflit de lois.</p>
+                        <p>Tout litige découlant du présent Contrat ou lié à celui-ci, y compris toute question concernant son existence, sa validité ou sa résiliation, sera définitivement réglé par les tribunaux compétents de Bruxelles, Belgique.</p>
+
+                        <h2 class="h4">16. Dispositions générales</h2>
+                        <p><strong>Intégralité du Contrat.</strong> Le présent Contrat constitue l'intégralité de l'accord entre vous et le Prestataire de services concernant votre utilisation du Service et remplace toutes les communications et propositions antérieures ou contemporaines, qu'elles soient électroniques, orales ou écrites, entre vous et le Prestataire de services concernant le Service.</p>
+                        <p><strong>Divisibilité.</strong> Si une disposition du présent Contrat est considérée comme illégale, nulle ou inapplicable pour quelque raison que ce soit, cette disposition sera dissociée du présent Contrat et n'affectera pas la validité et l'applicabilité des dispositions restantes.</p>
+                        <p><strong>Aucune renonciation.</strong> Le fait que le Prestataire de services n'exerce pas ou n'applique pas un droit ou une disposition du présent Contrat ne constitue pas une renonciation à ce droit ou à cette disposition. Aucune renonciation ne sera effective à moins d'être écrite et signée par le Prestataire de services.</p>
+                        <p><strong>Cession.</strong> Vous ne pouvez pas céder ou déléguer vos droits ou obligations en vertu du présent Contrat sans l'autorisation écrite préalable du Prestataire de services. Toute tentative de cession ou de délégation sans cette autorisation sera nulle et non avenue.</p>
+
+                        <h2 class="h4">17. Contact</h2>
+                        <p>Si vous avez des questions concernant le présent Contrat, veuillez nous contacter en utilisant les coordonnées indiquées sur notre site web.</p>
+
+                        <p class="mt-4">Dernière mise à jour : 27 mars 2025</p>
+
+                    {% else %}
+                        <!-- English Terms of Service -->
+                        <h2 class="h4">1. Introduction</h2>
+                        <p>Welcome to our invoicing and accounting application. These Terms of Service ("Agreement") are a legally binding agreement between you, either an individual or entity ("User"), and our company ("Service Provider", "we", "us", or "our") regarding your use of our software, services, and website (collectively referred to as the "Service").</p>
+                        <p>By using the Service, you indicate that you agree to this Agreement. If you do not agree to any part of this Agreement, you must not use the Service.</p>
+
+                        <h2 class="h4">2. Service Description</h2>
+                        <p>Our Service provides an online invoicing and accounting platform designed to help Belgian and Dutch businesses manage their financial administration, including but not limited to invoicing, customer management, VAT declarations, and financial reporting.</p>
+
+                        <h2 class="h4">3. License to Use</h2>
+                        <p>Subject to your compliance with this Agreement, the Service Provider grants you a limited, non-exclusive, non-transferable, non-sublicensable right to access and use the Service for your internal business purposes.</p>
+
+                        <h2 class="h4">4. User Accounts</h2>
+                        <p>To use the Service, you must create an account. You are responsible for maintaining the confidentiality of your account information and password, and for restricting access to your computer. You agree that you accept full responsibility for all activities that occur under your account.</p>
+                        <p>You may not share an account with others or allow others to use your account on your behalf unless expressly permitted by the Service Provider. You must notify the Service Provider immediately of any unauthorized access to or use of your account.</p>
+
+                        <h2 class="h4">5. User Content</h2>
+                        <p>You retain all rights in, and are responsible for, all data, information, and materials that you upload, transmit, or store through the Service ("User Content"). You represent and warrant that you own all rights necessary to provide such User Content and that the provision of such User Content does not infringe on the rights of any third party.</p>
+                        <p>You grant the Service Provider a worldwide, royalty-free license to use, reproduce, and distribute your User Content solely for the purpose of providing the Service to you.</p>
+
+                        <h2 class="h4">6. Prohibited Uses</h2>
+                        <p>You agree not to use the Service to:</p>
+                        <ul>
+                            <li>Violate any applicable laws or regulations;</li>
+                            <li>Infringe the intellectual property rights of others;</li>
+                            <li>Send unsolicited commercial communications ("spam");</li>
+                            <li>Transmit harmful code, such as viruses or malware;</li>
+                            <li>Disrupt, interfere with, or negatively affect the Service or the servers and networks connected to the Service;</li>
+                            <li>Collect or store personal data of other users without their consent;</li>
+                            <li>Impersonate another person or entity.</li>
+                        </ul>
+
+                        <h2 class="h4">7. Payment and Billing</h2>
+                        <p>Certain features of the Service may be subject to fees. By signing up for such features, you agree to pay all applicable fees as described on our website or otherwise communicated to you. All payments are non-refundable except as expressly stated in this Agreement.</p>
+                        
+                        <h2 class="h4">8. Modifications to the Service</h2>
+                        <p>The Service Provider reserves the right, at its sole discretion and without prior notice, to make changes to the Service, including adding or removing features or functionality. The Service Provider is not liable to you or any third party for any such modifications.</p>
+
+                        <h2 class="h4">9. Suspension and Termination</h2>
+                        <p>The Service Provider may suspend or terminate your access to the Service if you breach this Agreement or if the Service Provider reasonably suspects that you have breached this Agreement.</p>
+                        <p>You may terminate your account at any time by contacting customer service. Upon termination, for any reason, your right to use the Service immediately ceases.</p>
+
+                        <h2 class="h4">10. Indemnification</h2>
+                        <p>You agree to defend, indemnify, and hold harmless the Service Provider and its directors, officers, employees, and agents from any claim, liability, damage, loss, and expense, including reasonable attorney's fees, arising out of or related to: (a) your breach of this Agreement; (b) your User Content; or (c) your violation of any rights of another person or entity.</p>
+
+                        <h2 class="h4">11. Limitation of Liability</h2>
+                        <p>To the fullest extent permitted by law, the Service Provider will not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or cost of procuring substitute goods or services, arising out of or related to this Agreement, regardless of the theory of liability (contract, tort, or otherwise), even if the Service Provider has been advised of the possibility of such damages.</p>
+                        <p>The Service Provider's total liability arising out of or related to this Agreement will not exceed the amount you actually paid to the Service Provider for use of the Service during the three months preceding the event giving rise to such liability.</p>
+
+                        <h2 class="h4">12. Disclaimer of Warranties</h2>
+                        <p>The Service is provided "as is" and "as available," without any warranty, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, and non-infringement. The Service Provider does not warrant that the Service will be error-free or uninterrupted, that defects will be corrected, or that the Service will be free of viruses or other harmful components.</p>
+
+                        <h2 class="h4">13. Intellectual Property</h2>
+                        <p>The Service and all of its original content, features, and functionality are and will remain the exclusive property of the Service Provider and its licensors. The Service is protected by copyright, trademark, patents, trade secrets, and other intellectual property or proprietary rights laws in Belgium, the Netherlands, and other countries.</p>
+                        <p>Our trademarks and trade dress may not be used in connection with any product or service without the prior written consent of the Service Provider.</p>
+
+                        <h2 class="h4">14. Changes to the Agreement</h2>
+                        <p>The Service Provider reserves the right to modify this Agreement at any time. If we make a material change, we will notify you by sending an email to the email address associated with your account or by posting a prominent notice on our website before the change becomes effective.</p>
+                        <p>Your continued use of the Service following the posting of changes to this Agreement means that you accept those changes. If you do not agree to the revised terms, you must stop using the Service.</p>
+
+                        <h2 class="h4">15. Governing Law and Dispute Resolution</h2>
+                        <p>This Agreement is governed by and construed in accordance with the laws of Belgium, without regard to its conflict of law provisions.</p>
+                        <p>Any dispute arising out of or in connection with this Agreement, including any question regarding its existence, validity, or termination, shall be finally settled by the competent courts of Brussels, Belgium.</p>
+
+                        <h2 class="h4">16. General Provisions</h2>
+                        <p><strong>Entire Agreement.</strong> This Agreement constitutes the entire agreement between you and the Service Provider regarding your use of the Service and supersedes all prior and contemporaneous communications and proposals, whether electronic, oral, or written, between you and the Service Provider regarding the Service.</p>
+                        <p><strong>Severability.</strong> If any provision of this Agreement is found to be illegal, void, or for any reason unenforceable, that provision shall be deemed severable from this Agreement and shall not affect the validity and enforceability of the remaining provisions.</p>
+                        <p><strong>No Waiver.</strong> The Service Provider's failure to exercise or enforce any right or provision of this Agreement shall not constitute a waiver of such right or provision. No waiver shall be effective unless in writing and signed by the Service Provider.</p>
+                        <p><strong>Assignment.</strong> You may not assign or delegate your rights or obligations under this Agreement without the prior written consent of the Service Provider. Any attempted assignment or delegation without such consent will be void and of no effect.</p>
+
+                        <h2 class="h4">17. Contact</h2>
+                        <p>If you have any questions about this Agreement, please contact us using the contact information provided on our website.</p>
+
+                        <p class="mt-4">Last updated: March 27, 2025</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

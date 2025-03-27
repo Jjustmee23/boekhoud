@@ -2923,3 +2923,29 @@ def activate_user(token):
         now=datetime.now()
     )
 
+
+@app.route('/terms-of-service')
+@app.route('/terms-of-service/<lang>')
+def terms_of_service(lang='nl'):
+    """
+    Route voor het tonen van de gebruiksrechtovereenkomst in verschillende talen
+    """
+    # Valideer de taalcode
+    if lang not in ['nl', 'en', 'fr']:
+        lang = 'nl'
+        
+    return render_template('terms_of_service.html', lang=lang)
+
+
+@app.route('/privacy-policy')
+@app.route('/privacy-policy/<lang>')
+def privacy_policy(lang='nl'):
+    """
+    Route voor het tonen van de privacyverklaring in verschillende talen
+    """
+    # Valideer de taalcode
+    if lang not in ['nl', 'en', 'fr']:
+        lang = 'nl'
+        
+    return render_template('privacy_policy.html', lang=lang)
+

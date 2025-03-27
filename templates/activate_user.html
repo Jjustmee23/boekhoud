@@ -54,6 +54,9 @@
         <p class="text-muted">
             U werd uitgenodigd door {% if is_admin %}de beheerder{% else %}{{ inviter_name }}{% endif %} van {{ workspace_name }}
         </p>
+        <p class="text-muted">
+            Door te registreren gaat u akkoord met onze <a href="{{ url_for('terms_of_service') }}">Servicevoorwaarden</a> en <a href="{{ url_for('privacy_policy') }}">Privacybeleid</a>
+        </p>
     </div>
 </form>
 {% endblock %}
