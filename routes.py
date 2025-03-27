@@ -1632,11 +1632,35 @@ def generate_vat_report():
             )
     
     # Get customer information for invoices
-    customer_ids = [invoice.get('customer_id') for invoice in report.get('invoices', [])]
-    customers_query = Customer.query.filter(Customer.id.in_(customer_ids) if customer_ids else False)
+    # Print debug information about invoices to understand their structure
+    app.logger.debug(f"Invoices in report: {len(report.get('invoices', []))}")
+    if report.get('invoices'):
+        app.logger.debug(f"First invoice keys: {list(report.get('invoices', [])[0].keys())}")
+    
+    # Convert any ID objects to strings for consistent lookup
+    customer_ids = []
+    for invoice in report.get('invoices', []):
+        # Check if customer_id exists in invoice
+        if 'customer_id' in invoice:
+            customer_id = invoice['customer_id']
+            # Convert to string if it exists and is not None
+            if customer_id is not None:
+                customer_ids.append(str(customer_id))
+        # Log warning if no customer_id
+        else:
+            app.logger.warning(f"Invoice {invoice.get('id')} has no customer_id")
+    
+    # Get unique customer IDs
+    unique_customer_ids = list(set(customer_ids))
+    app.logger.debug(f"Unique customer IDs: {unique_customer_ids}")
+    
+    # Query customers
+    customers_query = Customer.query.filter(Customer.id.in_(unique_customer_ids) if unique_customer_ids else False)
     
     # Create dictionary of customers by ID for easy lookup in template
+    # Make sure all IDs are converted to strings for consistent lookup
     customers = {str(customer.id): customer.to_dict() for customer in customers_query}
+    app.logger.debug(f"Customers dictionary has {len(customers)} entries")
     
     # Regular HTML response
     return render_template(
@@ -3235,7 +3259,7 @@ def terms_of_service(lang='nl'):
     if lang not in ['nl', 'en', 'fr']:
         lang = 'nl'
         
-    return render_template('terms_of_service.html', lang=lang)
+    return render_template('terms_of_service.html', lang=lang, now=datetime.now())
 
 
 @app.route('/privacy-policy')
@@ -3248,5 +3272,5 @@ def privacy_policy(lang='nl'):
     if lang not in ['nl', 'en', 'fr']:
         lang = 'nl'
         
-    return render_template('privacy_policy.html', lang=lang)
+    return render_template('privacy_policy.html', lang=lang, now=datetime.now())
 

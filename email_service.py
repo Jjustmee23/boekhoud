@@ -179,8 +179,9 @@ class MSGraphProvider(EmailProvider):
         if attachments:
             self._add_attachments_to_message(email_msg, attachments)
         
-        # API endpoint voor verzenden
-        endpoint = f"https://graph.microsoft.com/v1.0/users/{self.sender_email}/sendMail"
+        # API endpoint voor verzenden - gebruik '/me' voor de geauthenticeerde app of een specifiek mailadres
+        # Voor gedeelde mailboxen moet de app juiste machtigingen hebben
+        endpoint = "https://graph.microsoft.com/v1.0/me/sendMail"
         
         # Headers voor de aanvraag
         headers = {

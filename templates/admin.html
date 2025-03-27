@@ -275,7 +275,11 @@
                         <div class="col-12">
                             <div class="form-text mb-3">
                                 Deze instellingen worden gebruikt voor het verzenden van e-mails via Microsoft Graph API (Office 365).
-                                Zorg ervoor dat de gebruikte account voldoende rechten heeft om namens de organisatie e-mails te versturen.
+                                <ul class="mt-2">
+                                    <li>Zorg ervoor dat de applicatie de juiste permissies heeft: <code>Mail.Send</code> en <code>Mail.Send.Shared</code> (voor gedeelde mailboxen)</li>
+                                    <li>Voor gedeelde mailboxen: de applicatie moet juiste permissies hebben en de gebruiker moet toegang hebben tot de mailbox</li>
+                                    <li>Test met de "Test e-mail versturen" knop om te controleren of alles correct werkt</li>
+                                </ul>
                             </div>
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-primary">Instellingen opslaan</button>
@@ -371,6 +375,7 @@
                                 </div>
                                 <small class="form-text text-muted d-block">
                                     Voor de meeste providers (Gmail, Office 365) is TLS aanbevolen. SSL is ouder en soms minder veilig.
+                                    <br><strong>Let op voor Gmail:</strong> Als u tweefactorauthenticatie gebruikt, moet u een app-wachtwoord genereren op <a href="https://myaccount.google.com/apppasswords" target="_blank">Google Account</a>.
                                 </small>
                             </div>
                         </div>
