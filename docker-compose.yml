@@ -9,10 +9,6 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/facturatie
       - SESSION_SECRET=mijngeheimesessiekey # Verander dit in productie
-      - MS_GRAPH_CLIENT_ID=${MS_GRAPH_CLIENT_ID}
-      - MS_GRAPH_CLIENT_SECRET=${MS_GRAPH_CLIENT_SECRET}
-      - MS_GRAPH_TENANT_ID=${MS_GRAPH_TENANT_ID}
-      - MS_GRAPH_SENDER_EMAIL=${MS_GRAPH_SENDER_EMAIL}
     volumes:
       - ./static/uploads:/app/static/uploads
     depends_on:

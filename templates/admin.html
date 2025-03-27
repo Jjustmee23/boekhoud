@@ -519,10 +519,7 @@
                             <td><span class="badge bg-secondary rounded-pill">{{ workspace.invoices|length }}</span></td>
                             <td>
                                 <div class="btn-group">
-                                    <a href="{{ url_for('open_workspace', workspace_id=workspace.id) }}" class="btn btn-sm btn-outline-success" title="Open deze werkruimte">
-                                        <i class="fas fa-external-link-alt"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editWorkspaceModal-{{ workspace.id }}" title="Bewerk werkruimte">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editWorkspaceModal-{{ workspace.id }}">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                 </div>

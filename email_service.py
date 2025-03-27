@@ -845,91 +845,13 @@ class EmailServiceHelper:
         
         with app.app_context():
             try:
-                # Zoek eerst werkruimte-specifieke instellingen
+                # Zoek workspace-specifieke instellingen
                 settings = EmailSettings.query.filter_by(workspace_id=workspace_id).first()
-                
-                # Als er geen werkruimte-specifieke instellingen zijn, gebruik systeem-instellingen
-                if not settings:
-                    settings = EmailSettings.query.filter_by(workspace_id=None).first()
-                    
                 return EmailService(settings)
             except Exception as e:
                 logging.error(f"Fout bij maken van EmailService voor workspace {workspace_id}: {str(e)}")
                 # Fallback naar standaard EmailService
                 return EmailService()
-                
-    @staticmethod
-    def ensure_workspace_email_settings(workspace_id):
-        """
-        Zorg ervoor dat een werkruimte email instellingen heeft, kopieer indien nodig van systeem-instellingen
-        
-        Args:
-            workspace_id: ID van de werkruimte
-        
-        Returns:
-            EmailSettings: De bestaande of nieuw aangemaakte email instellingen voor de werkruimte
-        """
-        from models import EmailSettings
-        from app import app, db
-        
-        with app.app_context():
-            try:
-                # Controleer eerst of er al instellingen zijn voor deze werkruimte
-                workspace_settings = EmailSettings.query.filter_by(workspace_id=workspace_id).first()
-                
-                if workspace_settings:
-                    return workspace_settings
-                
-                # Haal systeem-instellingen op
-                system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
-                
-                if not system_settings:
-                    logging.error(f"Geen systeem e-mail instellingen gevonden om te kopiëren naar werkruimte {workspace_id}")
-                    # Maak nieuwe lege instellingen aan
-                    workspace_settings = EmailSettings(workspace_id=workspace_id)
-                else:
-                    # Maak nieuwe instellingen aan en kopieer vanaf systeem
-                    workspace_settings = EmailSettings(
-                        workspace_id=workspace_id,
-                        # MS Graph instellingen kopiëren
-                        ms_graph_client_id=system_settings.ms_graph_client_id,
-                        ms_graph_client_secret=system_settings.ms_graph_client_secret,
-                        ms_graph_tenant_id=system_settings.ms_graph_tenant_id,
-                        ms_graph_sender_email=system_settings.ms_graph_sender_email,
-                        
-                        # SMTP instellingen kopiëren
-                        smtp_server=system_settings.smtp_server,
-                        smtp_port=system_settings.smtp_port,
-                        smtp_username=system_settings.smtp_username,
-                        smtp_password=system_settings.smtp_password,
-                        email_from=system_settings.email_from,
-                        email_from_name=system_settings.email_from_name,
-                        
-                        # Overige instellingen kopiëren
-                        use_ms_graph=system_settings.use_ms_graph,
-                        default_sender_name=system_settings.default_sender_name if hasattr(system_settings, 'default_sender_name') else None,
-                        reply_to=system_settings.reply_to if hasattr(system_settings, 'reply_to') else None,
-                        smtp_use_ssl=system_settings.smtp_use_ssl if hasattr(system_settings, 'smtp_use_ssl') else True,
-                        smtp_use_tls=system_settings.smtp_use_tls if hasattr(system_settings, 'smtp_use_tls') else False
-                    )
-                    
-                    # Nieuwe velden kopiëren indien aanwezig
-                    if hasattr(system_settings, 'ms_graph_shared_mailbox'):
-                        workspace_settings.ms_graph_shared_mailbox = system_settings.ms_graph_shared_mailbox
-                    
-                    if hasattr(system_settings, 'ms_graph_use_shared_mailbox'):
-                        workspace_settings.ms_graph_use_shared_mailbox = system_settings.ms_graph_use_shared_mailbox
-                
-                # Sla de nieuwe instellingen op
-                db.session.add(workspace_settings)
-                db.session.commit()
-                
-                logging.info(f"Nieuwe e-mail instellingen aangemaakt voor werkruimte {workspace_id}")
-                return workspace_settings
-            except Exception as e:
-                logging.error(f"Fout bij aanmaken van e-mail instellingen voor werkruimte {workspace_id}: {str(e)}")
-                db.session.rollback()
-                return None
     
     @staticmethod
     def send_email_for_workspace(workspace_id, recipient_email, subject, body_html, cc=None, attachments=None):

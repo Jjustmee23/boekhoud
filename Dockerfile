@@ -37,9 +37,5 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Expose poort waarop de app draait
 EXPOSE 5000
 
-# Maak een startscript voor de applicatie
-COPY ./startup.sh /app/
-RUN chmod +x /app/startup.sh
-
-# Start de applicatie met het startscript
-CMD ["/app/startup.sh"]
+# Start de applicatie
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "120", "--workers", "2", "--reuse-port", "main:app"]
