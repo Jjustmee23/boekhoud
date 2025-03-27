@@ -84,6 +84,10 @@ class EmailService:
                 else:
                     # Fallback naar omgevingsvariabelen
                     self._load_from_environment()
+                    
+                # Als er een probleem is met de ontvangen gecrypteerde client secret, probeer fallback
+                if self.client_secret and self.client_secret.startswith('Nm'):
+                    self.client_secret = os.environ.get("MS_GRAPH_CLIENT_SECRET", "")
         except Exception as e:
             self.logger.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
             # Fallback naar omgevingsvariabelen

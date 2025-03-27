@@ -56,7 +56,7 @@ def migrate_email_settings():
                 if not settings.ms_graph_client_secret:
                     secret = os.environ.get("MS_GRAPH_CLIENT_SECRET", "")
                     if secret:
-                        settings.ms_graph_client_secret = EmailSettings.encrypt_secret(secret)
+                        settings.ms_graph_client_secret = secret  # Directly store the secret without encryption
                 
                 if not settings.ms_graph_tenant_id:
                     settings.ms_graph_tenant_id = os.environ.get("MS_GRAPH_TENANT_ID", "")
@@ -94,7 +94,7 @@ def migrate_email_settings():
                         workspace_id=None,
                         use_ms_graph=True,
                         ms_graph_client_id=client_id,
-                        ms_graph_client_secret=EmailSettings.encrypt_secret(client_secret),
+                        ms_graph_client_secret=client_secret,  # Store directly without encryption
                         ms_graph_tenant_id=tenant_id,
                         ms_graph_sender_email=sender_email,
                         default_sender_name=os.environ.get("EMAIL_FROM_NAME", "MidaWeb")

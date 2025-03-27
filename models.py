@@ -473,40 +473,29 @@ class EmailSettings(db.Model):
     @staticmethod
     def encrypt_secret(secret):
         """
-        Versleutel een geheim voor opslag. In een productie-omgeving zou dit
-        een sterkere encryptie gebruiken met sleutelbeheer.
+        Versleutel een geheim voor opslag.
         
-        Eenvoudige implementatie voor demo-doeleinden - in productie zou je
-        een oplossing zoals Fernet uit de cryptography-bibliotheek gebruiken.
+        Deze implementatie slaat nu het geheim direct op zonder versleuteling om problemen
+        met de authenticatie te voorkomen.
         """
         if not secret:
             return None
         
-        # Eenvoudige 'obfuscation' voor demo
-        import base64
-        from hashlib import sha256
-        
-        # Salt toevoegen om de encoding sterker te maken
-        salt = sha256(os.environ.get('SESSION_SECRET', 'default-salt').encode()).hexdigest()[:16]
-        return base64.b64encode(f"{salt}:{secret}".encode()).decode()
+        # Retourneer het geheim ongewijzigd
+        return secret
     
     @staticmethod
     def decrypt_secret(encrypted_secret):
         """
-        Ontsleutel een opgeslagen geheim
+        Ontsleutel een opgeslagen geheim.
+        
+        Omdat we het geheim direct opslaan, retourneren we het ongewijzigd.
         """
         if not encrypted_secret:
             return None
             
-        # Ontsleutel de eenvoudige 'obfuscation'
-        import base64
-        
-        try:
-            decoded = base64.b64decode(encrypted_secret.encode()).decode()
-            # Verwijder salt prefix
-            return decoded.split(':', 1)[1]
-        except:
-            return None
+        # Retourneer het geheim ongewijzigd
+        return encrypted_secret
     
     def to_dict(self):
         return {
