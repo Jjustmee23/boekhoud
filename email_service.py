@@ -21,7 +21,7 @@ class MSGraphConfig:
             self.client_id = settings.ms_graph_client_id
             self.client_secret = EmailSettings.decrypt_secret(settings.ms_graph_client_secret)
             self.tenant_id = settings.ms_graph_tenant_id
-            self.sender_email = settings.ms_graph_sender_email
+            self.sender_email = "info@midaweb.be"  # Gebruik vaste afzender voor emails
         else:
             # Anders gebruik de systeem-instellingen uit de database
             # Gebruik app context om database queries uit te voeren
@@ -33,20 +33,20 @@ class MSGraphConfig:
                         self.client_id = system_settings.ms_graph_client_id
                         self.client_secret = EmailSettings.decrypt_secret(system_settings.ms_graph_client_secret)
                         self.tenant_id = system_settings.ms_graph_tenant_id
-                        self.sender_email = system_settings.ms_graph_sender_email
+                        self.sender_email = "info@midaweb.be"  # Gebruik vaste afzender voor emails
                     else:
                         # Noodoplossing: omgevingsvariabelen als fallback
                         self.client_id = os.environ.get('MS_GRAPH_CLIENT_ID')
                         self.client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET')
                         self.tenant_id = os.environ.get('MS_GRAPH_TENANT_ID')
-                        self.sender_email = os.environ.get('MS_GRAPH_SENDER_EMAIL')
+                        self.sender_email = "info@midaweb.be"  # Gebruik vaste afzender voor emails
                 except Exception as e:
                     # Bij fouten, gebruik omgevingsvariabelen als fallback
                     logging.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
                     self.client_id = os.environ.get('MS_GRAPH_CLIENT_ID')
                     self.client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET')
                     self.tenant_id = os.environ.get('MS_GRAPH_TENANT_ID')
-                    self.sender_email = os.environ.get('MS_GRAPH_SENDER_EMAIL')
+                    self.sender_email = "info@midaweb.be"  # Gebruik vaste afzender voor emails
             
         # Altijd authority en scope instellen
         self.authority = f'https://login.microsoftonline.com/{self.tenant_id}' if self.tenant_id else None
