@@ -11,6 +11,14 @@ from models import (
     calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary,
     get_users, get_user, create_user, update_user, delete_user
 )
+
+# Helper functie voor templates om alle werkruimtes op te halen
+def get_all_workspaces():
+    """Helper functie voor templates om alle werkruimtes op te halen"""
+    return Workspace.query.all()
+
+# Maak de functie beschikbaar in templates
+app.jinja_env.globals.update(get_all_workspaces=get_all_workspaces)
 from utils import (
     format_currency, format_decimal, generate_pdf_invoice, export_to_excel, export_to_csv,
     get_vat_rates, date_to_quarter, get_quarters, get_months, get_years,
@@ -18,6 +26,7 @@ from utils import (
 )
 from file_processor import FileProcessor
 from email_service import EmailService, EmailServiceHelper
+from email_service_new import MSGraphEmailService, get_microsoft_auth_url, process_microsoft_auth_callback, send_email_with_user_oauth
 from token_helper import token_helper
 
 # Authentication routes
@@ -262,8 +271,18 @@ def dashboard():
     # Get current year
     current_year = datetime.now().year
     
+    # Controleer of een superadmin een specifieke werkruimte bekijkt
+    super_admin_viewing_workspace = session.get('super_admin_viewing_workspace', False)
+    active_workspace_id = session.get('active_workspace_id', None)
+    
     # Apply workspace filter for regular users, super admins see all data
-    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    # Tenzij een superadmin een specifieke werkruimte bekijkt via de nieuwe functie
+    if current_user.is_super_admin and not super_admin_viewing_workspace:
+        workspace_id = None  # Super admin ziet standaard alles
+    elif current_user.is_super_admin and super_admin_viewing_workspace:
+        workspace_id = active_workspace_id  # Super admin bekijkt een specifieke werkruimte
+    else:
+        workspace_id = current_user.workspace_id  # Normale gebruiker ziet alleen eigen werkruimte
     
     # Get summaries for the workspace
     monthly_summary = get_monthly_summary(current_year, workspace_id)
@@ -317,8 +336,18 @@ def dashboard():
 @app.route('/dashboard/api/monthly-data/<int:year>')
 def api_monthly_data(year):
     """API endpoint for monthly chart data"""
+    # Controleer of een superadmin een specifieke werkruimte bekijkt
+    super_admin_viewing_workspace = session.get('super_admin_viewing_workspace', False)
+    active_workspace_id = session.get('active_workspace_id', None)
+    
     # Apply workspace filter for regular users, super admins see all data
-    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    # Tenzij een superadmin een specifieke werkruimte bekijkt via de nieuwe functie
+    if current_user.is_super_admin and not super_admin_viewing_workspace:
+        workspace_id = None  # Super admin ziet standaard alles
+    elif current_user.is_super_admin and super_admin_viewing_workspace:
+        workspace_id = active_workspace_id  # Super admin bekijkt een specifieke werkruimte
+    else:
+        workspace_id = current_user.workspace_id  # Normale gebruiker ziet alleen eigen werkruimte
     monthly_data = get_monthly_summary(year, workspace_id)
     
     # Format data for Chart.js
@@ -337,8 +366,18 @@ def api_monthly_data(year):
 @app.route('/dashboard/api/quarterly-data/<int:year>')
 def api_quarterly_data(year):
     """API endpoint for quarterly chart data"""
+    # Controleer of een superadmin een specifieke werkruimte bekijkt
+    super_admin_viewing_workspace = session.get('super_admin_viewing_workspace', False)
+    active_workspace_id = session.get('active_workspace_id', None)
+    
     # Apply workspace filter for regular users, super admins see all data
-    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    # Tenzij een superadmin een specifieke werkruimte bekijkt via de nieuwe functie
+    if current_user.is_super_admin and not super_admin_viewing_workspace:
+        workspace_id = None  # Super admin ziet standaard alles
+    elif current_user.is_super_admin and super_admin_viewing_workspace:
+        workspace_id = active_workspace_id  # Super admin bekijkt een specifieke werkruimte
+    else:
+        workspace_id = current_user.workspace_id  # Normale gebruiker ziet alleen eigen werkruimte
     quarterly_data = get_quarterly_summary(year, workspace_id)
     
     # Format data for Chart.js
@@ -367,8 +406,19 @@ def invoices_list():
     # Build query with filters
     query = Invoice.query
     
-    # Apply workspace filter for regular users, super admins see all data
-    if not current_user.is_super_admin:
+    # Controleer of een superadmin een specifieke werkruimte bekijkt
+    super_admin_viewing_workspace = session.get('super_admin_viewing_workspace', False)
+    active_workspace_id = session.get('active_workspace_id', None)
+    
+    # Apply workspace filter
+    if current_user.is_super_admin and not super_admin_viewing_workspace:
+        # Super admin ziet standaard alles, geen filter nodig
+        pass
+    elif current_user.is_super_admin and super_admin_viewing_workspace:
+        # Super admin bekijkt een specifieke werkruimte
+        query = query.filter_by(workspace_id=active_workspace_id)
+    else:
+        # Normale gebruiker ziet alleen eigen werkruimte
         query = query.filter_by(workspace_id=current_user.workspace_id)
     
     if customer_id:
@@ -552,9 +602,22 @@ def new_invoice():
         )
     
     # GET request - show the form
-    # Filter customers by workspace for regular users
+    # Filter customers by workspace
     query = Customer.query
-    if not current_user.is_super_admin:
+    
+    # Controleer of een superadmin een specifieke werkruimte bekijkt
+    super_admin_viewing_workspace = session.get('super_admin_viewing_workspace', False)
+    active_workspace_id = session.get('active_workspace_id', None)
+    
+    # Apply workspace filter
+    if current_user.is_super_admin and not super_admin_viewing_workspace:
+        # Super admin ziet standaard alles, geen filter nodig
+        pass
+    elif current_user.is_super_admin and super_admin_viewing_workspace:
+        # Super admin bekijkt een specifieke werkruimte
+        query = query.filter_by(workspace_id=active_workspace_id)
+    else:
+        # Normale gebruiker ziet alleen eigen werkruimte
         query = query.filter_by(workspace_id=current_user.workspace_id)
     customers_query = query.all()
     customers_data = [customer.to_dict() for customer in customers_query]
@@ -771,9 +834,22 @@ def edit_invoice(invoice_id):
             )
         
         # GET request - show the form
-        # Filter customers by workspace for regular users
+        # Filter customers by workspace
         query = Customer.query
-        if not current_user.is_super_admin:
+        
+        # Controleer of een superadmin een specifieke werkruimte bekijkt
+        super_admin_viewing_workspace = session.get('super_admin_viewing_workspace', False)
+        active_workspace_id = session.get('active_workspace_id', None)
+        
+        # Apply workspace filter
+        if current_user.is_super_admin and not super_admin_viewing_workspace:
+            # Super admin ziet standaard alles, geen filter nodig
+            pass
+        elif current_user.is_super_admin and super_admin_viewing_workspace:
+            # Super admin bekijkt een specifieke werkruimte
+            query = query.filter_by(workspace_id=active_workspace_id)
+        else:
+            # Normale gebruiker ziet alleen eigen werkruimte
             query = query.filter_by(workspace_id=current_user.workspace_id)
         customers_query = query.all()
         customers_data = [customer.to_dict() for customer in customers_query]
@@ -2640,6 +2716,83 @@ def select_active_workspace():
     
     return redirect(url_for('admin'))
 
+
+@app.route('/open-workspace/<int:workspace_id>', methods=['GET'])
+@login_required
+def open_workspace(workspace_id):
+    """
+    Route voor superadmins om de dashboard van een specifieke werkruimte te openen
+    en tijdelijk te werken 'als' een gebruiker in die werkruimte
+    """
+    # Alleen superadmins mogen werkruimtes direct openen
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze functie', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        workspace = Workspace.query.get(workspace_id)
+        
+        if not workspace:
+            flash('Ongeldige werkruimte geselecteerd', 'danger')
+            return redirect(url_for('admin'))
+        
+        # Stel de actieve werkruimte in voor de sessie
+        session['active_workspace_id'] = workspace_id
+        # Markeer dat we als superadmin een werkruimte hebben geopend
+        session['super_admin_viewing_workspace'] = True
+        
+        flash(f'U werkt nu in werkruimte "{workspace.name}"', 'success')
+        # Redirect naar het dashboard van die werkruimte
+        return redirect(url_for('dashboard'))
+    
+    except Exception as e:
+        logging.error(f"Fout bij het openen van de werkruimte: {str(e)}")
+        flash('Er is een fout opgetreden bij het openen van de werkruimte', 'danger')
+        return redirect(url_for('admin'))
+
+@app.route('/exit-workspace', methods=['GET'])
+@login_required
+def exit_workspace():
+    """
+    Route voor superadmins om terug te keren naar het superadmin overzicht
+    en de 'super_admin_viewing_workspace' status te resetten
+    """
+    # Alleen superadmins mogen deze functie gebruiken
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze functie', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        # Als een superadmin een werkruimte bekijkt, toon dan de workspace naam in de melding
+        if session.get('super_admin_viewing_workspace', False) and session.get('active_workspace_id'):
+            workspace = Workspace.query.get(session.get('active_workspace_id'))
+            if workspace:
+                workspace_name = workspace.name
+                # Reset de sessievariabelen
+                session.pop('active_workspace_id', None)
+                session.pop('super_admin_viewing_workspace', None)
+                flash(f'U heeft werkruimte "{workspace_name}" verlaten', 'success')
+            else:
+                # Als de werkruimte niet gevonden wordt, reset de sessie zonder melding van naam
+                session.pop('active_workspace_id', None)
+                session.pop('super_admin_viewing_workspace', None)
+                flash('U heeft de werkruimte verlaten', 'success')
+        else:
+            # Als er geen werkruimte actief was, toon een algemene melding
+            session.pop('active_workspace_id', None)
+            session.pop('super_admin_viewing_workspace', None)
+            flash('U bent teruggekeerd naar het superadmin overzicht', 'info')
+        
+        return redirect(url_for('admin'))
+        
+    except Exception as e:
+        logging.error(f"Fout bij het verlaten van de werkruimte: {str(e)}")
+        flash('Er is een fout opgetreden bij het verlaten van de werkruimte', 'danger')
+        # Probeer toch de sessie te resetten bij een fout
+        session.pop('active_workspace_id', None)
+        session.pop('super_admin_viewing_workspace', None)
+        return redirect(url_for('admin'))
+
 @app.route('/admin/workspace/<int:workspace_id>/delete', methods=['POST'])
 @login_required
 def delete_workspace(workspace_id):
@@ -3566,4 +3719,99 @@ def privacy_policy(lang='nl'):
         lang = 'nl'
         
     return render_template('privacy_policy.html', lang=lang, now=datetime.now())
+
+
+# Microsoft OAuth routes
+@app.route("/auth/microsoft/login/<int:workspace_id>")
+@login_required
+def microsoft_auth_login(workspace_id):
+    """Begin Microsoft OAuth flow voor de gebruiker"""
+    # Controleer of gebruiker toegang heeft tot deze werkruimte
+    if not current_user.is_super_admin and current_user.workspace_id != workspace_id:
+        flash("Je hebt geen toegang tot deze werkruimte", "danger")
+        return redirect(url_for('dashboard'))
+    
+    # Haal de authorization URL op
+    auth_url = get_microsoft_auth_url(workspace_id=workspace_id)
+    
+    if not auth_url:
+        flash("Microsoft OAuth is niet geconfigureerd voor deze werkruimte", "danger")
+        return redirect(url_for('profile'))
+    
+    # Redirect naar Microsoft voor authenticatie
+    return redirect(auth_url)
+
+@app.route("/auth/microsoft/callback/<int:workspace_id>")
+@login_required
+def microsoft_auth_callback(workspace_id):
+    """Verwerk callback van Microsoft OAuth"""
+    # Controleer of gebruiker toegang heeft tot deze werkruimte
+    if not current_user.is_super_admin and current_user.workspace_id != workspace_id:
+        flash("Je hebt geen toegang tot deze werkruimte", "danger")
+        return redirect(url_for('dashboard'))
+    
+    # Haal code uit query parameters
+    error = request.args.get('error')
+    error_description = request.args.get('error_description')
+    
+    if error:
+        flash(f"Microsoft OAuth fout: {error} - {error_description}", "danger")
+        return redirect(url_for('profile'))
+    
+    code = request.args.get('code')
+    if not code:
+        flash("Geen autorisatiecode ontvangen van Microsoft", "danger")
+        return redirect(url_for('profile'))
+    
+    # Verwerk autorisatiecode
+    success, message, user_info = process_microsoft_auth_callback(code, workspace_id)
+    
+    if success:
+        flash(f"Microsoft-account gekoppeld: {user_info.get('email')}", "success")
+    else:
+        flash(f"Fout bij koppelen Microsoft-account: {message}", "danger")
+    
+    return redirect(url_for('profile'))
+
+@app.route('/auth/test-email', methods=['POST'])
+@login_required
+def test_user_oauth_email():
+    """Test het versturen van een e-mail met de OAuth tokens van de gebruiker"""
+    if not current_user.is_authenticated:
+        return jsonify({'success': False, 'message': 'Niet ingelogd'})
+    
+    workspace_id = request.form.get('workspace_id')
+    
+    # Controleer of gebruiker toegang heeft tot deze werkruimte
+    if not current_user.is_super_admin and current_user.workspace_id != int(workspace_id):
+        return jsonify({'success': False, 'message': 'Geen toegang tot deze werkruimte'})
+    
+    # Verstuur test e-mail
+    to_email = current_user.email
+    subject = "Test OAuth e-mail via Microsoft"
+    body_html = f"""
+    <html>
+        <body>
+            <h1>OAuth e-mail test</h1>
+            <p>Deze e-mail is verzonden via jouw Microsoft account met OAuth authenticatie.</p>
+            <p>Als je deze e-mail hebt ontvangen, is de koppeling met Microsoft succesvol.</p>
+            <p>Je kunt nu e-mails versturen namens jouw e-mailadres.</p>
+            <p>Met vriendelijke groet,<br>MidaWeb</p>
+        </body>
+    </html>
+    """
+    
+    # Verstuur de e-mail
+    success, message = send_email_with_user_oauth(
+        user=current_user,
+        workspace_id=workspace_id,
+        to_email=to_email,
+        subject=subject,
+        body_html=body_html
+    )
+    
+    return jsonify({
+        'success': success,
+        'message': message
+    })
 

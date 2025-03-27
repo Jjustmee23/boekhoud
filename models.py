@@ -465,6 +465,28 @@ class UserOAuthToken(db.Model):
         """Controleert of het token nog geldig is (niet verlopen)"""
         if not self.token_expiry:
             return False
+        return datetime.now() < self.token_expiry
+        
+    def to_dict(self):
+        """Token in dictionary formaat"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'workspace_id': self.workspace_id,
+            'provider': self.provider,
+            'email': self.email,
+            'display_name': self.display_name,
+            'token_expiry': self.token_expiry,
+            'is_valid': self.is_valid,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+    
+    @property
+    def is_valid(self):
+        """Controleert of het token nog geldig is (niet verlopen)"""
+        if not self.token_expiry:
+            return False
         return self.token_expiry > datetime.now()
     
     @staticmethod
@@ -748,6 +770,9 @@ class User(UserMixin, db.Model):
     workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'), nullable=True)
     workspace = db.relationship('Workspace', back_populates='users')
     
+    # OAuth token relationship
+    oauth_tokens = db.relationship('UserOAuthToken', back_populates='user', cascade='all, delete-orphan')
+    
     # Make username and email unique per workspace
     __table_args__ = (
         sa.UniqueConstraint('username', 'workspace_id', name='uix_user_username_workspace'),
@@ -759,6 +784,34 @@ class User(UserMixin, db.Model):
         
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def get_oauth_token(self, workspace_id=None, provider='microsoft'):
+        """
+        Haal een OAuth token op voor een specifieke provider en workspace
+        
+        Args:
+            workspace_id: ID van de werkruimte, als None wordt de huidige werkruimte gebruikt
+            provider: Naam van de provider ('microsoft', 'google', etc.)
+            
+        Returns:
+            UserOAuthToken object of None als er geen is gevonden
+        """
+        if workspace_id is None and self.workspace_id is not None:
+            workspace_id = self.workspace_id
+        
+        if workspace_id is None:
+            return None
+        
+        return UserOAuthToken.query.filter_by(
+            user_id=self.id,
+            workspace_id=workspace_id,
+            provider=provider
+        ).first()
+        
+    def has_valid_oauth_token(self, workspace_id=None, provider='microsoft'):
+        """Controleert of de gebruiker een geldig OAuth token heeft voor een specifieke provider en werkruimte"""
+        token = self.get_oauth_token(workspace_id, provider)
+        return token is not None and token.is_valid
     
     def __repr__(self):
         return f'<User {self.username}>'

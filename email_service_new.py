@@ -1,544 +1,628 @@
 """
-E-mail service module voor het versturen van e-mails via Microsoft 365 met OAuth 2.0 authenticatie.
-Implementeert Microsoft Authentication Library (MSAL) voor het verkrijgen van OAuth2 tokens.
+Nieuwe email service module die gebruik maakt van OAuth-tokens van gebruikers
+voor het verzenden van e-mails namens de gebruiker.
 """
-import os
-import base64
-import logging
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
-from flask import current_app
-from msal import ConfidentialClientApplication
 
-# Logger configuratie
+import os
+import logging
+import json
+import time
+import base64
+from datetime import datetime, timedelta
+
+import requests
+from flask import url_for, current_app
+import msal
+
+# Logging configureren
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-class EmailService:
+class MSGraphEmailService:
     """
-    E-mail service voor het versturen van e-mails via Microsoft 365 met OAuth 2.0 authenticatie.
-    Haalt de instellingen op uit de database.
+    Class voor het verzenden van e-mails via Microsoft Graph API
+    met ondersteuning voor OAuth-tokens van gebruikers.
     """
     
-    def __init__(self, email_settings=None):
+    def __init__(self, settings=None, user_token=None):
         """
-        Initialiseer de EmailService
+        Initialiseer de MS Graph Email Service
         
         Args:
-            email_settings: EmailSettings model voor een specifieke workspace (optioneel)
-                           Als None, worden de systeem-instellingen gebruikt
+            settings: EmailSettings object met app-registratie instellingen
+            user_token: UserOAuthToken object met gebruikersspecifieke token
         """
-        self.logger = logging.getLogger(__name__)
-        self.email_settings = email_settings
+        self.settings = settings
+        self.user_token = user_token
         
-        # Configuratievariabelen
-        self.client_id = None
-        self.client_secret = None
-        self.tenant_id = None
-        self.email_account = None
-        self.display_name = None
+        # Microsoft Graph API configuratie
+        self.graph_endpoint = 'https://graph.microsoft.com/v1.0'
+        self.max_token_retry = 3
         
-        # Haal instellingen op
-        self._load_settings()
-    
-    def _load_settings(self):
-        """Laad de instellingen uit de database of fallback naar omgevingsvariabelen"""
-        if self.email_settings:
-            # Haal instellingen op uit het meegegeven EmailSettings object
-            self._load_from_settings()
-        else:
-            # Haal systeem-instellingen op (workspace_id=None) of fallback naar omgevingsvariabelen
-            self._load_from_system_settings()
-    
-    def _load_from_settings(self):
-        """Laad instellingen uit EmailSettings object"""
-        from models import EmailSettings
-        
-        self.client_id = self.email_settings.ms_graph_client_id
-        self.client_secret = EmailSettings.decrypt_secret(self.email_settings.ms_graph_client_secret)
-        self.tenant_id = self.email_settings.ms_graph_tenant_id
-        
-        # Bepaal het e-mail account voor authenticatie
-        if hasattr(self.email_settings, 'ms_graph_sender_email'):
-            self.email_account = self.email_settings.ms_graph_sender_email
+        # Client configuratie
+        if self.user_token:
+            # Gebruiker OAuth token modus
+            self.client_mode = 'user_oauth'
+        elif settings and settings.use_ms_graph:
+            # Centrale app modus
+            self.client_mode = 'app_auth'
+            self.client_id = settings.ms_graph_client_id
+            self.client_secret = settings.decrypt_secret(settings.ms_graph_client_secret)
+            self.tenant_id = settings.ms_graph_tenant_id
+            self.authority = f'https://login.microsoftonline.com/{self.tenant_id}'
             
-        # Display name
-        if hasattr(self.email_settings, 'default_sender_name') and self.email_settings.default_sender_name:
-            self.display_name = self.email_settings.default_sender_name
+            # Email configuratie voor app
+            self.sender_email = settings.ms_graph_sender_email
+            self.use_shared_mailbox = settings.ms_graph_use_shared_mailbox
+            self.shared_mailbox = settings.ms_graph_shared_mailbox
+            
+            self.sender_name = settings.default_sender_name or settings.email_from_name or "MidaWeb"
         else:
-            self.display_name = "MidaWeb"
+            self.client_mode = None
     
-    def _load_from_system_settings(self):
-        """Laad instellingen uit systeem instellingen of omgevingsvariabelen"""
-        from models import EmailSettings
-        
-        try:
-            # Systeem-instellingen ophalen (workspace_id=None)
-            with current_app.app_context():
-                system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
-                
-                if system_settings:
-                    self.email_settings = system_settings
-                    self._load_from_settings()
-                else:
-                    # Fallback naar omgevingsvariabelen
-                    self._load_from_environment()
-                    
-                # Als er een probleem is met de ontvangen gecrypteerde client secret, probeer fallback
-                if self.client_secret and self.client_secret.startswith('Nm'):
-                    self.client_secret = os.environ.get("MS_GRAPH_CLIENT_SECRET", "")
-        except Exception as e:
-            self.logger.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
-            # Fallback naar omgevingsvariabelen
-            self._load_from_environment()
-    
-    def _load_from_environment(self):
-        """Laad instellingen uit omgevingsvariabelen"""
-        self.client_id = os.environ.get("MS_GRAPH_CLIENT_ID")
-        self.client_secret = os.environ.get("MS_GRAPH_CLIENT_SECRET")
-        self.tenant_id = os.environ.get("MS_GRAPH_TENANT_ID")
-        self.email_account = os.environ.get("MS_GRAPH_SENDER_EMAIL")
-        self.display_name = os.environ.get("EMAIL_FROM_NAME", "MidaWeb")
-    
-    def is_configured(self):
-        """Controleert of alle benodigde instellingen aanwezig zijn"""
-        return all([
-            self.client_id, 
-            self.client_secret, 
-            self.tenant_id, 
-            self.email_account
-        ])
-    
-    def get_oauth_token(self):
+    def _get_app_token(self):
         """
-        Verkrijg een OAuth 2.0 token voor SMTP authenticatie
-        
-        Returns:
-            str: OAuth2 token of None bij fouten
+        Verkrijg een app token via client credentials flow
         """
-        if not self.is_configured():
-            self.logger.error("Microsoft 365 OAuth niet correct geconfigureerd")
+        if not self.client_mode == 'app_auth':
+            logger.error("App token kan alleen worden verkregen in app_auth modus")
             return None
         
-        try:
-            # Microsoft login authority en scope
-            authority = f'https://login.microsoftonline.com/{self.tenant_id}'
-            scope = ['https://outlook.office365.com/.default']  # Voor SMTP
-            
-            # Token ophalen via MSAL
-            app = ConfidentialClientApplication(
-                client_id=self.client_id,
-                client_credential=self.client_secret,
-                authority=authority
-            )
-            
-            # Probeer silent token ophalen
-            result = app.acquire_token_silent(scope, account=None)
-            
-            # Als geen token, haal nieuw token op
-            if not result:
-                result = app.acquire_token_for_client(scopes=scope)
-            
-            if 'access_token' not in result:
-                if 'error' in result:
-                    self.logger.error(f"Fout bij verkrijgen token: {result.get('error')}")
-                    self.logger.error(f"Error beschrijving: {result.get('error_description')}")
-                else:
-                    self.logger.error("Onbekende fout bij het verkrijgen van een token")
-                return None
-            
-            self.logger.info("OAuth2 token succesvol verkregen")
+        # MSAL app aanmaken
+        app = msal.ConfidentialClientApplication(
+            client_id=self.client_id,
+            client_credential=self.client_secret,
+            authority=self.authority
+        )
+        
+        # Token verkrijgen
+        scopes = ['https://graph.microsoft.com/.default']
+        
+        # Haal token op uit cache of via nieuwe aanvraag
+        result = app.acquire_token_silent(scopes, account=None)
+        if not result:
+            logger.info(f"Geen token in cache, nieuwe token aanvragen voor tenant {self.tenant_id}")
+            result = app.acquire_token_for_client(scopes=scopes)
+        
+        if "access_token" in result:
+            logger.info("Succesvol app token verkregen")
             return result['access_token']
-            
-        except Exception as e:
-            self.logger.error(f"Exception bij het verkrijgen van OAuth token: {str(e)}")
+        else:
+            logger.error(f"Kon geen app token verkrijgen: {result.get('error')}, {result.get('error_description')}")
             return None
     
-    def send_email(self, recipient, subject, body_html, cc=None, attachments=None):
+    def _get_user_token(self):
         """
-        Verstuur een e-mail via Microsoft 365 SMTP met OAuth 2.0 authenticatie
+        Haal een geldig gebruikers token op of vernieuw het indien nodig
+        """
+        if not self.client_mode == 'user_oauth' or not self.user_token:
+            logger.error("Gebruikers token kan alleen worden verkregen in user_oauth modus")
+            return None
+        
+        # Check of token nog geldig is
+        if self.user_token.is_valid:
+            logger.info(f"Gebruiken van bestaand geldig token voor {self.user_token.email}")
+            return self.user_token.decrypt_token(self.user_token.access_token)
+        
+        # Token is verlopen, probeer te vernieuwen
+        if not self.user_token.refresh_token:
+            logger.error(f"Geen refresh token beschikbaar voor gebruiker {self.user_token.email}")
+            return None
+        
+        # Haal settings op voor app registratie gegevens
+        from models import EmailSettings
+        settings = EmailSettings.query.filter_by(workspace_id=self.user_token.workspace_id).first()
+        if not settings:
+            settings = EmailSettings.query.filter_by(workspace_id=None).first()
+        
+        if not settings or not settings.ms_graph_client_id or not settings.ms_graph_client_secret:
+            logger.error("Geen app registratie gegevens beschikbaar voor token vernieuwing")
+            return None
+        
+        # MSAL app aanmaken
+        app = msal.PublicClientApplication(
+            client_id=settings.ms_graph_client_id,
+            authority=f'https://login.microsoftonline.com/common'
+        )
+        
+        # Token vernieuwen
+        refresh_token = self.user_token.decrypt_token(self.user_token.refresh_token)
+        
+        result = app.acquire_token_by_refresh_token(
+            refresh_token=refresh_token,
+            scopes=self.user_token.oauth_scopes.split() if hasattr(self.user_token, 'oauth_scopes') else ['mail.send']
+        )
+        
+        if "access_token" in result:
+            logger.info(f"Token succesvol vernieuwd voor {self.user_token.email}")
+            
+            # Update token in database
+            self.user_token.access_token = self.user_token.encrypt_token(result['access_token'])
+            self.user_token.refresh_token = self.user_token.encrypt_token(result.get('refresh_token', refresh_token))
+            
+            # Update expiry
+            expires_in = result.get('expires_in', 3600)
+            self.user_token.token_expiry = datetime.now() + timedelta(seconds=expires_in - 300)  # 5 min buffer
+            
+            from app import db
+            db.session.commit()
+            
+            return result['access_token']
+        else:
+            logger.error(f"Kon token niet vernieuwen: {result.get('error')}, {result.get('error_description')}")
+            return None
+    
+    def _get_token(self):
+        """
+        Verkrijg een geldig token op basis van de modus
+        """
+        if self.client_mode == 'app_auth':
+            return self._get_app_token()
+        elif self.client_mode == 'user_oauth':
+            return self._get_user_token()
+        else:
+            logger.error("Geen geldige client modus geconfigureerd")
+            return None
+    
+    def send_email(self, to_email, subject, body_html, cc=None, reply_to=None, attachments=None):
+        """
+        Verzend een e-mail via Microsoft Graph API
         
         Args:
-            recipient: E-mailadres van de ontvanger (of lijst van ontvangers)
+            to_email: Ontvanger e-mailadres of lijst met e-mailadressen
             subject: Onderwerp van de e-mail
             body_html: HTML inhoud van de e-mail
-            cc: Carbon copy ontvangers (optioneel), string of lijst
-            attachments: Lijst van bijlagen (optioneel), elk een dict met 'path' en 'filename'
-        
+            cc: CC e-mailadressen (optioneel)
+            reply_to: Reply-to e-mailadres (optioneel)
+            attachments: Lijst met bijlagen als dict met 'path' en optioneel 'name'
+                    
         Returns:
-            bool: True als verzending succesvol was, anders False
+            Tuple met (success, message)
         """
-        if not self.is_configured():
-            self.logger.error("E-mail instellingen niet volledig geconfigureerd")
-            return False
+        # Bepaal token op basis van modus
+        access_token = self._get_token()
+        if not access_token:
+            return False, "Geen geldig authenticatie token beschikbaar"
         
-        try:
-            # OAuth token ophalen
-            access_token = self.get_oauth_token()
-            if not access_token:
-                return False
-            
-            # Formateer het OAuth2 authentication token voor SMTP
-            auth_string = f"user={self.email_account}\x01auth=Bearer {access_token}\x01\x01"
-            auth_bytes = base64.b64encode(auth_string.encode())
-            
-            # Maak het e-mail bericht
-            msg = self._build_email_message(recipient, subject, body_html, cc)
-            
-            # Voeg bijlagen toe indien opgegeven
-            if attachments:
-                self._add_attachments_to_message(msg, attachments)
-            
-            # Bepaal ontvangers voor verzending
-            recipients = [recipient] if isinstance(recipient, str) else recipient
-            if cc:
-                if isinstance(cc, str):
-                    recipients.append(cc)
-                else:
-                    recipients.extend(cc)
-            
-            # SMTP verbinding maken en e-mail verzenden
-            smtp_server = "smtp.office365.com"
-            smtp_port = 587
-            
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.ehlo()
-                
-                # SMTP authenticatie met OAuth2
-                server.docmd('AUTH', 'XOAUTH2 ' + auth_bytes.decode())
-                
-                # E-mail verzenden
-                server.send_message(msg)
-                
-                self.logger.info(f"E-mail succesvol verzonden naar {recipients}")
-                return True
-                
-        except Exception as e:
-            self.logger.error(f"Fout bij versturen e-mail: {str(e)}")
-            return False
-    
-    def _build_email_message(self, recipient, subject, body_html, cc=None):
-        """Bouw het e-mail bericht op"""
-        # Maak multipart bericht voor HTML inhoud
-        msg = MIMEMultipart()
-        msg['Subject'] = subject
+        # Maak een lijst van alle ontvangers
+        if isinstance(to_email, str):
+            to_email = [to_email]
         
-        # Afzender met display naam
-        from_addr = f"{self.display_name} <{self.email_account}>"
-        msg['From'] = from_addr
+        if isinstance(cc, str) and cc:
+            cc = [cc]
+        elif not cc:
+            cc = []
         
-        # Ontvangers toevoegen
-        if isinstance(recipient, list):
-            msg['To'] = ', '.join(recipient)
+        # Bepaal de afzender
+        if self.client_mode == 'user_oauth':
+            sender_email = self.user_token.email
+            sender_name = self.user_token.display_name or sender_email.split('@')[0]
         else:
-            msg['To'] = recipient
-            
-        # CC toevoegen indien opgegeven
-        if cc:
-            if isinstance(cc, list):
-                msg['Cc'] = ', '.join(cc)
+            if self.use_shared_mailbox and self.shared_mailbox:
+                sender_email = self.shared_mailbox
             else:
-                msg['Cc'] = cc
+                sender_email = self.sender_email
+            
+            sender_name = self.sender_name
         
-        # HTML inhoud toevoegen
-        msg.attach(MIMEText(body_html, 'html'))
+        # Bereid het e-mail verzoek voor
+        message = {
+            'message': {
+                'subject': subject,
+                'body': {
+                    'contentType': 'HTML',
+                    'content': body_html
+                },
+                'toRecipients': [{'emailAddress': {'address': email}} for email in to_email],
+                'from': {
+                    'emailAddress': {
+                        'address': sender_email,
+                        'name': sender_name
+                    }
+                }
+            }
+        }
         
-        return msg
-    
-    def _add_attachments_to_message(self, msg, attachments):
-        """Voeg bijlagen toe aan het bericht"""
-        if not attachments:
-            return
+        # Voeg CC toe indien aanwezig
+        if cc:
+            message['message']['ccRecipients'] = [{'emailAddress': {'address': email}} for email in cc]
         
-        for attachment in attachments:
-            try:
-                path = attachment.get('path')
-                filename = attachment.get('filename')
-                
-                if not path or not filename:
+        # Voeg reply-to toe indien aanwezig
+        if reply_to:
+            message['message']['replyTo'] = [{'emailAddress': {'address': reply_to}}]
+        
+        # Voeg bijlagen toe indien aanwezig
+        if attachments:
+            message['message']['attachments'] = []
+            for attachment in attachments:
+                if isinstance(attachment, str):
+                    path = attachment
+                    name = os.path.basename(path)
+                elif isinstance(attachment, dict):
+                    path = attachment.get('path')
+                    name = attachment.get('name') or os.path.basename(path)
+                else:
                     continue
                 
+                if not os.path.exists(path):
+                    logger.warning(f"Bijlage niet gevonden: {path}")
+                    continue
+                
+                # Lees bestand en codeer als base64
                 with open(path, 'rb') as file:
-                    part = MIMEApplication(file.read(), Name=filename)
+                    content_bytes = file.read()
+                    content_b64 = base64.b64encode(content_bytes).decode('utf-8')
                 
-                # Toevoegen als bijlage
-                part['Content-Disposition'] = f'attachment; filename="{filename}"'
-                msg.attach(part)
-                
-                self.logger.info(f"Bijlage toegevoegd: {filename}")
-            except Exception as e:
-                self.logger.error(f"Fout bij toevoegen bijlage {attachment.get('filename', 'unknown')}: {str(e)}")
-    
-    def send_template_email(self, recipient, template_name, template_params, cc=None, attachments=None):
-        """
-        Verstuur een e-mail op basis van een sjabloon
+                # Voeg bijlage toe
+                message['message']['attachments'].append({
+                    '@odata.type': '#microsoft.graph.fileAttachment',
+                    'name': name,
+                    'contentType': 'application/octet-stream',
+                    'contentBytes': content_b64
+                })
         
-        Args:
-            recipient: E-mailadres van de ontvanger
-            template_name: Naam van het template om te gebruiken
-            template_params: Dict met parameters voor het template
-            cc: Carbon copy ontvangers (optioneel)
-            attachments: Lijst van bijlagen (optioneel)
-            
-        Returns:
-            bool: True als verzending succesvol was, anders False
-        """
-        from models import EmailTemplate
+        # Bepaal het endpoint op basis van de modus
+        if self.client_mode == 'user_oauth':
+            # In user_oauth modus sturen we het bericht namens de gebruiker
+            endpoint = f"{self.graph_endpoint}/me/sendMail"
+        else:
+            # In app_auth modus, controleren of we een gedeelde mailbox gebruiken
+            if self.use_shared_mailbox and self.shared_mailbox:
+                endpoint = f"{self.graph_endpoint}/users/{self.shared_mailbox}/sendMail"
+            else:
+                endpoint = f"{self.graph_endpoint}/users/{sender_email}/sendMail"
         
+        # Headers voor het verzoek
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Verstuur het verzoek
         try:
-            # Zoek het template in de database
-            workspace_id = getattr(self.email_settings, 'workspace_id', None) if self.email_settings else None
+            response = requests.post(endpoint, headers=headers, json=message)
             
-            with current_app.app_context():
-                # Zoek eerst workspace-specifiek template indien email_settings een workspace heeft
-                if workspace_id:
-                    template = EmailTemplate.query.filter_by(
-                        workspace_id=workspace_id,
-                        name=template_name
-                    ).first()
-                else:
-                    template = None
-                    
-                # Als geen workspace-specifiek template, zoek naar een systeem template
-                if not template:
-                    template = EmailTemplate.query.filter_by(
-                        workspace_id=None,
-                        name=template_name
-                    ).first()
-                    
-                if not template:
-                    self.logger.error(f"E-mail template '{template_name}' niet gevonden")
-                    return False
-                
-                # Vul template in met parameters
-                import jinja2
-                env = jinja2.Environment()
-                subject_template = env.from_string(template.subject)
-                body_template = env.from_string(template.body_html)
-                
-                subject = subject_template.render(**template_params)
-                body_html = body_template.render(**template_params)
-                
-                # Verstuur de e-mail
-                return self.send_email(recipient, subject, body_html, cc, attachments)
-                
+            if response.status_code == 202 or response.status_code == 200:
+                logger.info(f"E-mail succesvol verzonden aan {to_email}")
+                return True, "E-mail succesvol verzonden"
+            else:
+                error_data = response.json() if response.text else {}
+                error_msg = error_data.get('error', {}).get('message', f"Status code: {response.status_code}")
+                logger.error(f"Fout bij versturen e-mail: {error_msg}")
+                return False, f"Fout bij versturen e-mail: {error_msg}"
+        
         except Exception as e:
-            self.logger.error(f"Fout bij versturen template e-mail: {str(e)}")
-            return False
-    
-    def send_workspace_invitation(self, recipient_email, workspace_name, activation_token, customer_name=None):
-        """
-        Stuur een uitnodiging voor een nieuwe workspace naar een klant
-        
-        Args:
-            recipient_email: E-mailadres van de ontvanger
-            workspace_name: Naam van de workspace
-            activation_token: Token voor activatie en eerste login
-            customer_name: Naam van de klant (optioneel)
-        """
-        from flask import url_for
-        
-        try:
-            with current_app.app_context():
-                # Bepaal de activatie-URL
-                activation_url = url_for(
-                    'activate_workspace', 
-                    token=activation_token, 
-                    workspace=workspace_name,
-                    _external=True
-                )
-                
-                # Stel parameters in voor het template
-                template_params = {
-                    'customer_name': customer_name or 'Geachte klant',
-                    'workspace_name': workspace_name,
-                    'activation_url': activation_url
-                }
-                
-                # Verstuur de e-mail met het juiste template
-                return self.send_template_email(
-                    recipient_email,
-                    'workspace_invitation',
-                    template_params
-                )
-        except Exception as e:
-            self.logger.error(f"Fout bij versturen workspace uitnodiging: {str(e)}")
-            
-            # Fallback: handmatige e-mail verzenden
-            greeting = f"Beste {customer_name}" if customer_name else "Beste"
-            subject = f"Uitnodiging: Uw nieuwe facturatie platform workspace '{workspace_name}'"
-            
-            body_html = f"""
-            <html>
-                <head>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                        h1 {{ color: #2c3e50; margin-bottom: 20px; }}
-                        .btn {{ display: inline-block; padding: 10px 20px; background-color: #3498db; color: white; 
-                               text-decoration: none; border-radius: 4px; font-weight: bold; }}
-                        .footer {{ margin-top: 40px; font-size: 0.9em; color: #7f8c8d; }}
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <h1>Welkom bij uw nieuwe werkruimte!</h1>
-                        <p>{greeting},</p>
-                        <p>U bent uitgenodigd om gebruik te maken van uw nieuwe werkruimte '{workspace_name}' op ons facturatie platform.</p>
-                        <p>Om te beginnen, klik op onderstaande link om uw account te activeren:</p>
-                        <p><a href="{activation_url}" class="btn">Activeer uw account</a></p>
-                        <p>Of kopieer deze URL in uw browser:</p>
-                        <p><small>{activation_url}</small></p>
-                        <p>Na activatie kunt u inloggen en uw accountgegevens beheren.</p>
-                        <div class="footer">
-                            <p>Met vriendelijke groeten,<br>Het team van MidaWeb</p>
-                        </div>
-                    </div>
-                </body>
-            </html>
-            """
-            
-            return self.send_email(recipient_email, subject, body_html)
-    
-    def send_user_invitation(self, recipient_email, workspace_name, activation_token, inviter_name=None):
-        """
-        Stuur een uitnodiging naar een gebruiker voor toegang tot een workspace
-        
-        Args:
-            recipient_email: E-mailadres van de ontvanger
-            workspace_name: Naam van de workspace
-            activation_token: Token voor activatie en eerste login
-            inviter_name: Naam van de persoon die de uitnodiging stuurt (optioneel)
-        """
-        from flask import url_for
-        
-        try:
-            with current_app.app_context():
-                # Bepaal de activatie-URL
-                activation_url = url_for(
-                    'activate_user', 
-                    token=activation_token, 
-                    _external=True
-                )
-                
-                # Stel parameters in voor het template
-                template_params = {
-                    'workspace_name': workspace_name,
-                    'activation_url': activation_url,
-                    'inviter_name': inviter_name or 'De beheerder'
-                }
-                
-                # Verstuur de e-mail met het juiste template
-                return self.send_template_email(
-                    recipient_email,
-                    'user_invitation',
-                    template_params
-                )
-        except Exception as e:
-            self.logger.error(f"Fout bij versturen gebruikersuitnodiging: {str(e)}")
-            
-            # Fallback: handmatige e-mail verzenden
-            inviter = inviter_name or "De beheerder"
-            subject = f"Uitnodiging: Toegang tot werkruimte '{workspace_name}'"
-            
-            body_html = f"""
-            <html>
-                <head>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                        h1 {{ color: #2c3e50; margin-bottom: 20px; }}
-                        .btn {{ display: inline-block; padding: 10px 20px; background-color: #3498db; color: white; 
-                               text-decoration: none; border-radius: 4px; font-weight: bold; }}
-                        .footer {{ margin-top: 40px; font-size: 0.9em; color: #7f8c8d; }}
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <h1>Uitnodiging voor toegang</h1>
-                        <p>Beste,</p>
-                        <p>{inviter} heeft u uitgenodigd om toegang te krijgen tot werkruimte '{workspace_name}' op ons facturatie platform.</p>
-                        <p>Om te beginnen, klik op onderstaande link om uw account te activeren:</p>
-                        <p><a href="{activation_url}" class="btn">Activeer uw account</a></p>
-                        <p>Of kopieer deze URL in uw browser:</p>
-                        <p><small>{activation_url}</small></p>
-                        <p>Na activatie kunt u inloggen en uw accountgegevens beheren.</p>
-                        <div class="footer">
-                            <p>Met vriendelijke groeten,<br>Het team van MidaWeb</p>
-                        </div>
-                    </div>
-                </body>
-            </html>
-            """
-            
-            return self.send_email(recipient_email, subject, body_html)
+            logger.error(f"Uitzondering bij versturen e-mail: {str(e)}")
+            return False, f"Uitzondering bij versturen e-mail: {str(e)}"
 
-class EmailServiceHelper:
-    """Helper class met statische methoden voor e-mail services"""
+
+def send_activation_email(token, email, is_workspace=False):
+    """
+    Verzend een activatie e-mail met de gegenereerde token.
     
-    @staticmethod
-    def create_for_workspace(workspace_id):
-        """
-        Maak een EmailService-instantie voor een specifieke workspace
+    Args:
+        token: De gegenereerde JWT token als string
+        email: E-mailadres van de ontvanger
+        is_workspace: True als het een workspace activatie betreft, False voor gebruiker activatie
+    """
+    logger.info(f"{'Workspace' if is_workspace else 'Gebruiker'} activatie e-mail verzenden naar {email}")
+    
+    # Importeer benodigde modules binnen de functie om circulaire imports te voorkomen
+    from models import EmailSettings
+    from app import app
+    
+    # Haal basis URL en e-mailinstellingen op
+    with app.app_context():
+        settings = EmailSettings.query.filter_by(workspace_id=None).first()
         
-        Args:
-            workspace_id: ID van de workspace
+        if not settings:
+            # Gebruik standaard fallback instellingen als geen instellingen beschikbaar zijn
+            logger.warning("Geen e-mailinstellingen gevonden, gebruik standaard fallback")
+            base_url = os.environ.get('BASE_URL', 'http://localhost:5000')
+            sender_name = "MidaWeb"
+        else:
+            # Bepaal base URL vanuit configuratie of omgevingsvariabele
+            base_url = os.environ.get('BASE_URL', 'http://localhost:5000')
+            sender_name = settings.default_sender_name or settings.email_from_name or "MidaWeb"
+        
+        # Maak activatie URL
+        if is_workspace:
+            activation_url = f"{base_url}/activate/workspace/{token}"
+        else:
+            activation_url = f"{base_url}/activate/user/{token}"
+        
+        # Bereid e-mail inhoud voor
+        subject = "Activeer uw werkruimte" if is_workspace else "Activeer uw account"
+        
+        if is_workspace:
+            body_html = f"""
+            <html>
+                <body>
+                    <h1>Activeer uw werkruimte</h1>
+                    <p>Klik op de onderstaande link om uw werkruimte te activeren:</p>
+                    <p><a href="{activation_url}">{activation_url}</a></p>
+                    <p>Deze link verloopt over 24 uur.</p>
+                    <p>Met vriendelijke groet,<br/>{sender_name}</p>
+                </body>
+            </html>
+            """
+        else:
+            body_html = f"""
+            <html>
+                <body>
+                    <h1>Activeer uw account</h1>
+                    <p>Klik op de onderstaande link om uw account te activeren:</p>
+                    <p><a href="{activation_url}">{activation_url}</a></p>
+                    <p>Deze link verloopt over 24 uur.</p>
+                    <p>Met vriendelijke groet,<br/>{sender_name}</p>
+                </body>
+            </html>
+            """
+        
+        # Verzend e-mail via MS Graph API indien geconfigureerd
+        if settings and settings.use_ms_graph:
+            email_service = MSGraphEmailService(settings=settings)
+            success, message = email_service.send_email(
+                to_email=email,
+                subject=subject,
+                body_html=body_html
+            )
             
-        Returns:
-            EmailService: Nieuwe instantie met workspace-specifieke instellingen
-        """
-        from models import EmailSettings
+            if success:
+                logger.info(f"Activatie e-mail succesvol verzonden naar {email}")
+                return True
+            else:
+                logger.error(f"Fout bij versturen activatie e-mail: {message}")
+                return False
+        else:
+            # Hier kun je een fallback e-mail provider toevoegen (bv. SMTP)
+            logger.error("MS Graph API niet geconfigureerd en geen fallback beschikbaar")
+            return False
+
+
+def send_email_with_user_oauth(user, workspace_id, to_email, subject, body_html, cc=None, reply_to=None, attachments=None):
+    """
+    Verzend een e-mail namens de gebruiker met hun eigen OAuth token
+    
+    Args:
+        user: User object van de afzender
+        workspace_id: ID van de werkruimte
+        to_email: Ontvanger e-mailadres(sen)
+        subject: Onderwerp van de e-mail
+        body_html: HTML inhoud van de e-mail
+        cc: CC e-mailadressen (optioneel)
+        reply_to: Reply-to e-mailadres (optioneel)
+        attachments: Lijst met bijlagen
         
+    Returns:
+        Tuple met (success, message)
+    """
+    logger.info(f"E-mail versturen namens gebruiker {user.email} in werkruimte {workspace_id}")
+    
+    # Haal het OAuth token op voor deze gebruiker
+    oauth_token = user.get_oauth_token(workspace_id=workspace_id)
+    
+    if not oauth_token:
+        logger.error(f"Geen OAuth token gevonden voor gebruiker {user.email} in werkruimte {workspace_id}")
+        return False, "Gebruiker heeft geen geldig OAuth token. Gelieve opnieuw in te loggen bij Microsoft."
+    
+    # Maak een email service met dit token
+    email_service = MSGraphEmailService(user_token=oauth_token)
+    
+    # Verstuur de e-mail
+    return email_service.send_email(
+        to_email=to_email,
+        subject=subject,
+        body_html=body_html,
+        cc=cc,
+        reply_to=reply_to,
+        attachments=attachments
+    )
+
+
+def get_microsoft_auth_url(workspace_id, redirect_uri=None):
+    """
+    Genereer een Microsoft OAuth authenticatie URL
+    
+    Args:
+        workspace_id: ID van de werkruimte
+        redirect_uri: URL om naar terug te keren na authenticatie
+    
+    Returns:
+        Microsoft OAuth URL als string of None als er een fout optreedt
+    """
+    from flask import url_for
+    from models import EmailSettings
+    
+    # Haal email settings op
+    settings = EmailSettings.query.filter_by(workspace_id=workspace_id).first()
+    if not settings:
+        settings = EmailSettings.query.filter_by(workspace_id=None).first()
+    
+    if not settings or not settings.ms_graph_client_id:
+        logger.error("Geen Microsoft OAuth configuratie beschikbaar")
+        return None
+    
+    if not settings.allow_microsoft_oauth:
+        logger.error("Microsoft OAuth is uitgeschakeld voor deze werkruimte")
+        return None
+    
+    # Standaard scopes
+    scopes = settings.oauth_scopes.split() if settings.oauth_scopes else ['mail.send']
+    
+    # Bouw de redirect_uri
+    if not redirect_uri:
+        # Gebruik de standaard callback URL
         try:
-            with current_app.app_context():
-                # Haal e-mail instellingen op voor de workspace
-                email_settings = EmailSettings.query.filter_by(workspace_id=workspace_id).first()
-                
-                # Maak een nieuwe EmailService-instantie met deze instellingen
-                return EmailService(email_settings)
-                
-        except Exception as e:
-            logger.error(f"Fout bij maken EmailService voor workspace {workspace_id}: {str(e)}")
-            
-            # Fallback naar systeem-instellingen
-            return EmailService()
+            redirect_uri = url_for('microsoft_auth_callback', workspace_id=workspace_id, _external=True)
+        except RuntimeError:
+            # Fallback als er geen app context is
+            base_url = os.environ.get('BASE_URL', 'http://localhost:5000')
+            redirect_uri = f"{base_url}/auth/microsoft/callback/{workspace_id}"
     
-    @staticmethod
-    def send_email_for_workspace(workspace_id, recipient_email, subject, body_html, cc=None, attachments=None):
-        """
-        Verstuur e-mail voor een specifieke workspace
-        
-        Args:
-            workspace_id: ID van de workspace
-            recipient_email: E-mailadres van de ontvanger
-            subject: Onderwerp van de e-mail
-            body_html: HTML inhoud van de e-mail
-            cc: Carbon copy ontvangers (optioneel)
-            attachments: Lijst van bijlagen (optioneel)
-            
-        Returns:
-            bool: True als verzending succesvol was, anders False
-        """
-        email_service = EmailServiceHelper.create_for_workspace(workspace_id)
-        return email_service.send_email(recipient_email, subject, body_html, cc, attachments)
+    # Maak de MSAL app
+    app = msal.PublicClientApplication(
+        client_id=settings.ms_graph_client_id,
+        authority="https://login.microsoftonline.com/common"
+    )
     
-    @staticmethod
-    def send_template_email_for_workspace(workspace_id, recipient_email, template_name, template_params, cc=None, attachments=None):
-        """
-        Verstuur template e-mail voor een specifieke workspace
+    # Genereer de auth URL
+    auth_url = app.get_authorization_request_url(
+        scopes=scopes,
+        redirect_uri=redirect_uri,
+        state=workspace_id
+    )
+    
+    return auth_url
+
+
+def process_microsoft_auth_callback(code, workspace_id, redirect_uri=None):
+    """
+    Verwerk de callback van Microsoft OAuth en sla het token op
+    
+    Args:
+        code: Authenticatie code van Microsoft
+        workspace_id: ID van de werkruimte
+        redirect_uri: Redirect URI die werd gebruikt voor de initiële aanvraag
+    
+    Returns:
+        Tuple met (success, message, user_info)
+    """
+    from flask import url_for, current_app
+    from models import EmailSettings, User, UserOAuthToken
+    from app import db
+    from flask_login import current_user
+    
+    if not current_user.is_authenticated:
+        return False, "Gebruiker niet ingelogd", None
+    
+    # Haal email settings op
+    settings = EmailSettings.query.filter_by(workspace_id=workspace_id).first()
+    if not settings:
+        settings = EmailSettings.query.filter_by(workspace_id=None).first()
+    
+    if not settings or not settings.ms_graph_client_id:
+        return False, "Geen Microsoft OAuth configuratie beschikbaar", None
+    
+    # Bouw de redirect_uri
+    if not redirect_uri:
+        try:
+            redirect_uri = url_for('microsoft_auth_callback', workspace_id=workspace_id, _external=True)
+        except RuntimeError:
+            base_url = os.environ.get('BASE_URL', 'http://localhost:5000')
+            redirect_uri = f"{base_url}/auth/microsoft/callback/{workspace_id}"
+    
+    # Configureer de MSAL app
+    client_id = settings.ms_graph_client_id
+    app = msal.PublicClientApplication(
+        client_id=client_id,
+        authority="https://login.microsoftonline.com/common"
+    )
+    
+    # Standaard scopes
+    scopes = settings.oauth_scopes.split() if settings.oauth_scopes else ['mail.send']
+    
+    # Token verkrijgen met de autorisatiecode
+    try:
+        result = app.acquire_token_by_authorization_code(
+            code=code,
+            scopes=scopes,
+            redirect_uri=redirect_uri
+        )
+    except Exception as e:
+        logger.error(f"Fout bij het verkrijgen van token: {str(e)}")
+        return False, f"Fout bij het verkrijgen van token: {str(e)}", None
+    
+    # Controleer op fouten
+    if "error" in result:
+        error_msg = f"{result.get('error')}: {result.get('error_description')}"
+        logger.error(f"OAuth fout: {error_msg}")
+        return False, f"OAuth fout: {error_msg}", None
+    
+    # Token succesvol verkregen
+    if "access_token" not in result:
+        return False, "Geen toegangstoken ontvangen", None
+    
+    # Bepaal vervaldatum van token
+    expires_in = result.get("expires_in", 3600)
+    token_expiry = datetime.now() + timedelta(seconds=expires_in - 300)  # 5 min buffer
+    
+    # Haal gebruikersinfo op
+    user_info = get_user_info_from_microsoft(result["access_token"])
+    if not user_info:
+        return False, "Kon gebruikersinformatie niet ophalen", None
+    
+    # Zoek of maak een OAuth token record
+    oauth_token = UserOAuthToken.query.filter_by(
+        user_id=current_user.id,
+        workspace_id=workspace_id,
+        provider='microsoft'
+    ).first()
+    
+    if not oauth_token:
+        # Maak een nieuw token record
+        oauth_token = UserOAuthToken(
+            user_id=current_user.id,
+            workspace_id=workspace_id,
+            provider='microsoft'
+        )
+        db.session.add(oauth_token)
+    
+    # Update token informatie
+    oauth_token.access_token = UserOAuthToken.encrypt_token(result["access_token"])
+    oauth_token.refresh_token = UserOAuthToken.encrypt_token(result.get("refresh_token"))
+    oauth_token.token_expiry = token_expiry
+    oauth_token.email = user_info.get("email")
+    oauth_token.display_name = user_info.get("name")
+    oauth_token.updated_at = datetime.now()
+    
+    # Sla op in database
+    try:
+        db.session.commit()
+        logger.info(f"OAuth token succesvol opgeslagen voor {user_info.get('email')}")
+        return True, "Microsoft account succesvol gekoppeld", user_info
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Fout bij opslaan OAuth token: {str(e)}")
+        return False, f"Fout bij opslaan autorisatie: {str(e)}", None
+
+
+def get_user_info_from_microsoft(access_token):
+    """
+    Haal gebruikersinformatie op van Microsoft Graph API
+    
+    Args:
+        access_token: Geldig access token voor Microsoft Graph API
+    
+    Returns:
+        Dict met gebruikersinformatie of None als er een fout optreedt
+    """
+    graph_endpoint = 'https://graph.microsoft.com/v1.0'
+    user_endpoint = f"{graph_endpoint}/me"
+    
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }
+    
+    try:
+        response = requests.get(user_endpoint, headers=headers)
         
-        Args:
-            workspace_id: ID van de workspace
-            recipient_email: E-mailadres van de ontvanger
-            template_name: Naam van het template
-            template_params: Parameters voor het template
-            cc: Carbon copy ontvangers (optioneel)
-            attachments: Lijst van bijlagen (optioneel)
+        if response.status_code == 200:
+            user_data = response.json()
+            logger.info(f"Gebruikersinfo opgehaald voor {user_data.get('displayName', 'Onbekend')}")
             
-        Returns:
-            bool: True als verzending succesvol was, anders False
-        """
-        email_service = EmailServiceHelper.create_for_workspace(workspace_id)
-        return email_service.send_template_email(recipient_email, template_name, template_params, cc, attachments)
+            return {
+                'id': user_data.get('id'),
+                'email': user_data.get('userPrincipalName') or user_data.get('mail'),
+                'name': user_data.get('displayName'),
+                'given_name': user_data.get('givenName'),
+                'surname': user_data.get('surname')
+            }
+        else:
+            logger.error(f"Fout bij ophalen gebruikersinfo: {response.status_code}, {response.text}")
+            return None
+    
+    except Exception as e:
+        logger.error(f"Uitzondering bij ophalen gebruikersinfo: {str(e)}")
+        return None
