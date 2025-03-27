@@ -2211,6 +2211,20 @@ def admin():
         # Get counts across all workspaces
         customer_count = Customer.query.count()
         invoice_count = Invoice.query.count()
+        
+        # Haal huidige e-mailinstellingen op voor Microsoft Graph API
+        ms_graph_client_id = os.environ.get('MS_GRAPH_CLIENT_ID', '')
+        ms_graph_tenant_id = os.environ.get('MS_GRAPH_TENANT_ID', '')
+        ms_graph_client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET', '')
+        ms_graph_sender_email = os.environ.get('MS_GRAPH_SENDER_EMAIL', '')
+        
+        # Haal huidige SMTP-instellingen op
+        smtp_server = os.environ.get('SMTP_SERVER', '')
+        smtp_port = os.environ.get('SMTP_PORT', '')
+        smtp_username = os.environ.get('SMTP_USERNAME', '')
+        smtp_password = os.environ.get('SMTP_PASSWORD', '')
+        email_from = os.environ.get('EMAIL_FROM', '')
+        email_from_name = os.environ.get('EMAIL_FROM_NAME', '')
     else:
         # Regular admins can only see users in their workspace
         users = User.query.filter_by(workspace_id=current_user.workspace_id).all()
@@ -2219,13 +2233,28 @@ def admin():
         # Get counts for their workspace only
         customer_count = Customer.query.filter_by(workspace_id=current_user.workspace_id).count()
         invoice_count = Invoice.query.filter_by(workspace_id=current_user.workspace_id).count()
+        
+        # Voor normale admins geen e-mailinstellingen
+        ms_graph_client_id = ms_graph_tenant_id = ms_graph_client_secret = ms_graph_sender_email = ''
+        smtp_server = smtp_port = smtp_username = smtp_password = email_from = email_from_name = ''
     
     return render_template('admin.html', 
                            users=users, 
                            workspaces=workspaces,
                            customer_count=customer_count, 
                            invoice_count=invoice_count, 
-                           now=datetime.now())
+                           now=datetime.now(),
+                           # E-mail instellingen voor template
+                           ms_graph_client_id=ms_graph_client_id,
+                           ms_graph_tenant_id=ms_graph_tenant_id,
+                           ms_graph_client_secret=ms_graph_client_secret,
+                           ms_graph_sender_email=ms_graph_sender_email,
+                           smtp_server=smtp_server,
+                           smtp_port=smtp_port,
+                           smtp_username=smtp_username,
+                           smtp_password=smtp_password,
+                           email_from=email_from,
+                           email_from_name=email_from_name)
 
 @app.route('/admin/user/create', methods=['POST'])
 @login_required
@@ -2753,6 +2782,88 @@ def activate_workspace(token):
         email=email,
         now=datetime.now()
     )
+
+@app.route('/admin/email/ms-graph', methods=['POST'])
+@login_required
+def update_ms_graph_settings():
+    """Update Microsoft Graph API instellingen voor e-mail"""
+    # Alleen super-admins kunnen e-mailinstellingen wijzigen
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Haal de instellingen uit het formulier
+    client_id = request.form.get('ms_graph_client_id', '')
+    tenant_id = request.form.get('ms_graph_tenant_id', '')
+    client_secret = request.form.get('ms_graph_client_secret', '')
+    sender_email = request.form.get('ms_graph_sender_email', '')
+    
+    # Valideer invoer
+    if not all([client_id, tenant_id, client_secret, sender_email]):
+        flash('Alle velden zijn verplicht voor Microsoft Graph API configuratie', 'danger')
+        return redirect(url_for('admin'))
+    
+    try:
+        # Update de omgevingsvariabelen
+        os.environ['MS_GRAPH_CLIENT_ID'] = client_id
+        os.environ['MS_GRAPH_TENANT_ID'] = tenant_id
+        os.environ['MS_GRAPH_CLIENT_SECRET'] = client_secret
+        os.environ['MS_GRAPH_SENDER_EMAIL'] = sender_email
+        
+        # Bevestigingsmelding
+        flash('Microsoft Graph API instellingen zijn bijgewerkt', 'success')
+        logging.info("MS Graph API instellingen bijgewerkt door gebruiker %s", current_user.username)
+    except Exception as e:
+        logging.error(f"Fout bij bijwerken van MS Graph instellingen: {str(e)}")
+        flash('Er is een fout opgetreden bij het bijwerken van de instellingen', 'danger')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/email/smtp', methods=['POST'])
+@login_required
+def update_smtp_settings():
+    """Update SMTP instellingen voor e-mail"""
+    # Alleen super-admins kunnen e-mailinstellingen wijzigen
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Haal de instellingen uit het formulier
+    smtp_server = request.form.get('smtp_server', '')
+    smtp_port = request.form.get('smtp_port', '')
+    smtp_username = request.form.get('smtp_username', '')
+    smtp_password = request.form.get('smtp_password', '')
+    email_from = request.form.get('email_from', '')
+    email_from_name = request.form.get('email_from_name', '')
+    
+    # Valideer de essentiële velden als de gebruiker SMTP wil gebruiken
+    if any([smtp_server, smtp_port, smtp_username, smtp_password, email_from]) and not all([smtp_server, smtp_port, smtp_username, smtp_password, email_from]):
+        flash('Alle verplichte SMTP velden moeten worden ingevuld (server, poort, gebruikersnaam, wachtwoord, e-mail van)', 'warning')
+        return redirect(url_for('admin'))
+    
+    try:
+        # Update de omgevingsvariabelen als ze zijn opgegeven
+        if smtp_server:
+            os.environ['SMTP_SERVER'] = smtp_server
+        if smtp_port:
+            os.environ['SMTP_PORT'] = smtp_port
+        if smtp_username:
+            os.environ['SMTP_USERNAME'] = smtp_username
+        if smtp_password:
+            os.environ['SMTP_PASSWORD'] = smtp_password
+        if email_from:
+            os.environ['EMAIL_FROM'] = email_from
+        if email_from_name:
+            os.environ['EMAIL_FROM_NAME'] = email_from_name
+        
+        # Bevestigingsmelding
+        flash('SMTP instellingen zijn bijgewerkt', 'success')
+        logging.info("SMTP instellingen bijgewerkt door gebruiker %s", current_user.username)
+    except Exception as e:
+        logging.error(f"Fout bij bijwerken van SMTP instellingen: {str(e)}")
+        flash('Er is een fout opgetreden bij het bijwerken van de instellingen', 'danger')
+    
+    return redirect(url_for('admin'))
 
 @app.route("/admin/user/invite", methods=["GET", "POST"])
 @login_required
