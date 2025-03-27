@@ -2258,9 +2258,17 @@ def admin_create_user():
     workspace_id = None
     if current_user.is_super_admin:
         # Super admins can assign to any workspace or none (for other super admins)
-        workspace_id = request.form.get('workspace_id')
-        if workspace_id:
-            workspace_id = int(workspace_id)
+        workspace_id_input = request.form.get('workspace_id', '')
+        if workspace_id_input and workspace_id_input.strip():
+            try:
+                workspace_id = int(workspace_id_input)
+            except ValueError:
+                # Als de waarde geen geldige integer is, gebruik None
+                workspace_id = None
+        # Expliciete leeg waarde behandelen ('' of None)
+        elif workspace_id_input == '':
+            # Lege string expliciet omzetten in None voor de database
+            workspace_id = None
     else:
         # Regular admins can only create users in their workspace
         workspace_id = current_user.workspace_id
