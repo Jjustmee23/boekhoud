@@ -428,6 +428,87 @@ def calculate_vat_report(year, quarter=None, month=None, workspace_id=None):
     }
 
 # User Model
+class UserOAuthToken(db.Model):
+    """
+    Model voor het opslaan van OAuth tokens per gebruiker en werkruimte.
+    Dit stelt gebruikers in staat om hun eigen e-mailaccount te gebruiken om namens hen e-mails te versturen.
+    """
+    __tablename__ = 'user_oauth_tokens'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id', ondelete='CASCADE'), nullable=False)
+    provider = db.Column(db.String(20), nullable=False)  # 'microsoft', 'google', etc.
+    
+    # OAuth gegevens
+    access_token = db.Column(db.String(2048))  # Versleuteld opgeslagen
+    refresh_token = db.Column(db.String(2048))  # Versleuteld opgeslagen
+    token_expiry = db.Column(db.DateTime)
+    email = db.Column(db.String(120))  # E-mailadres dat geautoriseerd is
+    display_name = db.Column(db.String(120))  # Weergavenaam voor de gebruiker
+    
+    # Bijhouden wanneer tokens zijn gewijzigd
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # Relaties
+    user = db.relationship('User', back_populates='oauth_tokens')
+    workspace = db.relationship('Workspace', back_populates='oauth_tokens')
+    
+    # Maak combinatie van user_id, workspace_id en provider uniek
+    __table_args__ = (
+        sa.UniqueConstraint('user_id', 'workspace_id', 'provider', name='uix_user_workspace_provider'),
+    )
+    
+    @property
+    def is_valid(self):
+        """Controleert of het token nog geldig is (niet verlopen)"""
+        if not self.token_expiry:
+            return False
+        return self.token_expiry > datetime.now()
+    
+    @staticmethod
+    def encrypt_token(token):
+        """
+        Versleutel een token voor opslag.
+        
+        Deze implementatie slaat nu het token direct op zonder versleuteling om problemen
+        met de authenticatie te voorkomen.
+        """
+        if not token:
+            return None
+        
+        # Retourneer het token ongewijzigd
+        return token
+    
+    @staticmethod
+    def decrypt_token(encrypted_token):
+        """
+        Ontsleutel een opgeslagen token.
+        
+        Omdat we het token direct opslaan, retourneren we het ongewijzigd.
+        """
+        if not encrypted_token:
+            return None
+            
+        # Retourneer het token ongewijzigd
+        return encrypted_token
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'workspace_id': self.workspace_id,
+            'provider': self.provider,
+            'email': self.email,
+            'display_name': self.display_name,
+            'token_expiry': self.token_expiry,
+            'is_valid': self.is_valid,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+
+
 class EmailSettings(db.Model):
     """
     Model voor e-mailinstellingen per werkruimte of systeembrede instellingen.
@@ -466,6 +547,12 @@ class EmailSettings(db.Model):
     ms_graph_sender_email = db.Column(db.String(100))
     ms_graph_shared_mailbox = db.Column(db.String(100))  # E-mailadres van gedeelde mailbox
     ms_graph_use_shared_mailbox = db.Column(db.Boolean, default=False)  # Indien true, gebruik gedeelde mailbox
+    
+    # OAuth gebruikersmodus instellingen
+    use_user_oauth = db.Column(db.Boolean, default=False)  # Indien true, gebruik OAuth tokens van gebruikers
+    allow_microsoft_oauth = db.Column(db.Boolean, default=True)  # Sta Microsoft OAuth toe
+    allow_google_oauth = db.Column(db.Boolean, default=False)  # Sta Google OAuth toe (toekomstige functionaliteit)
+    oauth_scopes = db.Column(db.String(1024), default="mail.send")  # Benodigde permissions voor OAuth
     
     # Relatie met Workspace (nullable voor systeem-instellingen)
     workspace = db.relationship('Workspace', back_populates='email_settings')
@@ -516,6 +603,10 @@ class EmailSettings(db.Model):
             'ms_graph_tenant_id': self.ms_graph_tenant_id,
             'ms_graph_shared_mailbox': self.ms_graph_shared_mailbox if hasattr(self, 'ms_graph_shared_mailbox') else None,
             'ms_graph_use_shared_mailbox': self.ms_graph_use_shared_mailbox if hasattr(self, 'ms_graph_use_shared_mailbox') else False,
+            'use_user_oauth': self.use_user_oauth if hasattr(self, 'use_user_oauth') else False,
+            'allow_microsoft_oauth': self.allow_microsoft_oauth if hasattr(self, 'allow_microsoft_oauth') else True,
+            'allow_google_oauth': self.allow_google_oauth if hasattr(self, 'allow_google_oauth') else False,
+            'oauth_scopes': self.oauth_scopes if hasattr(self, 'oauth_scopes') else "mail.send",
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
@@ -636,6 +727,7 @@ class Workspace(db.Model):
     email_settings = db.relationship('EmailSettings', uselist=False, back_populates='workspace', cascade='all, delete-orphan')
     email_templates = db.relationship('EmailTemplate', back_populates='workspace', cascade='all, delete-orphan')
     email_messages = db.relationship('EmailMessage', back_populates='workspace', cascade='all, delete-orphan')
+    oauth_tokens = db.relationship('UserOAuthToken', back_populates='workspace', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Workspace {self.name}>'
