@@ -99,10 +99,12 @@ class EmailService:
             self.logger.error("Microsoft Graph API is niet geconfigureerd.")
             return None
             
+        # Configureer de client credential volgens MSAL specificaties
+        # Volgens de documentatie: https://msal-python.readthedocs.io/en/latest/#msal.ClientApplication.params.client_credential
         app = msal.ConfidentialClientApplication(
-            self.ms_graph_config.client_id,
+            client_id=self.ms_graph_config.client_id,
             authority=self.ms_graph_config.authority,
-            client_credential={"client_secret": self.ms_graph_config.client_secret},
+            client_credential=self.ms_graph_config.client_secret,
         )
         
         result = app.acquire_token_for_client(scopes=self.ms_graph_config.scope)
