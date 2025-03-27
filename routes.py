@@ -17,7 +17,7 @@ from utils import (
     save_uploaded_file, allowed_file
 )
 from file_processor import FileProcessor
-from email_service import email_service
+from email_service import EmailService, EmailServiceHelper
 from token_helper import token_helper
 
 # Authentication routes
@@ -2229,6 +2229,12 @@ def admin():
             email_from = system_settings.email_from or ''
             email_from_name = system_settings.email_from_name or ''
             
+            # Nieuwe velden voor e-mailinstellingen
+            default_sender_name = system_settings.default_sender_name or ''
+            reply_to = system_settings.reply_to or ''
+            smtp_use_ssl = system_settings.smtp_use_ssl
+            smtp_use_tls = system_settings.smtp_use_tls
+            
             # Provider selectie
             use_ms_graph = system_settings.use_ms_graph
         else:
@@ -2245,6 +2251,12 @@ def admin():
             email_from = os.environ.get('EMAIL_FROM', '')
             email_from_name = os.environ.get('EMAIL_FROM_NAME', '')
             
+            # Standaard waarden voor nieuwe velden
+            default_sender_name = os.environ.get('EMAIL_FROM_NAME', 'MidaWeb')
+            reply_to = os.environ.get('EMAIL_REPLY_TO', '')
+            smtp_use_ssl = True  # Standaard SSL gebruiken
+            smtp_use_tls = False  # Standaard geen TLS
+            
             # Standaard provider selectie
             use_ms_graph = True  # Default naar MS Graph als er geen instellingen zijn
     else:
@@ -2259,6 +2271,9 @@ def admin():
         # Voor normale admins geen e-mailinstellingen
         ms_graph_client_id = ms_graph_tenant_id = ms_graph_client_secret = ms_graph_sender_email = ''
         smtp_server = smtp_port = smtp_username = smtp_password = email_from = email_from_name = ''
+        default_sender_name = reply_to = ''
+        smtp_use_ssl = True
+        smtp_use_tls = False
         use_ms_graph = True  # Default voor normale admins
     
     return render_template('admin.html', 
@@ -2278,6 +2293,12 @@ def admin():
                            smtp_password=smtp_password,
                            email_from=email_from,
                            email_from_name=email_from_name,
+                           # Nieuwe velden voor e-mailinstellingen
+                           default_sender_name=default_sender_name if 'default_sender_name' in locals() else '',
+                           reply_to=reply_to if 'reply_to' in locals() else '',
+                           smtp_use_ssl=smtp_use_ssl if 'smtp_use_ssl' in locals() else True,
+                           smtp_use_tls=smtp_use_tls if 'smtp_use_tls' in locals() else False,
+                           # Provider selectie
                            use_ms_graph=use_ms_graph if 'use_ms_graph' in locals() else True)
 
 @app.route('/admin/user/create', methods=['POST'])
@@ -2686,6 +2707,7 @@ def create_client():
             
             # Send invitation email
             customer_name = f"{first_name} {last_name}" if first_name and last_name else None
+            email_service = EmailService()
             email_sent = email_service.send_workspace_invitation(
                 recipient_email=email,
                 workspace_name=workspace_name,
@@ -2857,10 +2879,12 @@ def update_ms_graph_settings():
     tenant_id = request.form.get('ms_graph_tenant_id', '')
     client_secret = request.form.get('ms_graph_client_secret', '')
     sender_email = request.form.get('ms_graph_sender_email', '')
+    default_sender_name = request.form.get('default_sender_name', 'MidaWeb')
+    reply_to = request.form.get('reply_to', '')
     
     # Valideer invoer
     if not all([client_id, tenant_id, client_secret, sender_email]):
-        flash('Alle velden zijn verplicht voor Microsoft Graph API configuratie', 'danger')
+        flash('Alle verplichte velden zijn nodig voor Microsoft Graph API configuratie', 'danger')
         return redirect(url_for('admin'))
     
     try:
@@ -2877,6 +2901,8 @@ def update_ms_graph_settings():
         system_settings.ms_graph_tenant_id = tenant_id
         system_settings.ms_graph_client_secret = EmailSettings.encrypt_secret(client_secret)
         system_settings.ms_graph_sender_email = sender_email
+        system_settings.default_sender_name = default_sender_name
+        system_settings.reply_to = reply_to
         system_settings.use_ms_graph = True
         
         # Sla de wijzigingen op in de database
@@ -2913,6 +2939,10 @@ def update_smtp_settings():
     smtp_password = request.form.get('smtp_password', '')
     email_from = request.form.get('email_from', '')
     email_from_name = request.form.get('email_from_name', '')
+    default_sender_name = request.form.get('default_sender_name', '')
+    reply_to = request.form.get('reply_to', '')
+    smtp_use_ssl = request.form.get('smtp_use_ssl') == 'true'
+    smtp_use_tls = request.form.get('smtp_use_tls') == 'true'
     
     # Valideer de essentiële velden als de gebruiker SMTP wil gebruiken
     if any([smtp_server, smtp_port, smtp_username, smtp_password, email_from]) and not all([smtp_server, smtp_port, smtp_username, smtp_password, email_from]):
@@ -2936,6 +2966,10 @@ def update_smtp_settings():
             system_settings.smtp_password = EmailSettings.encrypt_secret(smtp_password)
             system_settings.email_from = email_from
             system_settings.email_from_name = email_from_name
+            system_settings.default_sender_name = default_sender_name or email_from_name
+            system_settings.reply_to = reply_to
+            system_settings.smtp_use_ssl = smtp_use_ssl
+            system_settings.smtp_use_tls = smtp_use_tls
             system_settings.use_ms_graph = False
             
             # Sla de wijzigingen op in de database
@@ -3009,6 +3043,7 @@ def invite_user():
             )
             
             # Verzend uitnodigingsmail
+            email_service = EmailService()
             email_sent = email_service.send_user_invitation(
                 recipient_email=email,
                 workspace_name=workspace.name,

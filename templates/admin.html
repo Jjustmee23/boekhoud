@@ -260,6 +260,18 @@
                             <input type="email" class="form-control" id="ms_graph_sender_email" name="ms_graph_sender_email" 
                                    value="{{ ms_graph_sender_email }}" required>
                         </div>
+                        <div class="col-md-6">
+                            <label for="default_sender_name" class="form-label">Naam Afzender</label>
+                            <input type="text" class="form-control" id="default_sender_name" name="default_sender_name" 
+                                   value="{{ default_sender_name }}" placeholder="MidaWeb">
+                            <small class="form-text text-muted">De naam die wordt weergegeven als afzender van e-mails</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="reply_to" class="form-label">Reply-To E-mailadres</label>
+                            <input type="email" class="form-control" id="reply_to" name="reply_to" 
+                                   value="{{ reply_to }}" placeholder="Optioneel">
+                            <small class="form-text text-muted">Optioneel e-mailadres waar ontvangers op kunnen antwoorden</small>
+                        </div>
                         <div class="col-12">
                             <div class="form-text mb-3">
                                 Deze instellingen worden gebruikt voor het verzenden van e-mails via Microsoft Graph API (Office 365).
@@ -326,6 +338,36 @@
                             <label for="email_from_name" class="form-label">Naam afzender</label>
                             <input type="text" class="form-control" id="email_from_name" name="email_from_name" 
                                    value="{{ email_from_name }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="default_sender_name" class="form-label">Standaard afzender naam</label>
+                            <input type="text" class="form-control" id="default_sender_name" name="default_sender_name" 
+                                   value="{{ default_sender_name }}" placeholder="MidaWeb">
+                            <small class="form-text text-muted">Standaard weergavenaam voor uitgaande e-mails</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="reply_to" class="form-label">Reply-To E-mailadres</label>
+                            <input type="email" class="form-control" id="reply_to" name="reply_to" 
+                                   value="{{ reply_to }}" placeholder="Optioneel">
+                            <small class="form-text text-muted">Optioneel e-mailadres waar ontvangers op kunnen antwoorden</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">SMTP Beveiliging</label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="smtp_use_ssl" name="smtp_use_ssl" value="true"
+                                           {% if smtp_use_ssl %}checked{% endif %}>
+                                    <label class="form-check-label" for="smtp_use_ssl">Gebruik SSL</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="smtp_use_tls" name="smtp_use_tls" value="true"
+                                           {% if smtp_use_tls %}checked{% endif %}>
+                                    <label class="form-check-label" for="smtp_use_tls">Gebruik TLS</label>
+                                </div>
+                                <small class="form-text text-muted d-block">
+                                    Voor de meeste providers (Gmail, Office 365) is TLS aanbevolen. SSL is ouder en soms minder veilig.
+                                </small>
+                            </div>
                         </div>
                         <div class="col-12">
                             <div class="form-text mb-3">
