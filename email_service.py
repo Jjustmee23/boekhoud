@@ -186,21 +186,59 @@ class MSGraphProvider(EmailProvider):
         if not access_token:
             return False
         
+        # Bepaal het juiste adres voor verzending (hoofdgebruiker of gedeelde mailbox)
+        # Voor gedeelde mailboxen hebben we Mail.Send en Mail.Send.Shared permissies nodig
+        send_from_address = self.sender_email
+        self.logger.info(f"Verzenden vanaf: {send_from_address}")
+        
         # E-mail bericht opbouwen
-        email_msg = self._build_email_message(recipient, subject, body_html, cc)
+        email_payload = {
+            "message": {
+                "subject": subject,
+                "body": {
+                    "contentType": "HTML",
+                    "content": body_html
+                },
+                "toRecipients": [
+                    {
+                        "emailAddress": {
+                            "address": recipient
+                        }
+                    }
+                ],
+                "from": {
+                    "emailAddress": {
+                        "address": send_from_address,
+                        "name": self.default_sender_name or "MidaWeb"
+                    }
+                }
+            },
+            "saveToSentItems": "true"
+        }
+        
+        # Voeg CC ontvangers toe indien opgegeven
+        if cc:
+            cc_recipients = []
+            if isinstance(cc, str):
+                cc = [cc]  # Converteer enkele string naar lijst
+                
+            for cc_email in cc:
+                cc_recipients.append({
+                    "emailAddress": {
+                        "address": cc_email
+                    }
+                })
+                
+            if cc_recipients:
+                email_payload["message"]["ccRecipients"] = cc_recipients
         
         # Bijlagen toevoegen indien aanwezig
         if attachments:
-            self._add_attachments_to_message(email_msg, attachments)
+            self._add_attachments_to_message(email_payload, attachments)
         
-        # API endpoint voor verzenden
-        # Gebruik '/users/{user}' voor app-only authenticatie
-        # Voor Delegated Auth (interactive) kan je '/me' gebruiken, maar dat werkt niet voor app-only
-        if self.sender_email:
-            endpoint = f"{self.graph_endpoint}/users/{self.sender_email}/sendMail"
-        else:
-            # Fallback, maar dit zal waarschijnlijk een 401 of 403 error geven bij app-only auth
-            endpoint = f"{self.graph_endpoint}/me/sendMail"
+        # API endpoint voor verzenden met gedeelde mailbox of hoofdaccount
+        # Altijd '/users/{email}/sendMail' gebruiken voor app-only authenticatie
+        endpoint = f"{self.graph_endpoint}/users/{send_from_address}/sendMail"
         
         # Headers voor de aanvraag
         headers = {
@@ -210,7 +248,8 @@ class MSGraphProvider(EmailProvider):
         
         try:
             # POST aanvraag naar Microsoft Graph API
-            response = requests.post(endpoint, headers=headers, json=email_msg)
+            self.logger.info(f"Versturen naar endpoint: {endpoint}")
+            response = requests.post(endpoint, headers=headers, json=email_payload)
             
             if response.status_code == 202:  # 202 Accepted betekent succes
                 self.logger.info(f"E-mail succesvol verzonden naar {recipient} via Microsoft Graph API")
@@ -282,13 +321,14 @@ class MSGraphProvider(EmailProvider):
                 
         return msg
         
-    def _add_attachments_to_message(self, msg, attachments):
+    def _add_attachments_to_message(self, email_payload, attachments):
         """Voeg bijlagen toe aan het bericht"""
         if not attachments:
             return
             
         # List voor bijlagen toevoegen aan bericht
-        msg["message"]["attachments"] = []
+        if "attachments" not in email_payload["message"]:
+            email_payload["message"]["attachments"] = []
         
         for attachment in attachments:
             try:
@@ -300,12 +340,14 @@ class MSGraphProvider(EmailProvider):
                 content_b64 = base64.b64encode(content).decode("utf-8")
                 
                 # Bijlage toevoegen aan bericht
-                msg["message"]["attachments"].append({
+                email_payload["message"]["attachments"].append({
                     "@odata.type": "#microsoft.graph.fileAttachment",
                     "name": attachment["filename"],
                     "contentType": "application/octet-stream",
                     "contentBytes": content_b64
                 })
+                
+                self.logger.info(f"Bijlage toegevoegd: {attachment['filename']}")
             except Exception as e:
                 self.logger.error(f"Fout bij toevoegen bijlage {attachment['filename']}: {str(e)}")
 

@@ -4,22 +4,19 @@ from datetime import datetime
 from flask import Flask, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Alleen standaardwaarden gebruiken als er geen omgevingsvariabelen zijn ingesteld
-# Dit voorkomt dat hardcoded waarden omgevingsvariabelen overschrijven
-if not os.environ.get('MS_GRAPH_CLIENT_ID'):
-    os.environ['MS_GRAPH_CLIENT_ID'] = '574d2096-15c1-436c-b8c6-603ae54fd28b'
-    logging.info("Set default MS_GRAPH_CLIENT_ID environment variable")
-
-if not os.environ.get('MS_GRAPH_SENDER_EMAIL'):
-    os.environ['MS_GRAPH_SENDER_EMAIL'] = 'danny.v@nexonsolutions.be'
-    logging.info("Set default MS_GRAPH_SENDER_EMAIL environment variable")
-
-# MS_GRAPH_CLIENT_SECRET wordt niet standaard ingesteld - deze moet worden opgegeven
-# via een environment secret of via het admin panel
+# Log de MS Graph API configuratiegegevens (alleen voor debug)
+logging.info(f"MS_GRAPH_CLIENT_ID: {'Ingesteld' if os.environ.get('MS_GRAPH_CLIENT_ID') else 'Niet ingesteld'}")
+logging.info(f"MS_GRAPH_CLIENT_SECRET: {'Ingesteld' if os.environ.get('MS_GRAPH_CLIENT_SECRET') else 'Niet ingesteld'}")
+logging.info(f"MS_GRAPH_TENANT_ID: {'Ingesteld' if os.environ.get('MS_GRAPH_TENANT_ID') else 'Niet ingesteld'}")
+logging.info(f"MS_GRAPH_SENDER_EMAIL: {'Ingesteld' if os.environ.get('MS_GRAPH_SENDER_EMAIL') else 'Niet ingesteld'}")
 
 # Create Flask app
 app = Flask(__name__)

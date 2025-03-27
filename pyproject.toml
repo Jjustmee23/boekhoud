@@ -19,4 +19,5 @@ dependencies = [
     "msal>=1.32.0",
     "pyjwt>=2.10.1",
     "requests>=2.32.3",
+    "python-dotenv>=1.1.0",
 ]
