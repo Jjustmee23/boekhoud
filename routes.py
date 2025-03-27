@@ -2806,6 +2806,7 @@ def activate_workspace(token):
                 "activate_workspace.html", 
                 workspace_name=workspace_name,
                 email=email,
+                token=token,
                 now=datetime.now()
             )
         
@@ -2815,6 +2816,7 @@ def activate_workspace(token):
                 "activate_workspace.html", 
                 workspace_name=workspace_name,
                 email=email,
+                token=token,
                 now=datetime.now()
             )
         
@@ -2826,6 +2828,7 @@ def activate_workspace(token):
                 "activate_workspace.html", 
                 workspace_name=workspace_name,
                 email=email,
+                token=token,
                 now=datetime.now()
             )
             
@@ -2857,6 +2860,7 @@ def activate_workspace(token):
                 "activate_workspace.html", 
                 workspace_name=workspace_name,
                 email=email,
+                token=token,
                 now=datetime.now()
             )
     
@@ -2865,6 +2869,7 @@ def activate_workspace(token):
         "activate_workspace.html", 
         workspace_name=workspace_name,
         email=email,
+        token=token,
         now=datetime.now()
     )
 
@@ -3216,6 +3221,7 @@ def activate_user(token):
                 "activate_user.html", 
                 workspace_name=workspace_name,
                 email=email,
+                token=token,
                 now=datetime.now()
             )
         
@@ -3225,6 +3231,7 @@ def activate_user(token):
                 "activate_user.html", 
                 workspace_name=workspace_name,
                 email=email,
+                token=token,
                 now=datetime.now()
             )
         
@@ -3236,6 +3243,7 @@ def activate_user(token):
                 "activate_user.html", 
                 workspace_name=workspace_name,
                 email=email,
+                token=token,
                 now=datetime.now()
             )
             
@@ -3267,6 +3275,7 @@ def activate_user(token):
                 "activate_user.html", 
                 workspace_name=workspace_name,
                 email=email,
+                token=token,
                 now=datetime.now()
             )
     
@@ -3275,6 +3284,7 @@ def activate_user(token):
         "activate_user.html", 
         workspace_name=workspace_name,
         email=email,
+        token=token,
         now=datetime.now()
     )
 
