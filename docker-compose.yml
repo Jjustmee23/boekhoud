@@ -9,26 +9,53 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/facturatie
       - SESSION_SECRET=mijngeheimesessiekey # Verander dit in productie
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - TZ=Europe/Amsterdam
     volumes:
       - ./static/uploads:/app/static/uploads
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     restart: always
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=facturatie
+      - TZ=Europe/Amsterdam
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - app-network
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   app-network:
