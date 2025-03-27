@@ -14,6 +14,7 @@ def create_admin_user():
         user.set_password('admin123')
         user.is_admin = True
         user.is_super_admin = True
+        user.password_change_required = True
         
         # Save to database
         db.session.add(user)

@@ -50,18 +50,26 @@
                         </div>
                         
                         <h4 class="mt-4 mb-3">Wachtwoord wijzigen</h4>
+                        {% if current_user.password_change_required %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Je moet je wachtwoord wijzigen voordat je verder kunt gaan.
+                        </div>
+                        {% endif %}
                         <div class="mb-3">
                             <label for="current_password" class="form-label">Huidig wachtwoord</label>
-                            <input type="password" class="form-control" id="current_password" name="current_password">
+                            <input type="password" class="form-control" id="current_password" name="current_password" {% if current_user.password_change_required %}required{% endif %}>
+                            {% if not current_user.password_change_required %}
                             <small class="text-muted">Laat leeg als je het wachtwoord niet wilt wijzigen</small>
+                            {% endif %}
                         </div>
                         <div class="mb-3">
                             <label for="new_password" class="form-label">Nieuw wachtwoord</label>
-                            <input type="password" class="form-control" id="new_password" name="new_password">
+                            <input type="password" class="form-control" id="new_password" name="new_password" {% if current_user.password_change_required %}required{% endif %}>
                         </div>
                         <div class="mb-3">
                             <label for="confirm_password" class="form-label">Bevestig nieuw wachtwoord</label>
-                            <input type="password" class="form-control" id="confirm_password" name="confirm_password">
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" {% if current_user.password_change_required %}required{% endif %}>
                         </div>
                         
                         <div class="d-grid gap-2 mt-4">

@@ -76,6 +76,27 @@ def init_sample_data():
             app.logger.error(f"Error initializing sample data: {str(e)}")
 
 # Create a function to initialize the app
+def create_default_admin():
+    """Create the default admin user if it doesn't exist"""
+    from models import User
+    
+    # Check if the admin user already exists
+    existing_user = User.query.filter_by(username='admin').first()
+    if existing_user:
+        return
+    
+    # Create new admin user
+    user = User(username='admin', email='admin@example.com')
+    user.set_password('admin123')
+    user.is_admin = True
+    user.is_super_admin = True
+    user.password_change_required = True
+    
+    # Save to database
+    db.session.add(user)
+    db.session.commit()
+    app.logger.info('Default admin user created successfully!')
+
 def initialize_app():
     """Initialize the application, create database tables and add sample data"""
     with app.app_context():
@@ -84,6 +105,9 @@ def initialize_app():
         
         # Create all database tables
         db.create_all()
+        
+        # Create default admin user
+        create_default_admin()
         
         # Add initial data if needed
         init_sample_data()
