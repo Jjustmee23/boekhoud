@@ -401,6 +401,14 @@ def calculate_vat_report(year, quarter=None, month=None, workspace_id=None):
     # Convert DB objects to dictionaries for easier handling in templates
     invoice_dicts = [inv.to_dict() for inv in filtered_invoices]
     
+    # Ensure customer_id is properly saved as a string
+    for invoice_dict in invoice_dicts:
+        if 'customer' in invoice_dict and isinstance(invoice_dict['customer'], dict):
+            invoice_dict['customer_id'] = str(invoice_dict['customer']['id'])
+        # Ensure invoice_dict has a customer_id key even if it doesn't have a customer
+        elif 'customer_id' not in invoice_dict:
+            invoice_dict['customer_id'] = None
+    
     # Calculate VAT grids
     grid_03 = sum(inv.amount_excl_vat for inv in filtered_invoices if inv.invoice_type == 'income')
     grid_54 = sum(inv.vat_amount for inv in filtered_invoices if inv.invoice_type == 'income')

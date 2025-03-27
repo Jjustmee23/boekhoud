@@ -13,6 +13,11 @@ if os.environ.get('MS_GRAPH_CLIENT_ID') != '574d2096-15c1-436c-b8c6-603ae54fd28b
     os.environ['MS_GRAPH_CLIENT_ID'] = '574d2096-15c1-436c-b8c6-603ae54fd28b'
     logging.info("Updated MS_GRAPH_CLIENT_ID environment variable")
 
+# Update MS Graph Sender Email if not already set correctly
+if os.environ.get('MS_GRAPH_SENDER_EMAIL') != 'danny.v@nexonsolutions.be':
+    os.environ['MS_GRAPH_SENDER_EMAIL'] = 'danny.v@nexonsolutions.be'
+    logging.info("Updated MS_GRAPH_SENDER_EMAIL environment variable")
+
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET")
