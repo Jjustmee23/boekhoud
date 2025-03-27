@@ -1,5 +1,6 @@
 from datetime import datetime, date, timedelta
 import uuid
+import json
 from decimal import Decimal
 from app import db
 import sqlalchemy as sa
@@ -418,6 +419,152 @@ def calculate_vat_report(year, quarter=None, month=None, workspace_id=None):
     }
 
 # User Model
+class EmailSettings(db.Model):
+    """
+    Model voor e-mailinstellingen per werkruimte.
+    Deze instellingen worden gebruikt voor het versturen van e-mails vanuit de werkruimte.
+    """
+    __tablename__ = 'email_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'), unique=True)
+    smtp_server = db.Column(db.String(100))
+    smtp_port = db.Column(db.Integer)
+    smtp_username = db.Column(db.String(100))
+    smtp_password = db.Column(db.String(100))
+    email_from = db.Column(db.String(100))
+    email_from_name = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # Gebruik Microsoft Graph API (Office 365) voor deze werkruimte
+    use_ms_graph = db.Column(db.Boolean, default=False)
+    ms_graph_client_id = db.Column(db.String(100))
+    ms_graph_client_secret = db.Column(db.String(100))
+    ms_graph_tenant_id = db.Column(db.String(100))
+    ms_graph_sender_email = db.Column(db.String(100))
+    
+    # Relatie met Workspace
+    workspace = db.relationship('Workspace', back_populates='email_settings')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'workspace_id': self.workspace_id,
+            'smtp_server': self.smtp_server,
+            'smtp_port': self.smtp_port,
+            'smtp_username': self.smtp_username,
+            'email_from': self.email_from,
+            'email_from_name': self.email_from_name,
+            'use_ms_graph': self.use_ms_graph,
+            'ms_graph_client_id': self.ms_graph_client_id,
+            'ms_graph_sender_email': self.ms_graph_sender_email,
+            'ms_graph_tenant_id': self.ms_graph_tenant_id,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+
+
+class EmailMessage(db.Model):
+    """
+    Model voor ontvangen en verzonden e-mailberichten.
+    Deze worden gebruikt om e-mails te traceren en zorgen voor automatische verwerking.
+    """
+    __tablename__ = 'email_messages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'))
+    message_id = db.Column(db.String(255), unique=True)  # Unieke e-mail ID
+    subject = db.Column(db.String(255))
+    sender = db.Column(db.String(255))
+    recipient = db.Column(db.String(255))
+    body_text = db.Column(db.Text)
+    body_html = db.Column(db.Text)
+    received_date = db.Column(db.DateTime)
+    is_processed = db.Column(db.Boolean, default=False)
+    status = db.Column(db.String(50), default='received')  # received, processed, error
+    
+    # Als de e-mail aan een klant is gekoppeld
+    customer_id = db.Column(UUID(as_uuid=True), db.ForeignKey('customers.id'), nullable=True)
+    
+    # Bijlagen (JSON opgeslagen)
+    attachments = db.Column(db.Text)  # JSON met bestandspaden
+    
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # Relaties
+    workspace = db.relationship('Workspace', back_populates='email_messages')
+    customer = db.relationship('Customer', backref=db.backref('email_messages', lazy=True))
+    
+    def get_attachments(self):
+        """Haal bijlagen op als lijst"""
+        if not self.attachments:
+            return []
+        try:
+            return json.loads(self.attachments)
+        except:
+            return []
+    
+    def set_attachments(self, attachment_list):
+        """Sla bijlagen op als JSON"""
+        if not attachment_list:
+            self.attachments = None
+        else:
+            self.attachments = json.dumps(attachment_list)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'workspace_id': self.workspace_id,
+            'message_id': self.message_id,
+            'subject': self.subject,
+            'sender': self.sender,
+            'recipient': self.recipient,
+            'received_date': self.received_date,
+            'is_processed': self.is_processed,
+            'status': self.status,
+            'customer_id': str(self.customer_id) if self.customer_id else None,
+            'attachments': self.get_attachments(),
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+
+
+class EmailTemplate(db.Model):
+    """
+    Model voor e-mailtemplates
+    Deze templates kunnen worden gebruikt voor het versturen van gestandaardiseerde e-mails
+    """
+    __tablename__ = 'email_templates'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'))
+    name = db.Column(db.String(100))
+    subject = db.Column(db.String(255))
+    body_html = db.Column(db.Text)
+    is_default = db.Column(db.Boolean, default=False)
+    template_type = db.Column(db.String(50))  # invoice, reminder, welcome, etc.
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # Relatie met Workspace
+    workspace = db.relationship('Workspace', back_populates='email_templates')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'workspace_id': self.workspace_id,
+            'name': self.name,
+            'subject': self.subject,
+            'body_html': self.body_html,
+            'is_default': self.is_default,
+            'template_type': self.template_type,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+
+
 class Workspace(db.Model):
     __tablename__ = 'workspaces'
     
@@ -430,6 +577,9 @@ class Workspace(db.Model):
     users = db.relationship('User', back_populates='workspace')
     customers = db.relationship('Customer', back_populates='workspace')
     invoices = db.relationship('Invoice', back_populates='workspace')
+    email_settings = db.relationship('EmailSettings', uselist=False, back_populates='workspace', cascade='all, delete-orphan')
+    email_templates = db.relationship('EmailTemplate', back_populates='workspace', cascade='all, delete-orphan')
+    email_messages = db.relationship('EmailMessage', back_populates='workspace', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Workspace {self.name}>'
@@ -641,8 +791,8 @@ def update_user(user_id, email=None, password=None, is_admin=None, is_super_admi
         
     if workspace_id is not None:
         # Can be None for super admins or a valid workspace_id
-        # Handle empty string case (might come from form submissions)
-        if workspace_id == '':
+        # Handle empty string or invalid type cases (might come from form submissions)
+        if workspace_id == '' or not isinstance(workspace_id, (int, type(None))):
             user.workspace_id = None
         else:
             user.workspace_id = workspace_id
