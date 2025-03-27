@@ -17,6 +17,8 @@ from utils import (
     save_uploaded_file, allowed_file
 )
 from file_processor import FileProcessor
+from email_service import email_service
+from token_helper import token_helper
 
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
@@ -2509,3 +2511,367 @@ def assign_workspace_to_user(user_id):
         flash('Er is een fout opgetreden bij het toewijzen van de werkruimte', 'danger')
     
     return redirect(url_for('admin'))
+
+# Client/Workspace onboarding routes
+@app.route("/admin/client/create", methods=["GET", "POST"])
+@login_required
+def create_client():
+    """
+    Super admin route voor het aanmaken van een nieuwe klant (customer) en werkruimte
+    De functie stuurt ook een uitnodigingsmail naar de klant
+    """
+    # Only super admins can create clients/workspaces
+    if not current_user.is_super_admin:
+        flash("U heeft geen toegang tot deze pagina", "danger")
+        return redirect(url_for("dashboard"))
+    
+    if request.method == "POST":
+        # Get form data
+        company_name = request.form.get("company_name")
+        vat_number = request.form.get("vat_number")
+        first_name = request.form.get("first_name")
+        last_name = request.form.get("last_name")
+        email = request.form.get("email")
+        phone = request.form.get("phone")
+        street = request.form.get("street")
+        house_number = request.form.get("house_number")
+        postal_code = request.form.get("postal_code")
+        city = request.form.get("city")
+        country = request.form.get("country", "België")
+        workspace_name = request.form.get("workspace_name")
+        
+        # Validate required fields
+        if not all([company_name, email, workspace_name]):
+            flash("Bedrijfsnaam, e-mailadres en werkruimtenaam zijn verplicht", "danger")
+            return render_template("create_client.html", now=datetime.now())
+        
+        # Check if workspace name already exists
+        existing_workspace = Workspace.query.filter_by(name=workspace_name).first()
+        if existing_workspace:
+            flash("Een werkruimte met deze naam bestaat al", "danger")
+            return render_template("create_client.html", now=datetime.now())
+        
+        try:
+            # Create new workspace
+            workspace = Workspace(name=workspace_name, description=f"Werkruimte voor {company_name}")
+            db.session.add(workspace)
+            db.session.flush()  # Get workspace ID without committing
+            
+            # Create new customer in this workspace
+            customer = Customer(
+                company_name=company_name,
+                vat_number=vat_number,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                phone=phone,
+                street=street,
+                house_number=house_number,
+                postal_code=postal_code,
+                city=city,
+                country=country,
+                customer_type="business",
+                workspace_id=workspace.id
+            )
+            db.session.add(customer)
+            db.session.commit()
+            
+            # Generate invitation token
+            activation_token = token_helper.generate_workspace_invitation_token(
+                workspace_id=workspace.id,
+                workspace_name=workspace.name,
+                customer_email=email
+            )
+            
+            # Send invitation email
+            customer_name = f"{first_name} {last_name}" if first_name and last_name else None
+            email_sent = email_service.send_workspace_invitation(
+                recipient_email=email,
+                workspace_name=workspace_name,
+                activation_token=activation_token,
+                customer_name=customer_name
+            )
+            
+            if email_sent:
+                flash(f"Klant \"{company_name}\" en werkruimte \"{workspace_name}\" aangemaakt. Uitnodiging verzonden naar {email}.", "success")
+            else:
+                flash(f"Klant \"{company_name}\" en werkruimte \"{workspace_name}\" aangemaakt, maar de uitnodiging kon niet worden verzonden.", "warning")
+            
+            return redirect(url_for("admin"))
+        
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error creating client and workspace: {str(e)}")
+            flash("Er is een fout opgetreden bij het aanmaken van de klant en werkruimte", "danger")
+            return render_template("create_client.html", now=datetime.now())
+    
+    # GET request - show client creation form
+    return render_template("create_client.html", now=datetime.now())
+
+@app.route("/activate/workspace/<token>", methods=["GET", "POST"])
+def activate_workspace(token):
+    """
+    Route voor het activeren van een werkruimte door een klant
+    De klant maakt de eerste gebruiker aan (admin) en wordt automatisch ingelogd
+    """
+    # Verifieer token
+    token_data = token_helper.verify_token(token)
+    
+    if not token_data or token_data.get("type") != "workspace_invitation":
+        flash("Ongeldige of verlopen activatiecode", "danger")
+        return redirect(url_for("login"))
+    
+    workspace_id = token_data.get("workspace_id")
+    workspace_name = token_data.get("workspace_name")
+    email = token_data.get("email")
+    
+    # Controleer of werkruimte bestaat
+    workspace = Workspace.query.get(workspace_id)
+    if not workspace:
+        flash("De werkruimte bestaat niet meer", "danger")
+        return redirect(url_for("login"))
+    
+    if request.method == "POST":
+        # Get form data
+        username = request.form.get("username")
+        password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+        
+        # Validate input
+        if not all([username, password, confirm_password]):
+            flash("Alle velden zijn verplicht", "danger")
+            return render_template(
+                "activate_workspace.html", 
+                workspace_name=workspace_name,
+                email=email,
+                now=datetime.now()
+            )
+        
+        if password != confirm_password:
+            flash("Wachtwoorden komen niet overeen", "danger")
+            return render_template(
+                "activate_workspace.html", 
+                workspace_name=workspace_name,
+                email=email,
+                now=datetime.now()
+            )
+        
+        # Check if username already exists in this workspace
+        existing_user = User.query.filter_by(username=username, workspace_id=workspace_id).first()
+        if existing_user:
+            flash("Deze gebruikersnaam is al in gebruik binnen deze werkruimte", "danger")
+            return render_template(
+                "activate_workspace.html", 
+                workspace_name=workspace_name,
+                email=email,
+                now=datetime.now()
+            )
+            
+        try:
+            # Create new admin user for this workspace
+            user = User(
+                username=username,
+                email=email,
+                workspace_id=workspace_id,
+                is_admin=True,  # Eerste gebruiker is altijd admin
+                password_change_required=False  # Wachtwoord is al zelf ingesteld
+            )
+            user.set_password(password)
+            
+            db.session.add(user)
+            db.session.commit()
+            
+            # Log gebruiker automatisch in
+            login_user(user)
+            
+            flash(f"Welkom bij {workspace_name}! Je account is geactiveerd en je bent nu ingelogd als beheerder.", "success")
+            return redirect(url_for("dashboard"))
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error creating workspace admin user: {str(e)}")
+            flash("Er is een fout opgetreden bij het aanmaken van je account", "danger")
+            return render_template(
+                "activate_workspace.html", 
+                workspace_name=workspace_name,
+                email=email,
+                now=datetime.now()
+            )
+    
+    # GET request - show activation form
+    return render_template(
+        "activate_workspace.html", 
+        workspace_name=workspace_name,
+        email=email,
+        now=datetime.now()
+    )
+
+@app.route("/admin/user/invite", methods=["GET", "POST"])
+@login_required
+def invite_user():
+    """
+    Route voor het uitnodigen van een nieuwe gebruiker voor een werkruimte
+    Enkel workspaceadmins of superadmins kunnen gebruikers uitnodigen
+    """
+    # Controleer of de gebruiker admin rechten heeft
+    if not current_user.is_admin and not current_user.is_super_admin:
+        flash("U heeft geen toegang tot deze pagina", "danger")
+        return redirect(url_for("dashboard"))
+    
+    if request.method == "POST":
+        # Get form data
+        email = request.form.get("email")
+        is_admin = request.form.get("is_admin") == "true"
+        workspace_id = request.form.get("workspace_id")
+        
+        # Validate input
+        if not email:
+            flash("E-mailadres is verplicht", "danger")
+            return redirect(url_for("admin"))
+        
+        # Als superadmin, controleer of werkruimte is geselecteerd
+        if current_user.is_super_admin and not workspace_id:
+            flash("Selecteer een werkruimte", "danger")
+            return redirect(url_for("admin"))
+        
+        # Bepaal de juiste werkruimte
+        if current_user.is_super_admin:
+            workspace = Workspace.query.get_or_404(workspace_id)
+        else:
+            # Normale admin kan alleen binnen eigen werkruimte uitnodigen
+            workspace = Workspace.query.get_or_404(current_user.workspace_id)
+            
+        try:
+            # Genereer uitnodigingstoken
+            activation_token = token_helper.generate_user_invitation_token(
+                workspace_id=workspace.id,
+                workspace_name=workspace.name,
+                email=email,
+                is_admin=is_admin
+            )
+            
+            # Verzend uitnodigingsmail
+            email_sent = email_service.send_user_invitation(
+                recipient_email=email,
+                workspace_name=workspace.name,
+                activation_token=activation_token,
+                inviter_name=current_user.username
+            )
+            
+            if email_sent:
+                flash(f"Uitnodiging verzonden naar {email} voor werkruimte {workspace.name}.", "success")
+            else:
+                flash(f"De uitnodiging kon niet worden verzonden naar {email}.", "warning")
+            
+            return redirect(url_for("admin"))
+            
+        except Exception as e:
+            logging.error(f"Error inviting user: {str(e)}")
+            flash("Er is een fout opgetreden bij het versturen van de uitnodiging", "danger")
+            return redirect(url_for("admin"))
+    
+    # GET request - show user invitation form
+    workspaces = []
+    if current_user.is_super_admin:
+        workspaces = Workspace.query.all()
+    
+    return render_template("invite_user.html", workspaces=workspaces, now=datetime.now())
+
+@app.route("/activate/user/<token>", methods=["GET", "POST"])
+def activate_user(token):
+    """
+    Route voor het activeren van een gebruikersaccount na uitnodiging
+    """
+    # Verifieer token
+    token_data = token_helper.verify_token(token)
+    
+    if not token_data or token_data.get("type") != "user_invitation":
+        flash("Ongeldige of verlopen activatiecode", "danger")
+        return redirect(url_for("login"))
+    
+    workspace_id = token_data.get("workspace_id")
+    workspace_name = token_data.get("workspace_name")
+    email = token_data.get("email")
+    is_admin = token_data.get("is_admin", False)
+    
+    # Controleer of werkruimte bestaat
+    workspace = Workspace.query.get(workspace_id)
+    if not workspace:
+        flash("De werkruimte bestaat niet meer", "danger")
+        return redirect(url_for("login"))
+    
+    if request.method == "POST":
+        # Get form data
+        username = request.form.get("username")
+        password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+        
+        # Validate input
+        if not all([username, password, confirm_password]):
+            flash("Alle velden zijn verplicht", "danger")
+            return render_template(
+                "activate_user.html", 
+                workspace_name=workspace_name,
+                email=email,
+                now=datetime.now()
+            )
+        
+        if password != confirm_password:
+            flash("Wachtwoorden komen niet overeen", "danger")
+            return render_template(
+                "activate_user.html", 
+                workspace_name=workspace_name,
+                email=email,
+                now=datetime.now()
+            )
+        
+        # Check if username already exists in this workspace
+        existing_user = User.query.filter_by(username=username, workspace_id=workspace_id).first()
+        if existing_user:
+            flash("Deze gebruikersnaam is al in gebruik binnen deze werkruimte", "danger")
+            return render_template(
+                "activate_user.html", 
+                workspace_name=workspace_name,
+                email=email,
+                now=datetime.now()
+            )
+            
+        try:
+            # Create new user for this workspace
+            user = User(
+                username=username,
+                email=email,
+                workspace_id=workspace_id,
+                is_admin=is_admin,
+                password_change_required=False  # Wachtwoord is al zelf ingesteld
+            )
+            user.set_password(password)
+            
+            db.session.add(user)
+            db.session.commit()
+            
+            # Log gebruiker automatisch in
+            login_user(user)
+            
+            flash(f"Welkom bij {workspace_name}! Je account is geactiveerd en je bent nu ingelogd.", "success")
+            return redirect(url_for("dashboard"))
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error creating user: {str(e)}")
+            flash("Er is een fout opgetreden bij het aanmaken van je account", "danger")
+            return render_template(
+                "activate_user.html", 
+                workspace_name=workspace_name,
+                email=email,
+                now=datetime.now()
+            )
+    
+    # GET request - show activation form
+    return render_template(
+        "activate_user.html", 
+        workspace_name=workspace_name,
+        email=email,
+        now=datetime.now()
+    )
+

@@ -1,0 +1,76 @@
+{% extends 'base_auth.html' %}
+
+{% block title %}- Account Activeren{% endblock %}
+
+{% block content %}
+<div class="auth-header">
+    <div class="auth-logo">
+        <i class="fas fa-user-plus"></i>
+    </div>
+    <h1 class="h3 mb-3">Welkom bij {{ workspace_name }}!</h1>
+    <p class="lead">Maak uw gebruikersaccount aan om toegang te krijgen tot de werkruimte</p>
+</div>
+
+<form action="{{ url_for('activate_user', token=token) }}" method="POST" class="mt-4">
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="username" class="form-label">Gebruikersnaam*</label>
+                <input type="text" class="form-control" id="username" name="username" required>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="email" class="form-label">E-mailadres*</label>
+                <input type="email" class="form-control" id="email" name="email" value="{{ email }}" readonly>
+                <small class="text-muted">Dit e-mailadres is gekoppeld aan uw uitnodiging</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="password" class="form-label">Wachtwoord*</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+                <small class="text-muted">Minimaal 8 tekens met hoofdletters, kleine letters en cijfers</small>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="confirm_password" class="form-label">Bevestig wachtwoord*</label>
+                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check-circle me-2"></i>Account activeren
+        </button>
+    </div>
+
+    <div class="text-center mt-4">
+        <p class="text-muted">
+            U werd uitgenodigd door {% if is_admin %}de beheerder{% else %}{{ inviter_name }}{% endif %} van {{ workspace_name }}
+        </p>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const passwordField = document.getElementById('password');
+        const confirmField = document.getElementById('confirm_password');
+        const form = document.querySelector('form');
+        
+        form.addEventListener('submit', function(e) {
+            if (passwordField.value !== confirmField.value) {
+                e.preventDefault();
+                alert('De wachtwoorden komen niet overeen. Probeer het opnieuw.');
+            }
+        });
+    });
+</script>
+{% endblock %}

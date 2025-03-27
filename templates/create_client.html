@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}- Nieuwe Klant Aanmaken{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Nieuwe Klant & Werkruimte Aanmaken</h1>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h2 class="h5 mb-0">Nieuwe Klant Toevoegen</h2>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('create_client') }}" method="POST">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h3 class="h6 mb-3">Werkruimte Informatie</h3>
+                        <div class="mb-3">
+                            <label for="workspace_name" class="form-label">Werkruimtenaam*</label>
+                            <input type="text" class="form-control" id="workspace_name" name="workspace_name" required>
+                            <small class="text-muted">De naam van de werkruimte in het systeem</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="workspace_description" class="form-label">Beschrijving</label>
+                            <textarea class="form-control" id="workspace_description" name="workspace_description" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h3 class="h6 mb-3">Klantgegevens</h3>
+                        <div class="mb-3">
+                            <label for="company_name" class="form-label">Bedrijfsnaam*</label>
+                            <input type="text" class="form-control" id="company_name" name="company_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="vat_number" class="form-label">BTW-nummer</label>
+                            <input type="text" class="form-control" id="vat_number" name="vat_number">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h3 class="h6 mb-3">Contactpersoon</h3>
+                        <div class="mb-3">
+                            <label for="first_name" class="form-label">Voornaam*</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="last_name" class="form-label">Achternaam*</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">E-mailadres*</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <small class="text-muted">Uitnodigingsmail wordt naar dit adres verstuurd</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Telefoonnummer</label>
+                            <input type="text" class="form-control" id="phone" name="phone">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h3 class="h6 mb-3">Adresgegevens</h3>
+                        <div class="mb-3">
+                            <label for="street" class="form-label">Straat*</label>
+                            <input type="text" class="form-control" id="street" name="street" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="house_number" class="form-label">Huisnummer*</label>
+                            <input type="text" class="form-control" id="house_number" name="house_number" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="postal_code" class="form-label">Postcode*</label>
+                            <input type="text" class="form-control" id="postal_code" name="postal_code" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="city" class="form-label">Plaats*</label>
+                            <input type="text" class="form-control" id="city" name="city" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="country" class="form-label">Land</label>
+                            <input type="text" class="form-control" id="country" name="country" value="België">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <h3 class="h6 mb-3">Extra Informatie</h3>
+                        <div class="mb-3">
+                            <label for="default_vat_rate" class="form-label">Standaard BTW-tarief</label>
+                            <select class="form-select" id="default_vat_rate" name="default_vat_rate">
+                                <option value="21">21% (Standaard)</option>
+                                <option value="12">12% (Verlaagd)</option>
+                                <option value="6">6% (Verlaagd)</option>
+                                <option value="0">0% (Vrijgesteld)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="customer_type" class="form-label">Klanttype</label>
+                            <select class="form-select" id="customer_type" name="customer_type">
+                                <option value="business">Zakelijk</option>
+                                <option value="individual">Particulier</option>
+                                <option value="supplier">Leverancier</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12 d-flex justify-content-end">
+                        <a href="{{ url_for('admin') }}" class="btn btn-secondary me-2">Annuleren</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Klant & Werkruimte Aanmaken en Uitnodigen
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

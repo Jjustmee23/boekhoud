@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}- Gebruiker Uitnodigen{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Gebruiker Uitnodigen voor Werkruimte</h1>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h2 class="h5 mb-0">Uitnodiging versturen</h2>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('invite_user') }}" method="POST">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">E-mailadres*</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <small class="text-muted">Uitnodigingsmail wordt naar dit adres verstuurd</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        {% if current_user.is_super_admin %}
+                        <div class="mb-3">
+                            <label for="workspace_id" class="form-label">Werkruimte*</label>
+                            <select class="form-select" id="workspace_id" name="workspace_id" required>
+                                <option value="">-- Selecteer werkruimte --</option>
+                                {% for workspace in workspaces %}
+                                <option value="{{ workspace.id }}">{{ workspace.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="workspace_id" value="{{ current_user.workspace_id }}">
+                        <div class="mb-3">
+                            <label class="form-label">Werkruimte</label>
+                            <input type="text" class="form-control" value="{{ current_user.workspace.name }}" readonly>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin">
+                            <label class="form-check-label" for="is_admin">
+                                Beheerder van de werkruimte
+                            </label>
+                            <small class="form-text text-muted d-block">Beheerders kunnen gebruikers, klanten en instellingen beheren.</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12 d-flex justify-content-end">
+                        <a href="{{ url_for('admin') }}" class="btn btn-secondary me-2">Annuleren</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-envelope me-2"></i>Uitnodiging Versturen
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
