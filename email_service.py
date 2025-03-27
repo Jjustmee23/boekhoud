@@ -66,6 +66,9 @@ class MSGraphProvider(EmailProvider):
         else:
             self.authority = None
             
+        # Stel de endpoint URL in - we gebruiken de versie 1.0 API
+        self.graph_endpoint = "https://graph.microsoft.com/v1.0"
+            
     def _load_from_settings(self, settings):
         """Laad instellingen uit EmailSettings object"""
         from models import EmailSettings
@@ -179,9 +182,14 @@ class MSGraphProvider(EmailProvider):
         if attachments:
             self._add_attachments_to_message(email_msg, attachments)
         
-        # API endpoint voor verzenden - gebruik '/me' voor de geauthenticeerde app of een specifiek mailadres
-        # Voor gedeelde mailboxen moet de app juiste machtigingen hebben
-        endpoint = "https://graph.microsoft.com/v1.0/me/sendMail"
+        # API endpoint voor verzenden
+        # Gebruik '/users/{user}' voor app-only authenticatie
+        # Voor Delegated Auth (interactive) kan je '/me' gebruiken, maar dat werkt niet voor app-only
+        if self.sender_email:
+            endpoint = f"{self.graph_endpoint}/users/{self.sender_email}/sendMail"
+        else:
+            # Fallback, maar dit zal waarschijnlijk een 401 of 403 error geven bij app-only auth
+            endpoint = f"{self.graph_endpoint}/me/sendMail"
         
         # Headers voor de aanvraag
         headers = {
@@ -220,16 +228,30 @@ class MSGraphProvider(EmailProvider):
                             "address": recipient
                         }
                     }
-                ],
-                "from": {
-                    "emailAddress": {
-                        "address": self.sender_email,
-                        "name": self.default_sender_name
-                    }
-                }
+                ]
             },
             "saveToSentItems": "true"
         }
+        
+        # Voeg 'from' alleen toe als er een expliciet afzenderadres is opgegeven
+        # Bij gedeelde mailboxen zal de sendMail API automatisch 
+        # het standaard adres van de geauthenticeerde gebruiker gebruiken
+        if self.sender_email:
+            msg["message"]["from"] = {
+                "emailAddress": {
+                    "address": self.sender_email,
+                    "name": self.default_sender_name or "MidaWeb"
+                }
+            }
+            
+        # Voeg 'sender' toe als er een afzender is (belangrijk voor gedeelde mailboxen)
+        if self.sender_email:
+            msg["message"]["sender"] = {
+                "emailAddress": {
+                    "address": self.sender_email,
+                    "name": self.default_sender_name or "MidaWeb"
+                }
+            }
         
         # Voeg CC ontvangers toe indien opgegeven
         if cc:

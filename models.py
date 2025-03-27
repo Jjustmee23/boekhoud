@@ -851,17 +851,24 @@ def update_user(user_id, email=None, password=None, is_admin=None, is_super_admi
     
     if is_super_admin is not None:
         user.is_super_admin = is_super_admin
-        
-    if workspace_id is not None:
-        # Can be None for super admins or a valid workspace_id
-        # Handle empty string or invalid type cases (might come from form submissions)
-        if workspace_id == '' or not isinstance(workspace_id, (int, type(None))):
-            user.workspace_id = None
-        else:
-            user.workspace_id = workspace_id
         # Super admins are always admins
         if is_super_admin:
             user.is_admin = True
+        
+    # Workspace_id verwerken - moet voorzichtig gebeuren vanwege type conversies
+    if workspace_id is not None:
+        # Controleer op lege strings (komen uit formulieren) en zet ze om naar None
+        if workspace_id == '' or workspace_id == "":
+            user.workspace_id = None
+        # Controleer op geldige integers of None
+        elif isinstance(workspace_id, int) or workspace_id is None:
+            user.workspace_id = workspace_id
+        # Probeer string om te zetten naar int indien mogelijk
+        elif isinstance(workspace_id, str) and workspace_id.isdigit():
+            user.workspace_id = int(workspace_id)
+        # Anders, zet naar None (veilig)
+        else:
+            user.workspace_id = None
     
     db.session.commit()
     return user
