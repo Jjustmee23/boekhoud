@@ -16,12 +16,16 @@ class MSGraphConfig:
         from models import EmailSettings
         from app import app
         
+        # Gebruik altijd deze vaste afzender voor Microsoft Graph API
+        self.sender_email = "info@midaweb.be"  # Vaste afzender voor alle e-mails
+        
         # Als workspace-specifieke instellingen worden meegegeven, gebruik deze
         if settings and settings.use_ms_graph:
             self.client_id = settings.ms_graph_client_id
             self.client_secret = EmailSettings.decrypt_secret(settings.ms_graph_client_secret)
             self.tenant_id = settings.ms_graph_tenant_id
-            self.sender_email = "info@midaweb.be"  # Gebruik vaste afzender voor emails
+            # De display naam kan wel worden aangepast
+            self.display_name = settings.ms_graph_display_name
         else:
             # Anders gebruik de systeem-instellingen uit de database
             # Gebruik app context om database queries uit te voeren
@@ -33,20 +37,20 @@ class MSGraphConfig:
                         self.client_id = system_settings.ms_graph_client_id
                         self.client_secret = EmailSettings.decrypt_secret(system_settings.ms_graph_client_secret)
                         self.tenant_id = system_settings.ms_graph_tenant_id
-                        self.sender_email = "info@midaweb.be"  # Gebruik vaste afzender voor emails
+                        self.display_name = system_settings.ms_graph_display_name
                     else:
                         # Noodoplossing: omgevingsvariabelen als fallback
                         self.client_id = os.environ.get('MS_GRAPH_CLIENT_ID')
                         self.client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET')
                         self.tenant_id = os.environ.get('MS_GRAPH_TENANT_ID')
-                        self.sender_email = "info@midaweb.be"  # Gebruik vaste afzender voor emails
+                        self.display_name = os.environ.get('MS_GRAPH_DISPLAY_NAME', 'MidaWeb')
                 except Exception as e:
                     # Bij fouten, gebruik omgevingsvariabelen als fallback
                     logging.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
                     self.client_id = os.environ.get('MS_GRAPH_CLIENT_ID')
                     self.client_secret = os.environ.get('MS_GRAPH_CLIENT_SECRET')
                     self.tenant_id = os.environ.get('MS_GRAPH_TENANT_ID')
-                    self.sender_email = "info@midaweb.be"  # Gebruik vaste afzender voor emails
+                    self.display_name = os.environ.get('MS_GRAPH_DISPLAY_NAME', 'MidaWeb')
             
         # Altijd authority en scope instellen
         self.authority = f'https://login.microsoftonline.com/{self.tenant_id}' if self.tenant_id else None

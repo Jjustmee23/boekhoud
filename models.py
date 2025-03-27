@@ -430,30 +430,42 @@ def calculate_vat_report(year, quarter=None, month=None, workspace_id=None):
 # User Model
 class EmailSettings(db.Model):
     """
-    Model voor e-mailinstellingen per werkruimte.
-    Deze instellingen worden gebruikt voor het versturen van e-mails vanuit de werkruimte.
+    Model voor e-mailinstellingen per werkruimte of systeembrede instellingen.
+    Als workspace_id NULL is, zijn het systeembrede instellingen die worden gebruikt
+    wanneer een werkruimte geen eigen instellingen heeft.
     """
     __tablename__ = 'email_settings'
     
     id = db.Column(db.Integer, primary_key=True)
-    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'), unique=True)
+    # NULL voor systeeminstellingen, anders specifiek voor een workspace
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id', ondelete='CASCADE'), nullable=True, unique=True)
+    
+    # SMTP instellingen
     smtp_server = db.Column(db.String(100))
     smtp_port = db.Column(db.Integer)
     smtp_username = db.Column(db.String(100))
-    smtp_password = db.Column(db.String(255))  # Verlengen voor beveiligde opslag
+    smtp_password = db.Column(db.String(255))  # Versleuteld opgeslagen
+    smtp_use_ssl = db.Column(db.Boolean, default=True)
+    smtp_use_tls = db.Column(db.Boolean, default=False)
+    
+    # Algemene e-mailinstellingen
     email_from = db.Column(db.String(100))
     email_from_name = db.Column(db.String(100))
+    default_sender_name = db.Column(db.String(100), default="MidaWeb")
+    reply_to = db.Column(db.String(100))
+    
+    # Bijhouden wanneer instellingen zijn gewijzigd
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, onupdate=datetime.now)
     
-    # Gebruik Microsoft Graph API (Office 365) voor deze werkruimte
+    # Microsoft Graph API (Office 365) instellingen
     use_ms_graph = db.Column(db.Boolean, default=False)
     ms_graph_client_id = db.Column(db.String(100))
-    ms_graph_client_secret = db.Column(db.String(255))  # Verlengen voor beveiligde opslag
+    ms_graph_client_secret = db.Column(db.String(255))  # Versleuteld opgeslagen
     ms_graph_tenant_id = db.Column(db.String(100))
     ms_graph_sender_email = db.Column(db.String(100))
     
-    # Relatie met Workspace
+    # Relatie met Workspace (nullable voor systeem-instellingen)
     workspace = db.relationship('Workspace', back_populates='email_settings')
     
     @staticmethod
@@ -501,8 +513,12 @@ class EmailSettings(db.Model):
             'smtp_server': self.smtp_server,
             'smtp_port': self.smtp_port,
             'smtp_username': self.smtp_username,
+            'smtp_use_ssl': self.smtp_use_ssl,
+            'smtp_use_tls': self.smtp_use_tls,
             'email_from': self.email_from,
             'email_from_name': self.email_from_name,
+            'default_sender_name': self.default_sender_name,
+            'reply_to': self.reply_to,
             'use_ms_graph': self.use_ms_graph,
             'ms_graph_client_id': self.ms_graph_client_id,
             'ms_graph_sender_email': self.ms_graph_sender_email,
