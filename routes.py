@@ -7,7 +7,7 @@ from flask import render_template, request, redirect, url_for, flash, send_file,
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 from models import (
-    Customer, Invoice, User, Workspace, get_next_invoice_number, check_duplicate_invoice, add_invoice,
+    Customer, Invoice, User, Workspace, EmailSettings, get_next_invoice_number, check_duplicate_invoice, add_invoice,
     calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary,
     get_users, get_user, create_user, update_user, delete_user
 )
@@ -2863,6 +2863,62 @@ def update_email_provider():
     flash(f"E-mail verzendmethode is gewijzigd naar {'Microsoft Graph API' if use_ms_graph else 'SMTP Server'}", 'success')
     
     # Ga terug naar admin pagina
+    return redirect(url_for('admin'))
+
+# Route for sending a test email
+@app.route('/admin/test-email/<provider>', methods=['GET'])
+@login_required
+def send_test_email(provider):
+    # Only super admins can send test emails
+    if not current_user.is_super_admin:
+        flash('Alleen super admins kunnen test e-mails verzenden', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Get the system email settings
+    email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+    
+    if not email_settings:
+        flash('E-mailinstellingen zijn niet geconfigureerd', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Create an email service based on the provider
+    email_service = EmailService(email_settings)
+    
+    # Determine the subject and content based on provider
+    subject = f"Test e-mail van MidaWeb via {provider}"
+    body_html = f"""
+    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
+        <h2 style="color: #4a6ee0;">Test E-mail</h2>
+        <p>Dit is een test e-mail verzonden via {provider} provider.</p>
+        <p>Als u deze e-mail ontvangt, zijn uw e-mailinstellingen correct geconfigureerd.</p>
+        <p>Verzonden op: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</p>
+        <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
+            Dit bericht is automatisch gegenereerd. U kunt niet reageren op dit e-mailadres.
+        </p>
+    </div>
+    """
+    
+    # Force the appropriate provider based on the route parameter
+    if provider == 'msgraph':
+        email_settings.use_ms_graph = True
+    elif provider == 'smtp':
+        email_settings.use_ms_graph = False
+    else:
+        flash('Ongeldige e-mail provider', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Send the test email to the current user
+    success = email_service.send_email(
+        recipient=current_user.email,
+        subject=subject,
+        body_html=body_html
+    )
+    
+    if success:
+        flash(f'Test e-mail succesvol verzonden naar {current_user.email} via {provider} provider', 'success')
+    else:
+        flash(f'Fout bij het verzenden van test e-mail via {provider} provider. Controleer de instellingen en probeer het opnieuw.', 'danger')
+    
     return redirect(url_for('admin'))
 
 @app.route('/admin/email/ms-graph', methods=['POST'])

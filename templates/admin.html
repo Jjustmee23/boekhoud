@@ -277,7 +277,12 @@
                                 Deze instellingen worden gebruikt voor het verzenden van e-mails via Microsoft Graph API (Office 365).
                                 Zorg ervoor dat de gebruikte account voldoende rechten heeft om namens de organisatie e-mails te versturen.
                             </div>
-                            <button type="submit" class="btn btn-primary">Instellingen opslaan</button>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">Instellingen opslaan</button>
+                                <a href="{{ url_for('send_test_email', provider='msgraph') }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-paper-plane me-1"></i> Test e-mail versturen
+                                </a>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -373,7 +378,12 @@
                             <div class="form-text mb-3">
                                 Deze instellingen worden gebruikt wanneer Microsoft Graph API niet beschikbaar is of wanneer u de voorkeur geeft aan SMTP.
                             </div>
-                            <button type="submit" class="btn btn-primary">Instellingen opslaan</button>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">Instellingen opslaan</button>
+                                <a href="{{ url_for('send_test_email', provider='smtp') }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-paper-plane me-1"></i> Test e-mail versturen
+                                </a>
+                            </div>
                         </div>
                     </form>
                 </div>
