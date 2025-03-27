@@ -641,7 +641,11 @@ def update_user(user_id, email=None, password=None, is_admin=None, is_super_admi
         
     if workspace_id is not None:
         # Can be None for super admins or a valid workspace_id
-        user.workspace_id = workspace_id
+        # Handle empty string case (might come from form submissions)
+        if workspace_id == '':
+            user.workspace_id = None
+        else:
+            user.workspace_id = workspace_id
         # Super admins are always admins
         if is_super_admin:
             user.is_admin = True

@@ -2332,8 +2332,12 @@ def edit_user(user_id):
         workspace_id = None
         if current_user.is_super_admin:
             workspace_id = request.form.get('workspace_id')
-            if workspace_id:
-                workspace_id = int(workspace_id)
+            if workspace_id and workspace_id.strip():
+                try:
+                    workspace_id = int(workspace_id)
+                except ValueError:
+                    # Als de waarde geen geldige integer is, gebruik None
+                    workspace_id = None
         
         # Update user
         try:
@@ -2511,12 +2515,16 @@ def assign_workspace_to_user(user_id):
     workspace_id = request.form.get('workspace_id')
     workspace = None
     
-    if workspace_id:
-        workspace_id = int(workspace_id)
-        workspace = Workspace.query.get(workspace_id)
-        if not workspace:
-            flash('Werkruimte niet gevonden', 'danger')
-            return redirect(url_for('admin'))
+    if workspace_id and workspace_id.strip():
+        try:
+            workspace_id = int(workspace_id)
+            workspace = Workspace.query.get(workspace_id)
+            if not workspace:
+                flash('Werkruimte niet gevonden', 'danger')
+                return redirect(url_for('admin'))
+        except ValueError:
+            # Als de waarde geen geldige integer is, gebruik None
+            workspace_id = None
     else:
         # Setting to None for super admins
         workspace_id = None
