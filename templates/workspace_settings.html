@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}- Werkruimte instellingen{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Werkruimte instellingen</h1>
+        <div>
+            <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Terug naar beheerdersdashboard
+            </a>
+        </div>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="row mb-4">
+        <!-- Werkruimte instellingen -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="h5 mb-0">Algemene instellingen</h2>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('update_workspace_settings') }}" method="POST">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Naam</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ workspace.name }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Omschrijving</label>
+                            <textarea class="form-control" id="description" name="description" rows="2">{{ workspace.description }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="domain" class="form-label">Domein</label>
+                            <input type="text" class="form-control" id="domain" name="domain" value="{{ workspace.domain }}">
+                            <div class="form-text">Optioneel: domein van je bedrijf voor e-mail validatie (bijv. voorbeeld.nl)</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Instellingen opslaan</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- E-mailinstellingen -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-info text-white">
+                    <h2 class="h5 mb-0">E-mailinstellingen</h2>
+                </div>
+                <div class="card-body">
+                    {% if email_settings %}
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <h6 class="mb-2">Provider</h6>
+                            <p class="mb-0">
+                                {% if email_settings.provider_type == 'smtp' %}
+                                SMTP ({{ email_settings.smtp_host }})
+                                {% elif email_settings.provider_type == 'microsoft' %}
+                                Microsoft Graph API
+                                {% else %}
+                                {{ email_settings.provider_type }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="mb-2">Van e-mail</h6>
+                            <p class="mb-0">{{ email_settings.from_email }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="mb-2">Van naam</h6>
+                            <p class="mb-0">{{ email_settings.from_name }}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i> Er zijn nog geen e-mailinstellingen geconfigureerd.
+                    </div>
+                    {% endif %}
+                    
+                    <div class="text-end">
+                        <a href="{{ url_for('admin') }}" class="btn btn-primary">
+                            <i class="fas fa-cog me-1"></i> Terug naar dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

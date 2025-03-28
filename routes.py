@@ -2407,6 +2407,7 @@ def admin():
     workspaces = []
     customer_count = 0
     invoice_count = 0
+    email_settings = None
     
     if current_user.is_super_admin:
         # Super admins can see all users
@@ -2426,6 +2427,9 @@ def admin():
     if current_user.is_admin and current_user.workspace_id:
         # Haal de workspace op voor reguliere beheerders
         workspace = Workspace.query.get(current_user.workspace_id)
+        
+        # Haal e-mailinstellingen op voor deze werkruimte
+        email_settings = EmailSettings.query.filter_by(workspace_id=current_user.workspace_id).first()
         
         # Haal abonnement op als de werkruimte een subscription_id heeft
         if workspace and workspace.subscription_id:
@@ -2530,6 +2534,8 @@ def admin():
                            workspace=workspace,
                            subscription=subscription,
                            format_currency=format_currency,
+                           # E-mailinstellingen voor het template
+                           email_settings=email_settings,
                            # E-mail instellingen voor template
                            ms_graph_client_id=ms_graph_client_id if 'ms_graph_client_id' in locals() else '',
                            ms_graph_tenant_id=ms_graph_tenant_id if 'ms_graph_tenant_id' in locals() else '',

@@ -103,74 +103,12 @@ def workspace_dashboard():
     )
 
 # Werkruimte beheer voor admins
-@app.route('/workspace/admin')
-@login_required
-def workspace_admin():
-    """Beheerpagina voor werkruimte admins"""
-    # Controleer of de gebruiker een admin is
-    if not current_user.is_admin and not current_user.is_super_admin:
-        flash('Je hebt geen toegang tot deze pagina', 'danger')
-        return redirect(url_for('dashboard'))
-    
-    # Haal de werkruimte op (super admins moeten een werkruimte gekozen hebben)
-    if not current_user.workspace_id:
-        flash('Je moet eerst een werkruimte kiezen', 'warning')
-        return redirect(url_for('dashboard'))
-    
-    workspace = Workspace.query.get(current_user.workspace_id)
-    if not workspace:
-        flash('Werkruimte niet gevonden', 'danger')
-        return redirect(url_for('dashboard'))
-    
-    # Haal gebruikers op voor deze werkruimte
-    users = User.query.filter_by(workspace_id=workspace.id).all()
-    
-    # Haal e-mailinstellingen op
-    from models import EmailSettings
-    email_settings = EmailSettings.query.filter_by(workspace_id=workspace.id).first()
-    
-    # Haal abonnement op als de werkruimte een subscription_id heeft
-    if workspace.subscription_id:
-        workspace.subscription = Subscription.query.get(workspace.subscription_id)
-        
-        # Bereid features voor voor weergave
-        if workspace.subscription and workspace.subscription.features:
-            try:
-                # Als features al een dict is, maak er een features_list van
-                if isinstance(workspace.subscription.features, dict):
-                    features_dict = workspace.subscription.features
-                    workspace.subscription.features_list = list(features_dict.keys())
-                # Als features een string is (JSON), converteer naar een lijst
-                else:
-                    features_dict = json.loads(workspace.subscription.features)
-                    if isinstance(features_dict, list):
-                        workspace.subscription.features_list = features_dict
-                    else:
-                        workspace.subscription.features_list = [
-                            key for key, value in features_dict.items() if value is True
-                        ]
-            except Exception as e:
-                logging.error(f"Fout bij verwerken features: {str(e)}")
-                workspace.subscription.features_list = []
-        else:
-            if workspace.subscription:
-                workspace.subscription.features_list = []
-    else:
-        workspace.subscription = None
-    
-    return render_template(
-        'workspace_admin.html',
-        workspace=workspace,
-        users=users,
-        email_settings=email_settings,
-        format_currency=format_currency,
-        now=datetime.now()
-    )
+# Deze functie is verwijderd en geïntegreerd in de admin() functie in routes.py
 
-@app.route('/workspace/update-settings', methods=['POST'])
+@app.route('/workspace/settings', methods=['GET', 'POST'])
 @login_required
 def update_workspace_settings():
-    """Update werkruimte instellingen"""
+    """Toon en update werkruimte instellingen"""
     # Controleer of de gebruiker een admin is
     if not current_user.is_admin and not current_user.is_super_admin:
         flash('Je hebt geen toegang tot deze functie', 'danger')
@@ -186,20 +124,30 @@ def update_workspace_settings():
         flash('Werkruimte niet gevonden', 'danger')
         return redirect(url_for('dashboard'))
     
-    # Update werkruimte
-    workspace.name = request.form.get('name')
-    workspace.description = request.form.get('description', '')
-    workspace.domain = request.form.get('domain', '')
+    # Haal e-mailinstellingen op voor deze werkruimte
+    from models import EmailSettings
+    email_settings = EmailSettings.query.filter_by(workspace_id=workspace.id).first()
     
-    try:
-        db.session.commit()
-        flash('Werkruimte instellingen bijgewerkt', 'success')
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"Fout bij updaten werkruimte: {str(e)}")
-        flash('Er is een fout opgetreden bij het bijwerken van de werkruimte', 'danger')
+    if request.method == 'POST':
+        # Update werkruimte
+        workspace.name = request.form.get('name')
+        workspace.description = request.form.get('description', '')
+        workspace.domain = request.form.get('domain', '')
+        
+        try:
+            db.session.commit()
+            flash('Werkruimte instellingen bijgewerkt', 'success')
+            return redirect(url_for('admin'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Fout bij updaten werkruimte: {str(e)}")
+            flash('Er is een fout opgetreden bij het bijwerken van de werkruimte', 'danger')
     
-    return redirect(url_for('workspace_admin'))
+    # GET verzoek - toon werkruimte instellingen formulier
+    return render_template('workspace_settings.html',
+                          workspace=workspace,
+                          email_settings=email_settings,
+                          now=datetime.now())
 
 @app.route('/workspace/users/create', methods=['POST'])
 @login_required
@@ -229,7 +177,7 @@ def create_workspace_user():
     
     if current_users >= max_users and max_users > 0:
         flash('Je hebt het maximale aantal gebruikers bereikt. Upgrade je abonnement of koop extra gebruikers.', 'warning')
-        return redirect(url_for('workspace_admin'))
+        return redirect(url_for('admin'))
     
     # Maak nieuwe gebruiker
     from models import create_user
@@ -248,7 +196,7 @@ def create_workspace_user():
     
     if existing_user:
         flash('Gebruikersnaam of e-mail is al in gebruik binnen deze werkruimte', 'danger')
-        return redirect(url_for('workspace_admin'))
+        return redirect(url_for('admin'))
     
     try:
         # Maak gebruiker
@@ -266,7 +214,7 @@ def create_workspace_user():
         logging.error(f"Fout bij aanmaken gebruiker: {str(e)}")
         flash('Er is een fout opgetreden bij het aanmaken van de gebruiker', 'danger')
     
-    return redirect(url_for('workspace_admin'))
+    return redirect(url_for('admin'))
 
 @app.route('/workspace/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -286,7 +234,7 @@ def edit_workspace_user(user_id):
     user = User.query.get(user_id)
     if not user or user.workspace_id != current_user.workspace_id:
         flash('Gebruiker niet gevonden in je werkruimte', 'danger')
-        return redirect(url_for('workspace_admin'))
+        return redirect(url_for('admin'))
     
     # Voorkom dat iemand zichzelf uit admin rechten haalt
     if user.id == current_user.id and request.method == 'POST' and 'is_admin' not in request.form:
@@ -303,7 +251,7 @@ def edit_workspace_user(user_id):
             from models import update_user
             update_user(user_id, email, new_password if new_password else None, is_admin)
             flash(f'Gebruiker {user.username} bijgewerkt', 'success')
-            return redirect(url_for('workspace_admin'))
+            return redirect(url_for('admin'))
         except Exception as e:
             logging.error(f"Fout bij bijwerken gebruiker: {str(e)}")
             flash('Er is een fout opgetreden bij het bijwerken van de gebruiker', 'danger')
@@ -328,12 +276,12 @@ def delete_workspace_user(user_id):
     user = User.query.get(user_id)
     if not user or user.workspace_id != current_user.workspace_id:
         flash('Gebruiker niet gevonden in je werkruimte', 'danger')
-        return redirect(url_for('workspace_admin'))
+        return redirect(url_for('admin'))
     
     # Voorkom dat iemand zichzelf verwijdert
     if user.id == current_user.id:
         flash('Je kunt je eigen account niet verwijderen', 'warning')
-        return redirect(url_for('workspace_admin'))
+        return redirect(url_for('admin'))
     
     try:
         from models import delete_user
@@ -345,7 +293,7 @@ def delete_workspace_user(user_id):
         logging.error(f"Fout bij verwijderen gebruiker: {str(e)}")
         flash('Er is een fout opgetreden bij het verwijderen van de gebruiker', 'danger')
     
-    return redirect(url_for('workspace_admin'))
+    return redirect(url_for('admin'))
 
 # Abonnementen routes
 @app.route('/workspace/select-subscription')
@@ -492,7 +440,7 @@ def update_extra_users():
     # Controleer of er een abonnement is
     if not workspace.subscription_id:
         flash('Je hebt nog geen abonnement gekozen', 'warning')
-        return redirect(url_for('workspace_admin'))
+        return redirect(url_for('admin'))
     
     # Verwerk formulier
     if request.method == 'POST':
@@ -510,7 +458,7 @@ def update_extra_users():
             logging.error(f"Fout bij updaten extra gebruikers: {str(e)}")
             flash('Er is een fout opgetreden bij het bijwerken van het aantal extra gebruikers', 'danger')
         
-        return redirect(url_for('workspace_admin'))
+        return redirect(url_for('admin'))
     
     # Toon formulier
     return render_template(
@@ -614,7 +562,7 @@ def cancel_subscription():
     else:
         flash('Werkruimte niet gevonden', 'danger')
     
-    return redirect(url_for('workspace_admin'))
+    return redirect(url_for('admin'))
 
 # Admin routes voor abonnementen en Mollie
 @app.route('/admin/mollie-settings', methods=['GET'])

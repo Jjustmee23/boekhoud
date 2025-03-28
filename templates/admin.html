@@ -6,11 +6,6 @@
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="mb-0">Beheerdersdashboard</h1>
-        <div>
-            <a href="{{ url_for('workspace_admin') }}" class="btn btn-primary">
-                <i class="fas fa-building me-2"></i>Ga naar Werkruimte Beheer
-            </a>
-        </div>
     </div>
     
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -21,74 +16,143 @@
         {% endif %}
     {% endwith %}
     
-    {% if not current_user.is_super_admin and workspace and subscription %}
-    <!-- Abonnement informatie voor reguliere admins -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-            <h2 class="h5 mb-0">Werkruimte Abonnement</h2>
-            <a href="{{ url_for('select_subscription') }}" class="btn btn-light btn-sm">
-                <i class="fas fa-sync me-1"></i> Abonnement wijzigen
-            </a>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="h4 mb-3">{{ subscription.name }}</div>
-                    <p class="text-muted">{{ subscription.description }}</p>
-                    
-                    <div class="d-flex mb-2">
-                        <div class="me-4">
-                            <span class="d-block text-muted">Prijs per maand</span>
-                            <span class="fw-bold">{{ format_currency(subscription.price_monthly) }}</span>
+    {% if not current_user.is_super_admin and workspace %}
+    <!-- Werkruimte beheer -->
+    <div class="row mb-4">
+        <!-- Werkruimte instellingen -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="h5 mb-0">Werkruimte instellingen</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p><strong>Naam:</strong> {{ workspace.name }}</p>
                         </div>
-                        <div>
-                            <span class="d-block text-muted">Prijs per jaar</span>
-                            <span class="fw-bold">{{ format_currency(subscription.price_yearly) }}</span>
+                        <div class="col-md-4">
+                            <p><strong>Omschrijving:</strong> {{ workspace.description }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Domein:</strong> {{ workspace.domain }}</p>
                         </div>
                     </div>
-                    
-                    <div class="d-flex mt-4">
-                        <a href="{{ url_for('update_extra_users') }}" class="btn btn-outline-primary me-2">
-                            <i class="fas fa-user-plus me-1"></i> Extra gebruikers
-                        </a>
-                        <a href="{{ url_for('cancel_subscription') }}" class="btn btn-outline-danger"
-                           onclick="return confirm('Weet je zeker dat je het abonnement wilt opzeggen?');">
-                            <i class="fas fa-times me-1"></i> Opzeggen
+                    <div class="mt-3">
+                        <a href="{{ url_for('update_workspace_settings') }}" class="btn btn-primary">
+                            <i class="fas fa-cog me-1"></i> Instellingen beheren
                         </a>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="card bg-light">
-                        <div class="card-body">
-                            <h6 class="card-title">Limieten & Functies</h6>
-                            <ul class="list-unstyled">
-                                <li><i class="fas fa-users me-2"></i> Max {{ subscription.max_users }} gebruikers</li>
-                                <li><i class="fas fa-file-invoice me-2"></i> Max {{ subscription.max_invoices_per_month }} facturen per maand</li>
-                                {% if subscription.features_list %}
-                                    {% for feature in subscription.features_list %}
-                                        <li><i class="fas fa-check me-2 text-success"></i> {{ feature }}</li>
-                                    {% endfor %}
-                                {% endif %}
-                            </ul>
+            </div>
+        </div>
+        
+        <!-- Abonnement Card -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0">Werkruimte Abonnement</h2>
+                    <a href="{{ url_for('select_subscription') }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-sync me-1"></i> Abonnement wijzigen
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if workspace.subscription %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="h4 mb-3">{{ subscription.name }}</div>
+                                <p class="text-muted">{{ subscription.description }}</p>
+                                
+                                <div class="d-flex mb-2">
+                                    <div class="me-4">
+                                        <span class="d-block text-muted">Prijs per maand</span>
+                                        <span class="fw-bold">{{ format_currency(subscription.price_monthly) }}</span>
+                                    </div>
+                                    <div>
+                                        <span class="d-block text-muted">Prijs per jaar</span>
+                                        <span class="fw-bold">{{ format_currency(subscription.price_yearly) }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex mt-4">
+                                    <a href="{{ url_for('update_extra_users') }}" class="btn btn-outline-primary me-2">
+                                        <i class="fas fa-user-plus me-1"></i> Extra gebruikers
+                                    </a>
+                                    <a href="{{ url_for('cancel_subscription') }}" class="btn btn-outline-danger"
+                                       onclick="return confirm('Weet je zeker dat je het abonnement wilt opzeggen?');">
+                                        <i class="fas fa-times me-1"></i> Opzeggen
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Limieten & Functies</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-users me-2"></i> Max {{ subscription.max_users }} gebruikers</li>
+                                            <li><i class="fas fa-file-invoice me-2"></i> Max {{ subscription.max_invoices_per_month }} facturen per maand</li>
+                                            {% if subscription.features_list %}
+                                                {% for feature in subscription.features_list %}
+                                                    <li><i class="fas fa-check me-2 text-success"></i> {{ feature }}</li>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i> Er is nog geen abonnement geactiveerd voor deze werkruimte.
+                        </div>
+                        <a href="{{ url_for('select_subscription') }}" class="btn btn-primary">
+                            <i class="fas fa-tag me-2"></i>Abonnement kiezen
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
-    {% elif not current_user.is_super_admin and workspace %}
-    <!-- Geen abonnement -->
+    
+    <!-- E-mailinstellingen -->
     <div class="card shadow-sm mb-4">
-        <div class="card-header bg-warning text-dark">
-            <h2 class="h5 mb-0">Werkruimte Abonnement</h2>
+        <div class="card-header bg-info text-white">
+            <h2 class="h5 mb-0">E-mailinstellingen</h2>
         </div>
         <div class="card-body">
-            <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle me-2"></i> Er is nog geen abonnement geactiveerd voor deze werkruimte.
+            {% if email_settings %}
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <h6 class="mb-2">Provider</h6>
+                    <p class="mb-0">
+                        {% if email_settings.provider_type == 'smtp' %}
+                        SMTP ({{ email_settings.smtp_host }})
+                        {% elif email_settings.provider_type == 'microsoft' %}
+                        Microsoft Graph API
+                        {% else %}
+                        {{ email_settings.provider_type }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="mb-2">Van e-mail</h6>
+                    <p class="mb-0">{{ email_settings.from_email }}</p>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="mb-2">Van naam</h6>
+                    <p class="mb-0">{{ email_settings.from_name }}</p>
+                </div>
             </div>
-            <a href="{{ url_for('select_subscription') }}" class="btn btn-primary">
-                <i class="fas fa-tag me-2"></i>Abonnement kiezen
-            </a>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> Er zijn nog geen e-mailinstellingen geconfigureerd.
+            </div>
+            {% endif %}
+            
+            <div class="text-end">
+                <a href="{{ url_for('update_workspace_settings') }}" class="btn btn-primary">
+                    <i class="fas fa-cog me-1"></i> E-mailinstellingen beheren
+                </a>
+            </div>
         </div>
     </div>
     {% endif %}
