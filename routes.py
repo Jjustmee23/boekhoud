@@ -3304,25 +3304,27 @@ def update_ms_graph_settings():
     
     return redirect(url_for('admin'))
 
-@app.route('/admin/email/ms-oauth', methods=['GET', 'POST'])
-@login_required
-def ms_oauth_settings():
-    """Pagina voor Microsoft 365 OAuth instellingen"""
-    # Alleen super-admins kunnen e-mailinstellingen wijzigen
-    if not current_user.is_super_admin:
-        flash('U heeft geen toegang tot deze pagina', 'danger')
-        return redirect(url_for('dashboard'))
-    
-    # Als het een POST-verzoek is, verwijs naar de update-functie
-    if request.method == 'POST':
-        return update_ms_oauth_settings()
-    
-    # Haal de huidige e-mail-instellingen op
-    from models import EmailSettings
-    email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
-    
-    # Geef de template weer met de huidige instellingen
-    return render_template('admin_email_oauth.html', email_settings=email_settings, now=datetime.now())
+# Deze functie is vervangen door de functie bovenaan,
+# dit commentaar staat hier om de code te behouden voor referentie
+# @app.route('/admin/email/ms-oauth', methods=['GET', 'POST'])
+# @login_required
+# def ms_oauth_settings_duplicate():
+#     """Pagina voor Microsoft 365 OAuth instellingen"""
+#     # Alleen super-admins kunnen e-mailinstellingen wijzigen
+#     if not current_user.is_super_admin:
+#         flash('U heeft geen toegang tot deze pagina', 'danger')
+#         return redirect(url_for('dashboard'))
+#     
+#     # Als het een POST-verzoek is, verwijs naar de update-functie
+#     if request.method == 'POST':
+#         return update_ms_oauth_settings()
+#     
+#     # Haal de huidige e-mail-instellingen op
+#     from models import EmailSettings
+#     email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+#     
+#     # Geef de template weer met de huidige instellingen
+#     return render_template('admin_email_oauth.html', email_settings=email_settings, now=datetime.now())
 
 @app.route('/admin/email/ms-oauth/update', methods=['POST'])
 @login_required
