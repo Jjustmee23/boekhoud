@@ -13,6 +13,60 @@
         </div>
     </div>
     
+    <!-- Abonnement Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-tag me-2"></i>Abonnement
+            </h5>
+            <a href="{{ url_for('select_subscription') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-sync me-1"></i> Abonnement wijzigen
+            </a>
+        </div>
+        <div class="card-body">
+            {% if workspace.subscription %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="h4 mb-3">{{ workspace.subscription.name }}</div>
+                        <p class="text-muted">{{ workspace.subscription.description }}</p>
+                        
+                        <div class="d-flex mb-2">
+                            <div class="me-4">
+                                <span class="d-block text-muted">Prijs per maand</span>
+                                <span class="fw-bold">{{ format_currency(workspace.subscription.price_monthly) }}</span>
+                            </div>
+                            <div>
+                                <span class="d-block text-muted">Prijs per jaar</span>
+                                <span class="fw-bold">{{ format_currency(workspace.subscription.price_yearly) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">Limieten & Functies</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-users me-2"></i> Max {{ workspace.subscription.max_users }} gebruikers</li>
+                                    <li><i class="fas fa-file-invoice me-2"></i> Max {{ workspace.subscription.max_invoices_per_month }} facturen per maand</li>
+                                    {% if workspace.subscription.features_list %}
+                                        {% for feature in workspace.subscription.features_list %}
+                                            <li><i class="fas fa-check me-2 text-success"></i> {{ feature }}</li>
+                                        {% endfor %}
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Er is nog geen abonnement geactiveerd voor deze werkruimte.
+                    <a href="{{ url_for('select_subscription') }}" class="btn btn-primary btn-sm ms-3">Abonnement kiezen</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
     <div class="row">
         <!-- Werkruimte instellingen -->
         <div class="col-md-6">
@@ -181,7 +235,7 @@
             {% endif %}
             
             <div class="text-end">
-                <a href="{{ url_for('workspace_email_settings') }}" class="btn btn-primary">
+                <a href="{{ url_for('update_workspace_settings') }}" class="btn btn-primary">
                     <i class="fas fa-cog me-1"></i> E-mailinstellingen beheren
                 </a>
             </div>

@@ -132,6 +132,29 @@ def workspace_admin():
     # Haal abonnement op als de werkruimte een subscription_id heeft
     if workspace.subscription_id:
         workspace.subscription = Subscription.query.get(workspace.subscription_id)
+        
+        # Bereid features voor voor weergave
+        if workspace.subscription and workspace.subscription.features:
+            try:
+                # Als features al een dict is, maak er een features_list van
+                if isinstance(workspace.subscription.features, dict):
+                    features_dict = workspace.subscription.features
+                    workspace.subscription.features_list = list(features_dict.keys())
+                # Als features een string is (JSON), converteer naar een lijst
+                else:
+                    features_dict = json.loads(workspace.subscription.features)
+                    if isinstance(features_dict, list):
+                        workspace.subscription.features_list = features_dict
+                    else:
+                        workspace.subscription.features_list = [
+                            key for key, value in features_dict.items() if value is True
+                        ]
+            except Exception as e:
+                logging.error(f"Fout bij verwerken features: {str(e)}")
+                workspace.subscription.features_list = []
+        else:
+            if workspace.subscription:
+                workspace.subscription.features_list = []
     else:
         workspace.subscription = None
     
