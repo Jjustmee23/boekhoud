@@ -1,7 +1,7 @@
 import os
 import logging
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
@@ -88,6 +88,11 @@ def login():
                 return redirect(url_for('profile'))
             
             # Redirect to requested page or dashboard
+            # Als de gebruiker een superadmin is, stuur naar admin dashboard
+            if user.is_super_admin and not user.workspace_id:
+                return redirect(url_for('admin'))
+            
+            # Anders, check next parameter of ga naar gewone dashboard
             next_page = request.args.get('next')
             if next_page and next_page.startswith('/'):
                 return redirect(next_page)
@@ -2423,8 +2428,12 @@ def internal_error(error):
 @login_required
 def admin():
     # Only admins can access admin panel
-    if not current_user.is_admin:
+    if not current_user.is_admin and not current_user.is_super_admin:
         flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Super admins zonder werkruimte worden doorgestuurd naar hun dashboard
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
         return redirect(url_for('dashboard'))
     
     from models import get_users, EmailSettings
