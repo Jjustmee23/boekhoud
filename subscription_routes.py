@@ -103,7 +103,7 @@ def workspace_dashboard():
     )
 
 # Werkruimte beheer voor admins
-@app.route('/admin/workspace')
+@app.route('/workspace/admin')
 @login_required
 def workspace_admin():
     """Administratie pagina voor een specifieke werkruimte"""
