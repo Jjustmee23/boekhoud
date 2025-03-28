@@ -2,6 +2,7 @@ from app import app
 
 # Importeer alle routes
 import basic_routes  # Eerste import van basic routes voor login & dashboard
+import invoice_routes  # Import invoice-related routes
 import routes
 import subscription_routes
 import routes.admin_routes

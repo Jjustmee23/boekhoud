@@ -129,6 +129,7 @@ from routes import *
 from subscription_routes import *
 from routes.admin_routes import *  # Import admin routes
 import basic_routes  # Import basic routes explicitly
+import invoice_routes  # Import invoice-related routes
 
 # Initialize the app after all imports
 initialize_app()
