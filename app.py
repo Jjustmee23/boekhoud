@@ -11,7 +11,6 @@ load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 # Log de MS Graph API configuratiegegevens (alleen voor debug)
 logging.info(f"MS_GRAPH_CLIENT_ID: {'Ingesteld' if os.environ.get('MS_GRAPH_CLIENT_ID') else 'Niet ingesteld'}")
@@ -21,7 +20,6 @@ logging.info(f"MS_GRAPH_SENDER_EMAIL: {'Ingesteld' if os.environ.get('MS_GRAPH_S
 
 # Create Flask app
 app = Flask(__name__)
-app.logger.setLevel(logging.DEBUG)
 app.secret_key = os.environ.get("SESSION_SECRET")
 
 # Configure database
@@ -126,15 +124,6 @@ def initialize_app():
 
 # Import routes at the end to avoid circular imports
 from routes import *
-from subscription_routes import *
-from routes.admin_routes import *  # Import admin routes
-import basic_routes  # Import basic routes explicitly
-import invoice_routes  # Import invoice-related routes
 
 # Initialize the app after all imports
 initialize_app()
-
-# Debug: print all routes after initialization
-print("Geregistreerde routes na initialisatie:")
-for rule in app.url_map.iter_rules():
-    print(f"Route: {rule}, Endpoint: {rule.endpoint}")

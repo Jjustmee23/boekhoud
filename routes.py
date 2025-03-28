@@ -21,8 +21,6 @@ from file_processor import FileProcessor
 from email_service import EmailService, EmailServiceHelper
 from token_helper import token_helper
 
-# Admin routes zijn in een apart bestand: routes/admin_routes.py
-
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -2328,10 +2326,6 @@ def admin():
     if not current_user.is_admin and not current_user.is_super_admin:
         flash('U heeft geen toegang tot deze pagina', 'danger')
         return redirect(url_for('dashboard'))
-    
-    # Regular admins are redirected to the workspace dashboard
-    if current_user.is_admin and not current_user.is_super_admin and not request.args.get('settings'):
-        return redirect(url_for('workspace_dashboard'))
     
     # Super admins without workspace context are redirected to system overview
     # BUT ONLY if there's no override parameter
