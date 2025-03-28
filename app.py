@@ -124,6 +124,7 @@ def initialize_app():
 
 # Import routes at the end to avoid circular imports
 from routes import *
+from subscription_routes import *
 
 # Initialize the app after all imports
 initialize_app()

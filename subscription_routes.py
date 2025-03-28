@@ -8,9 +8,122 @@ from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_required, current_user
 from app import app, db
-from models import Workspace, Subscription, Payment, User, MollieSettings
+from models import Workspace, Subscription, Payment, User, MollieSettings, Customer, Invoice
 from mollie_service import mollie_service
 from utils import format_currency
+
+# Werkruimte dashboard voor admins
+@app.route('/workspace/dashboard')
+@login_required
+def workspace_dashboard():
+    """Dashboard voor werkruimtebeheerders (admin gebruikers in een werkruimte)"""
+    # Controleer of de gebruiker een admin is
+    if not current_user.is_admin and not current_user.is_super_admin:
+        flash('Je hebt geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Controleer of werkruimte bestaat
+    if not current_user.workspace_id:
+        flash('Je moet eerst een werkruimte kiezen', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    workspace = Workspace.query.get(current_user.workspace_id)
+    if not workspace:
+        flash('Werkruimte niet gevonden', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Statistieken verzamelen
+    user_count = User.query.filter_by(workspace_id=workspace.id).count()
+    customer_count = Customer.query.filter_by(workspace_id=workspace.id).count()
+    invoice_count = Invoice.query.filter_by(workspace_id=workspace.id).count()
+    
+    # Financiële statistieken
+    invoices = Invoice.query.filter_by(workspace_id=workspace.id).all()
+    total_income = sum(invoice.total_amount for invoice in invoices if invoice.total_amount)
+    
+    # Recente gebruikers en facturen
+    recent_users = User.query.filter_by(workspace_id=workspace.id).order_by(User.created_at.desc()).limit(5).all()
+    recent_invoices = Invoice.query.filter_by(workspace_id=workspace.id).order_by(Invoice.date.desc()).limit(5).all()
+    
+    # Top klanten
+    top_customers = []
+    customers = Customer.query.filter_by(workspace_id=workspace.id).all()
+    
+    for customer in customers:
+        customer_invoices = Invoice.query.filter_by(workspace_id=workspace.id, customer_id=customer.id).all()
+        invoices_count = len(customer_invoices)
+        total_income = sum(invoice.total_amount for invoice in customer_invoices if invoice.total_amount)
+        avg_invoice = total_income / invoices_count if invoices_count > 0 else 0
+        last_invoice_date = max([invoice.date for invoice in customer_invoices]) if customer_invoices else None
+        
+        top_customers.append({
+            'id': customer.id,
+            'name': customer.name,
+            'contact_person': customer.contact_person,
+            'invoices_count': invoices_count,
+            'total_income': total_income,
+            'avg_invoice': avg_invoice,
+            'last_invoice': last_invoice_date
+        })
+    
+    # Sorteer op aantal facturen (van hoog naar laag)
+    top_customers = sorted(top_customers, key=lambda x: x['invoices_count'], reverse=True)[:10]
+    
+    # Maandelijks overzicht van facturen
+    monthly_data = {}
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    
+    # Initialiseer voor de laatste 6 maanden
+    for i in range(6):
+        month = current_month - i
+        year = current_year
+        if month <= 0:
+            month += 12
+            year -= 1
+        month_name = datetime(year, month, 1).strftime('%B')
+        monthly_data[month_name] = {
+            'invoices': 0,
+            'income': 0
+        }
+    
+    # Verzamel data van de laatste 6 maanden
+    six_months_ago = datetime.now() - timedelta(days=180)
+    
+    # Facturen per maand
+    invoices_by_month = Invoice.query.filter(
+        Invoice.workspace_id == workspace.id,
+        Invoice.date >= six_months_ago
+    ).all()
+    
+    for invoice in invoices_by_month:
+        month_name = invoice.date.strftime('%B')
+        if month_name in monthly_data:
+            monthly_data[month_name]['invoices'] += 1
+            monthly_data[month_name]['income'] += invoice.total_amount or 0
+    
+    # Maak arrays voor grafiekdata
+    chart_months = list(monthly_data.keys())
+    chart_months.reverse()  # Oudste maand eerst
+    chart_invoices = [monthly_data[month]['invoices'] for month in chart_months]
+    chart_income = [float(monthly_data[month]['income']) for month in chart_months]
+    
+    return render_template(
+        'workspace_dashboard.html',
+        workspace=workspace,
+        user_count=user_count,
+        customer_count=customer_count,
+        invoice_count=invoice_count,
+        total_income=total_income,
+        recent_users=recent_users,
+        recent_invoices=recent_invoices,
+        top_customers=top_customers,
+        chart_months=chart_months,
+        chart_invoices=chart_invoices,
+        chart_income=chart_income,
+        format_currency=format_currency,
+        now=datetime.now()
+    )
 
 # Werkruimte beheer voor admins
 @app.route('/workspace/admin')
