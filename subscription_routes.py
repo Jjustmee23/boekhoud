@@ -12,6 +12,96 @@ from models import Workspace, Subscription, Payment, User, MollieSettings
 from mollie_service import mollie_service
 from utils import format_currency
 
+# Werkruimte dashboard voor admins
+@app.route('/workspace/dashboard')
+@login_required
+def workspace_dashboard():
+    """Dashboard voor werkruimte eigenaren met overzicht en statistieken"""
+    # Controleer of de gebruiker een admin is
+    if not current_user.is_admin and not current_user.is_super_admin:
+        flash('Je hebt geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Haal de werkruimte op (super admins moeten een werkruimte gekozen hebben)
+    if not current_user.workspace_id:
+        flash('Je moet eerst een werkruimte kiezen', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    workspace = Workspace.query.get(current_user.workspace_id)
+    if not workspace:
+        flash('Werkruimte niet gevonden', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Importeer modellen
+    from models import Customer, Invoice, User
+    
+    # Verzamel statistieken
+    users_count = User.query.filter_by(workspace_id=workspace.id).count()
+    customers_count = Customer.query.filter_by(workspace_id=workspace.id).count()
+    invoices_count = Invoice.query.filter_by(workspace_id=workspace.id).count()
+    
+    # Bereken totale omzet
+    invoices = Invoice.query.filter_by(workspace_id=workspace.id).all()
+    total_revenue = sum(invoice.total_amount for invoice in invoices)
+    total_revenue_format = format_currency(total_revenue)
+    
+    # Bereken recente facturen
+    recent_invoices = Invoice.query.filter_by(workspace_id=workspace.id).order_by(Invoice.date.desc()).limit(5).all()
+    
+    # Bereken recente klanten
+    recent_customers = Customer.query.filter_by(workspace_id=workspace.id).order_by(Customer.id.desc()).limit(5).all()
+    
+    # Bereken facturen deze maand (voor controle van abonnementslimiet)
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    monthly_invoice_count = Invoice.query.filter_by(workspace_id=workspace.id).filter(
+        db.extract('month', Invoice.date) == current_month,
+        db.extract('year', Invoice.date) == current_year
+    ).count()
+    
+    # Bereid chartdata voor: facturen per maand voor het afgelopen jaar
+    from utils import get_months
+    current_year = datetime.now().year
+    months = get_months(current_year)
+    
+    # Initialiseer data arrays
+    invoice_data = [0] * 12
+    revenue_data = [0] * 4
+    
+    # Bereken facturen per maand
+    for i, month_num in enumerate(range(1, 13)):
+        count = Invoice.query.filter_by(workspace_id=workspace.id).filter(
+            db.extract('month', Invoice.date) == month_num,
+            db.extract('year', Invoice.date) == current_year
+        ).count()
+        invoice_data[i] = count
+    
+    # Bereken omzet per kwartaal
+    quarters = ["Q1", "Q2", "Q3", "Q4"]
+    for invoice in invoices:
+        if invoice.date.year == current_year:
+            quarter = (invoice.date.month - 1) // 3
+            if 0 <= quarter < 4:  # Controleer of het een geldig kwartaal is
+                revenue_data[quarter] += invoice.total_amount
+    
+    return render_template(
+        'workspace_dashboard.html',
+        workspace=workspace,
+        users_count=users_count,
+        customers_count=customers_count,
+        invoices_count=invoices_count,
+        total_revenue_format=total_revenue_format,
+        recent_invoices=recent_invoices,
+        recent_customers=recent_customers,
+        monthly_invoice_count=monthly_invoice_count,
+        months=months,
+        quarters=quarters,
+        invoice_data=invoice_data,
+        revenue_data=revenue_data,
+        format_currency=format_currency,
+        now=datetime.now()
+    )
+
 # Werkruimte beheer voor admins
 @app.route('/workspace/admin')
 @login_required

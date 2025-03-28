@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+
+{% block title %}Werkruimte Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">{{ workspace.name }} Dashboard</h1>
+        <div>
+            <a href="{{ url_for('workspace_admin') }}" class="btn btn-outline-primary">
+                <i class="fas fa-cog me-2"></i>Werkruimte beheer
+            </a>
+        </div>
+    </div>
+    
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Welkom bij je werkruimte dashboard.</strong> Hier vind je een overzicht van je werkruimte statistieken 
+        en activiteiten.
+    </div>
+    
+    <!-- Algemene statistieken -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card h-100 text-white bg-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Gebruikers</h5>
+                            <h2 class="mb-0">{{ users_count }}</h2>
+                        </div>
+                        <div class="fs-1">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Klanten</h5>
+                            <h2 class="mb-0">{{ customers_count }}</h2>
+                        </div>
+                        <div class="fs-1">
+                            <i class="fas fa-handshake"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Facturen</h5>
+                            <h2 class="mb-0">{{ invoices_count }}</h2>
+                        </div>
+                        <div class="fs-1">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Omzet</h5>
+                            <h2 class="mb-0">{{ total_revenue_format }}</h2>
+                        </div>
+                        <div class="fs-1">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Grafieken -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Facturen per maand</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="invoicesChart" width="400" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Omzet per kwartaal</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="revenueChart" width="400" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Abonnement informatie -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">Abonnement informatie</h5>
+        </div>
+        <div class="card-body">
+            {% if workspace.subscription %}
+            <div class="row">
+                <div class="col-md-4">
+                    <h6 class="mb-2">Abonnement</h6>
+                    <p class="mb-0">
+                        <strong>{{ workspace.subscription.name }}</strong>
+                        <span class="badge bg-success ms-2">Actief</span>
+                    </p>
+                    <p class="text-muted">{{ workspace.subscription.description }}</p>
+                </div>
+                <div class="col-md-2">
+                    <h6 class="mb-2">Kosten</h6>
+                    <p class="mb-0">
+                        {% if workspace.billing_cycle == 'monthly' %}
+                        <strong>€ {{ format_currency(workspace.subscription.price_monthly) }}</strong> / maand
+                        {% else %}
+                        <strong>€ {{ format_currency(workspace.subscription.price_yearly) }}</strong> / jaar
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-2">
+                    <h6 class="mb-2">Verlenging</h6>
+                    <p class="mb-0">
+                        {% if workspace.subscription_end_date %}
+                        {{ workspace.subscription_end_date.strftime('%d-%m-%Y') }}
+                        {% else %}
+                        Onbekend
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-2">
+                    <h6 class="mb-2">Gebruikers</h6>
+                    <p class="mb-0">
+                        {{ users_count }} / {{ workspace.subscription.max_users + workspace.extra_users }}
+                        {% if users_count >= (workspace.subscription.max_users + workspace.extra_users) %}
+                        <i class="fas fa-exclamation-circle text-warning" title="Limiet bereikt"></i>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-2">
+                    <h6 class="mb-2">Facturen</h6>
+                    <p class="mb-0">
+                        {{ monthly_invoice_count }} / {{ workspace.subscription.max_invoices_per_month }} deze maand
+                        {% if monthly_invoice_count >= workspace.subscription.max_invoices_per_month %}
+                        <i class="fas fa-exclamation-circle text-warning" title="Limiet bereikt"></i>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i> Je hebt nog geen actief abonnement.
+                <a href="{{ url_for('select_subscription') }}" class="alert-link">Kies een abonnement</a> om alle functionaliteit te gebruiken.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Recente activiteit -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Recente facturen</h5>
+                    <a href="{{ url_for('invoices_list') }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-list me-1"></i> Alle facturen
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nummer</th>
+                                    <th>Klant</th>
+                                    <th>Datum</th>
+                                    <th>Bedrag</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if recent_invoices %}
+                                    {% for invoice in recent_invoices %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}">
+                                                {{ invoice.invoice_number }}
+                                            </a>
+                                        </td>
+                                        <td>{{ invoice.customer.name }}</td>
+                                        <td>{{ invoice.date.strftime('%d-%m-%Y') }}</td>
+                                        <td>€ {{ format_currency(invoice.total_amount) }}</td>
+                                        <td>
+                                            {% if invoice.status == 'paid' %}
+                                            <span class="badge bg-success">Betaald</span>
+                                            {% elif invoice.status == 'overdue' %}
+                                            <span class="badge bg-danger">Te laat</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">Open</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-3">Geen recente facturen gevonden</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Recente klanten</h5>
+                    <a href="{{ url_for('customers_list') }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-list me-1"></i> Alle klanten
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Naam</th>
+                                    <th>E-mail</th>
+                                    <th>Telefoon</th>
+                                    <th>Facturen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if recent_customers %}
+                                    {% for customer in recent_customers %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('view_customer', customer_id=customer.id) }}">
+                                                {{ customer.name }}
+                                            </a>
+                                        </td>
+                                        <td>{{ customer.email }}</td>
+                                        <td>{{ customer.phone or '-' }}</td>
+                                        <td>{{ customer.invoices|length }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-3">Geen recente klanten gevonden</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Kleuren voor grafieken
+    const chartColors = {
+        blue: 'rgb(54, 162, 235)',
+        lightBlue: 'rgba(54, 162, 235, 0.2)',
+        green: 'rgb(75, 192, 192)',
+        lightGreen: 'rgba(75, 192, 192, 0.2)',
+        purple: 'rgb(153, 102, 255)',
+        red: 'rgb(255, 99, 132)',
+        orange: 'rgb(255, 159, 64)',
+        yellow: 'rgb(255, 205, 86)'
+    };
+    
+    // Facturen per maand grafiek
+    const invoicesCtx = document.getElementById('invoicesChart').getContext('2d');
+    const invoicesChart = new Chart(invoicesCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ months|tojson }},
+            datasets: [{
+                label: 'Aantal facturen',
+                data: {{ invoice_data|tojson }},
+                backgroundColor: chartColors.lightBlue,
+                borderColor: chartColors.blue,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            }
+        }
+    });
+    
+    // Omzet per kwartaal grafiek
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    const revenueChart = new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: {{ quarters|tojson }},
+            datasets: [{
+                label: 'Omzet (€)',
+                data: {{ revenue_data|tojson }},
+                backgroundColor: chartColors.lightGreen,
+                borderColor: chartColors.green,
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '€ ' + value;
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '€ ' + context.raw.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
