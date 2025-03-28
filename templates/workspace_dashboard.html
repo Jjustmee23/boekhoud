@@ -165,7 +165,7 @@
             {% else %}
             <div class="alert alert-warning">
                 <i class="fas fa-exclamation-triangle me-2"></i> Je hebt nog geen actief abonnement.
-                <a href="{{ url_for('select_subscription') }}" class="alert-link">Kies een abonnement</a> om alle functionaliteit te gebruiken.
+                <a href="/workspace/select-subscription" class="alert-link">Kies een abonnement</a> om alle functionaliteit te gebruiken.
             </div>
             {% endif %}
         </div>
@@ -177,7 +177,7 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">Recente facturen</h5>
-                    <a href="{{ url_for('invoices_list') }}" class="btn btn-sm btn-primary">
+                    <a href="/invoices" class="btn btn-sm btn-primary">
                         <i class="fas fa-list me-1"></i> Alle facturen
                     </a>
                 </div>
@@ -198,7 +198,7 @@
                                     {% for invoice in recent_invoices %}
                                     <tr>
                                         <td>
-                                            <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}">
+                                            <a href="/invoices/{{ invoice.id }}">
                                                 {{ invoice.invoice_number }}
                                             </a>
                                         </td>
@@ -231,7 +231,7 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">Recente klanten</h5>
-                    <a href="{{ url_for('customers_list') }}" class="btn btn-sm btn-primary">
+                    <a href="/customers" class="btn btn-sm btn-primary">
                         <i class="fas fa-list me-1"></i> Alle klanten
                     </a>
                 </div>
@@ -251,7 +251,7 @@
                                     {% for customer in recent_customers %}
                                     <tr>
                                         <td>
-                                            <a href="{{ url_for('view_customer', customer_id=customer.id) }}">
+                                            <a href="/customers/{{ customer.id }}">
                                                 {{ customer.name }}
                                             </a>
                                         </td>
