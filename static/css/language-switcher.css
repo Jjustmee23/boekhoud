@@ -1,0 +1,112 @@
+/* Taalwisselaar stijl */
+.language-switcher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.language-switcher-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1000;
+  display: none;
+  min-width: 120px;
+  padding: 0.5rem 0;
+  margin: 0.125rem 0 0;
+  background-color: var(--bs-dropdown-bg);
+  background-clip: padding-box;
+  border: var(--bs-dropdown-border-width) solid var(--bs-dropdown-border-color);
+  border-radius: var(--bs-dropdown-border-radius);
+}
+
+.language-switcher-dropdown.show {
+  display: block;
+}
+
+.language-switcher-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  clear: both;
+  font-weight: 400;
+  text-align: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  background-color: transparent;
+  border: 0;
+  color: var(--bs-dropdown-link-color);
+}
+
+.language-switcher-item:hover {
+  color: var(--bs-dropdown-link-hover-color);
+  background-color: var(--bs-dropdown-link-hover-bg);
+}
+
+.language-switcher-item .flag-icon {
+  margin-right: 0.5rem;
+  width: 24px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.language-switcher-current .flag-icon {
+  width: 20px;
+  height: 15px;
+  margin-right: 0.25rem;
+  object-fit: contain;
+}
+
+.language-switcher-label {
+  margin-left: 0.25rem;
+}
+
+/* Flag animations */
+.flag-wave {
+  animation: flag-wave-animation 2.5s ease-in-out;
+  transform-origin: 70% 60%;
+}
+
+@keyframes flag-wave-animation {
+  0% {
+    transform: rotate(0deg);
+  }
+  10% {
+    transform: rotate(14deg);
+  }
+  20% {
+    transform: rotate(-8deg);
+  }
+  30% {
+    transform: rotate(14deg);
+  }
+  40% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.flag-bounce {
+  animation: flag-bounce-animation 1s ease-in-out;
+}
+
+@keyframes flag-bounce-animation {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-8px);
+  }
+  60% {
+    transform: translateY(-4px);
+  }
+}

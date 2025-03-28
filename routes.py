@@ -5,7 +5,7 @@ import json
 import traceback
 from datetime import datetime, date, timedelta
 from decimal import Decimal
-from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session, abort
+from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session, abort, g
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 
@@ -3886,6 +3886,53 @@ def privacy_policy(lang='nl'):
         lang = 'nl'
         
     return render_template('privacy_policy.html', lang=lang, now=datetime.now())
+
+
+# Taal ondersteuning routes en functies
+@app.before_request
+def load_user_language():
+    """Laad taalvoorkeuren van de gebruiker voorafgaand aan elk verzoek"""
+    # Standaardtaal is Nederlands
+    g.language = session.get('language', 'nl')
+    
+    # Laad vertalingen voor de huidige taal
+    try:
+        translation_file = os.path.join(app.root_path, 'static', 'translations', f'{g.language}.json')
+        if os.path.exists(translation_file):
+            with open(translation_file, 'r', encoding='utf-8') as f:
+                g.translations = json.load(f)
+        else:
+            # Fallback naar Nederlands als het vertaalbestand niet bestaat
+            fallback_file = os.path.join(app.root_path, 'static', 'translations', 'nl.json')
+            if os.path.exists(fallback_file):
+                with open(fallback_file, 'r', encoding='utf-8') as f:
+                    g.translations = json.load(f)
+                    g.language = 'nl'  # Reset naar standaard
+            else:
+                g.translations = {}  # Leeg dict als fallback
+    except Exception as e:
+        app.logger.error(f"Fout bij laden van vertalingen: {e}")
+        g.translations = {}  # Leeg dict als fallback
+        
+    # Stel datetime in voor templates
+    g.now = datetime.now()
+
+@app.route('/set-language/<language_code>')
+def set_language(language_code):
+    """Stel de taalvoorkeur van de gebruiker in"""
+    # Alleen geldige taalcodes toestaan
+    valid_languages = ['nl', 'en', 'fr']
+    
+    if language_code in valid_languages:
+        session['language'] = language_code
+        # Vlaganimatie wordt door JavaScript toegepast
+        flash(f'Taal gewijzigd naar {language_code.upper()}', 'success')
+    else:
+        flash(f'Ongeldige taalcode: {language_code}', 'danger')
+    
+    # Redirect terug naar de verwijzende pagina of dashboard
+    referrer = request.referrer or url_for('dashboard')
+    return redirect(referrer)
 
 
 # Error handling en monitoring routes

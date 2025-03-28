@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="nl" data-bs-theme="dark">
+<html lang="{{ g.language|default('nl') }}" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facturatie & Boekhouding{% block title %}{% endblock %}</title>
+    <title>{{ g.translations.general.app_name|default('Facturatie & Boekhouding') }}{% block title %}{% endblock %}</title>
     <!-- Bootstrap CSS (Replit-themed) -->
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
     <!-- Font Awesome for icons -->
@@ -12,6 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/language-switcher.css') }}">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -60,6 +61,30 @@
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
+                    <!-- Language Switcher -->
+                    <li class="nav-item me-2">
+                        <div class="language-switcher">
+                            <div class="language-switcher-current">
+                                <img src="{{ url_for('static', filename='images/flags/' + g.language|default('nl') + '.svg') }}" alt="{{ g.language|default('nl') }}" class="flag-icon">
+                                <span class="d-none d-md-inline language-switcher-label">{{ g.language|default('nl')|upper }}</span>
+                            </div>
+                            <div class="language-switcher-dropdown">
+                                <a href="#" class="language-switcher-item" data-language="nl">
+                                    <img src="{{ url_for('static', filename='images/flags/nl.svg') }}" alt="Nederlands" class="flag-icon">
+                                    <span>Nederlands</span>
+                                </a>
+                                <a href="#" class="language-switcher-item" data-language="en">
+                                    <img src="{{ url_for('static', filename='images/flags/en.svg') }}" alt="English" class="flag-icon">
+                                    <span>English</span>
+                                </a>
+                                <a href="#" class="language-switcher-item" data-language="fr">
+                                    <img src="{{ url_for('static', filename='images/flags/fr.svg') }}" alt="Français" class="flag-icon">
+                                    <span>Français</span>
+                                </a>
+                            </div>
+                        </div>
+                    </li>
+                    
                     {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -70,9 +95,9 @@
                             {{ current_user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="fas fa-user-cog"></i> Mijn Profiel</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="fas fa-user-cog"></i> {{ g.translations.general.profile|default('Mijn Profiel') }}</a></li>
                             {% if current_user.is_admin %}
-                            <li><a class="dropdown-item" href="{{ url_for('admin') }}"><i class="fas fa-users-cog"></i> Beheerdersdashboard</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin') }}"><i class="fas fa-users-cog"></i> {{ g.translations.general.admin_dashboard|default('Beheerdersdashboard') }}</a></li>
                             {% endif %}
                             
                             {% if session.get('super_admin_id') %}
@@ -80,25 +105,25 @@
                             <li>
                                 <form action="{{ url_for('return_to_super_admin') }}" method="POST" style="margin:0;">
                                     <button type="submit" class="dropdown-item text-warning">
-                                        <i class="fas fa-user-secret"></i> Terug naar Super Admin
+                                        <i class="fas fa-user-secret"></i> {{ g.translations.general.back_to_super_admin|default('Terug naar Super Admin') }}
                                     </button>
                                 </form>
                             </li>
                             {% endif %}
                             
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Uitloggen</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> {{ g.translations.general.logout|default('Uitloggen') }}</a></li>
                         </ul>
                     </li>
                     {% else %}
                     <li class="nav-item">
                         <a class="nav-link {% if '/login' in request.path %}active{% endif %}" href="{{ url_for('login') }}">
-                            <i class="fas fa-sign-in-alt"></i> Inloggen
+                            <i class="fas fa-sign-in-alt"></i> {{ g.translations.general.login|default('Inloggen') }}
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if '/register' in request.path %}active{% endif %}" href="{{ url_for('register') }}">
-                            <i class="fas fa-user-plus"></i> Registreren
+                            <i class="fas fa-user-plus"></i> {{ g.translations.general.register|default('Registreren') }}
                         </a>
                     </li>
                     {% endif %}
@@ -146,6 +171,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/language-switcher.js') }}"></script>
     
     {% block scripts %}{% endblock %}
 </body>
