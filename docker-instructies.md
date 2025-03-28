@@ -92,6 +92,9 @@ Voor productiegebruik:
    # Voorbeeld .env bestand
    POSTGRES_PASSWORD=sterk_wachtwoord_hier
    SESSION_SECRET=lang_random_sessie_sleutel_hier
+   MOLLIE_API_KEY=uw_mollie_api_sleutel
+   MOLLIE_WEBHOOK_URL=https://uw-domein.nl/subscription/webhook
+   MOLLIE_REDIRECT_URL=https://uw-domein.nl/subscription/success
    ```
 
 2. Voeg in productie het volgende toe aan docker-compose.yml:
@@ -104,7 +107,9 @@ Voor productiegebruik:
        - .env
    ```
 
-3. Gebruik voor productie een reverse proxy zoals Traefik of Nginx met SSL:
+3. Zorg ervoor dat gevoelige gegevens zoals Mollie API-sleutels nooit worden opgeslagen in publieke repository's of Docker images. Gebruik altijd omgevingsvariabelen of secrets management.
+
+4. Gebruik voor productie een reverse proxy zoals Traefik of Nginx met SSL:
    ```yaml
    # Voorbeeld voor Traefik labels in docker-compose.yml
    web:
@@ -115,7 +120,7 @@ Voor productiegebruik:
        - "traefik.http.routers.facturatie.tls.certresolver=myresolver"
    ```
 
-4. Beperk netwerktoegang tot alleen noodzakelijke poorten
+5. Beperk netwerktoegang tot alleen noodzakelijke poorten
 
 ## Problemen oplossen
 
@@ -135,6 +140,22 @@ docker compose logs db
 ```
 
 Zorg ervoor dat zowel de 'web' als 'db' services draaien en gezond zijn.
+
+### Mollie API Problemen
+
+Als betalingen via Mollie niet werken:
+
+```bash
+# Controleer de logs van de webapplicatie voor Mollie API-fouten
+docker compose logs -f web | grep Mollie
+
+# Zorg dat uw MOLLIE_API_KEY correct is ingesteld in .env
+
+# Controleer of uw webhook URL publiekelijk toegankelijk is
+# De webhook URL moet vanaf het internet bereikbaar zijn, niet alleen lokaal
+```
+
+Zorg er voor de productie-omgeving voor dat uw webhook URL (zoals ingesteld in MOLLIE_WEBHOOK_URL) publiekelijk toegankelijk is, zodat Mollie betaalstatusupdates kan sturen. Voor tests kunt u een service zoals ngrok gebruiken.
 
 ### Permissie problemen voor geüploade bestanden
 

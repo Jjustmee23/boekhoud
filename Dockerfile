@@ -79,7 +79,9 @@ COPY --chown=appuser:appuser . /app/
 RUN mkdir -p /app/logs \
     && touch /app/logs/app.log /app/logs/app.json.log /app/logs/error.log \
     && chown -R appuser:appuser /app/logs \
-    && chmod -R 755 /app/logs
+    && chmod -R 755 /app/logs \
+    && mkdir -p /app/static/uploads/subscriptions \
+    && chown -R appuser:appuser /app/static/uploads
 
 # Schakel over naar niet-root gebruiker
 USER appuser
@@ -92,4 +94,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:5000/ || exit 1
 
 # Commando om te starten
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+# Verbeterd om specifieke Gunicorn parameters in te stellen voor betere betrouwbaarheid
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4", "--timeout", "120", "--reuse-port", "--access-logfile", "-", "--error-logfile", "-", "main:app"]
