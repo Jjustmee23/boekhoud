@@ -289,8 +289,52 @@ def dashboard():
     # Get current year
     current_year = datetime.now().year
     
-    # Apply workspace filter for regular users, super admins see all data
-    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    # Controleer of het een superadmin is zonder actieve workspace sessie
+    # Super admins hebben geen workspace_id of hebben een actieve workspace sessie (via session['super_admin_id'])
+    if current_user.is_super_admin and not session.get('super_admin_id'):
+        # Super admin dashboard zonder specifieke workspace data
+        # Haal alleen systeemstatistieken op
+        workspaces = Workspace.query.all()
+        workspace_count = len(workspaces)
+        
+        user_count = User.query.count()
+        customer_count = Customer.query.count()
+        invoice_count = Invoice.query.count()
+        
+        # Haal de werkruimtes met de meeste gebruikers op
+        top_workspaces = []
+        for workspace in workspaces:
+            users_count = User.query.filter_by(workspace_id=workspace.id).count()
+            customers_count = Customer.query.filter_by(workspace_id=workspace.id).count()
+            invoices_count = Invoice.query.filter_by(workspace_id=workspace.id).count()
+            
+            top_workspaces.append({
+                'id': workspace.id,
+                'name': workspace.name,
+                'users_count': users_count,
+                'customers_count': customers_count,
+                'invoices_count': invoices_count,
+                'created_at': workspace.created_at
+            })
+        
+        # Sorteer op aantal gebruikers (van hoog naar laag)
+        top_workspaces = sorted(top_workspaces, key=lambda x: x['users_count'], reverse=True)[:5]
+        
+        return render_template(
+            'dashboard.html',
+            is_super_admin_dashboard=True,
+            workspace_count=workspace_count,
+            user_count=user_count,
+            customer_count=customer_count,
+            invoice_count=invoice_count,
+            top_workspaces=top_workspaces,
+            format_currency=format_currency,
+            now=datetime.now()
+        )
+    
+    # Voor normale gebruikers en super admins die ingelogd zijn in een werkruimte
+    # Bepaal werkruimte ID (None voor super admin zonder workspace sessie)
+    workspace_id = current_user.workspace_id
     
     # Get summaries for the workspace
     monthly_summary = get_monthly_summary(current_year, workspace_id)
@@ -308,12 +352,7 @@ def dashboard():
     vat_balance = vat_collected - vat_paid
     
     # Get recent invoices (5 most recent) for the workspace
-    recent_invoices_query = Invoice.query
-    
-    # Filter by workspace for regular users
-    if not current_user.is_super_admin and current_user.workspace_id:
-        recent_invoices_query = recent_invoices_query.filter_by(workspace_id=current_user.workspace_id)
-        
+    recent_invoices_query = Invoice.query.filter_by(workspace_id=workspace_id)
     recent_invoices_query = recent_invoices_query.order_by(Invoice.date.desc()).limit(5)
     
     # Convert to dictionary format for the template
@@ -321,7 +360,7 @@ def dashboard():
     for invoice in recent_invoices_query:
         invoice_dict = invoice.to_dict()
         customer = Customer.query.get(invoice.customer_id)
-        invoice_dict['customer_name'] = customer.name if customer else 'Unknown Customer'
+        invoice_dict['customer_name'] = customer.name if customer else 'Onbekende Klant'
         recent_invoices.append(invoice_dict)
     
     return render_template(
@@ -344,8 +383,17 @@ def dashboard():
 @app.route('/dashboard/api/monthly-data/<int:year>')
 def api_monthly_data(year):
     """API endpoint for monthly chart data"""
-    # Apply workspace filter for regular users, super admins see all data
-    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    # Super admins zonder actieve workspace sessie krijgen lege data
+    if current_user.is_super_admin and not session.get('super_admin_id'):
+        return jsonify({
+            'labels': [],
+            'income': [],
+            'expenses': [],
+            'profit': []
+        })
+    
+    # Voor werkruimte gebruikers en super admins in een werkruimte
+    workspace_id = current_user.workspace_id
     monthly_data = get_monthly_summary(year, workspace_id)
     
     # Format data for Chart.js
@@ -364,8 +412,17 @@ def api_monthly_data(year):
 @app.route('/dashboard/api/quarterly-data/<int:year>')
 def api_quarterly_data(year):
     """API endpoint for quarterly chart data"""
-    # Apply workspace filter for regular users, super admins see all data
-    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    # Super admins zonder actieve workspace sessie krijgen lege data
+    if current_user.is_super_admin and not session.get('super_admin_id'):
+        return jsonify({
+            'labels': [],
+            'income': [],
+            'expenses': [],
+            'profit': []
+        })
+    
+    # Voor werkruimte gebruikers en super admins in een werkruimte
+    workspace_id = current_user.workspace_id
     quarterly_data = get_quarterly_summary(year, workspace_id)
     
     # Format data for Chart.js
@@ -385,6 +442,11 @@ def api_quarterly_data(year):
 @app.route('/invoices')
 @login_required
 def invoices_list():
+    # Super admin zonder actieve workspace sessie kan geen facturen zien
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
+        flash('U moet eerst een werkruimte kiezen om facturen te bekijken', 'warning')
+        return redirect(url_for('dashboard'))
+    
     # Get filter parameters
     customer_id = request.args.get('customer_id')
     invoice_type = request.args.get('type')
@@ -394,9 +456,10 @@ def invoices_list():
     # Build query with filters
     query = Invoice.query
     
-    # Apply workspace filter for regular users, super admins see all data
-    if not current_user.is_super_admin:
-        query = query.filter_by(workspace_id=current_user.workspace_id)
+    # Alle gebruikers (inclusief super admins in workspace mode) krijgen alleen hun eigen workspace data
+    workspace_id = current_user.workspace_id
+    if workspace_id:
+        query = query.filter_by(workspace_id=workspace_id)
     
     if customer_id:
         # Convert string to UUID if needed
@@ -435,9 +498,11 @@ def invoices_list():
         invoice_dict['customer_name'] = customer.name if customer else 'Onbekende Klant'
         invoices_data.append(invoice_dict)
     
-    # Get all customers for filter dropdown
-    customers_query = Customer.query.all()
-    customers_data = [customer.to_dict() for customer in customers_query]
+    # Get customers for filter dropdown (alleen van huidige werkruimte)
+    customers_query = Customer.query
+    if workspace_id:
+        customers_query = customers_query.filter_by(workspace_id=workspace_id)
+    customers_data = [customer.to_dict() for customer in customers_query.all()]
     
     return render_template(
         'invoices.html',
@@ -952,10 +1017,16 @@ def view_invoice_attachment(invoice_id):
 # Customer management routes
 @app.route('/customers')
 def customers_list():
-    # Apply workspace filter for regular users, super admins see all data
+    # Super admin zonder actieve workspace sessie kan geen klanten zien
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
+        flash('U moet eerst een werkruimte kiezen om klanten te bekijken', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    # Alle gebruikers (inclusief super admins in workspace mode) krijgen alleen hun eigen workspace data
+    workspace_id = current_user.workspace_id
     query = Customer.query
-    if not current_user.is_super_admin:
-        query = query.filter_by(workspace_id=current_user.workspace_id)
+    if workspace_id:
+        query = query.filter_by(workspace_id=workspace_id)
     
     # Get customers from the database
     customers_query = query.all()
@@ -965,10 +1036,10 @@ def customers_list():
     for customer in customers_query:
         customer_dict = customer.to_dict()
         
-        # Query invoices for this customer
+        # Query invoices for this customer (alleen van huidige werkruimte)
         invoice_query = Invoice.query.filter_by(customer_id=customer.id)
-        if not current_user.is_super_admin:
-            invoice_query = invoice_query.filter_by(workspace_id=current_user.workspace_id)
+        if workspace_id:
+            invoice_query = invoice_query.filter_by(workspace_id=workspace_id)
         customer_invoices_query = invoice_query.all()
         
         # Add additional data
@@ -1122,8 +1193,10 @@ def view_customer(customer_id):
         
         # Query customer invoices - all and separate processed/unprocessed
         invoice_query = Invoice.query.filter_by(customer_id=customer.id)
-        if not current_user.is_super_admin:
-            invoice_query = invoice_query.filter_by(workspace_id=current_user.workspace_id)
+        # Alle gebruikers (inclusief super admins in workspace mode) krijgen alleen hun eigen workspace data
+        workspace_id = current_user.workspace_id
+        if workspace_id:
+            invoice_query = invoice_query.filter_by(workspace_id=workspace_id)
         customer_invoices_query = invoice_query.all()
         
         # Filter processed and unprocessed invoices
@@ -1446,7 +1519,14 @@ def reports():
 
 @app.route('/reports/monthly/<int:year>', methods=['GET'])
 def monthly_report(year):
-    monthly_data = get_monthly_summary(year)
+    # Super admin zonder actieve workspace sessie kan geen rapporten zien
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
+        flash('U moet eerst een werkruimte kiezen om rapporten te bekijken', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    # Alle gebruikers (inclusief super admins in workspace mode) krijgen alleen hun eigen workspace data
+    workspace_id = current_user.workspace_id
+    monthly_data = get_monthly_summary(year, workspace_id)
     
     # Get export format
     export_format = request.args.get('format')
@@ -1491,7 +1571,14 @@ def monthly_report(year):
 
 @app.route('/reports/quarterly/<int:year>', methods=['GET'])
 def quarterly_report(year):
-    quarterly_data = get_quarterly_summary(year)
+    # Super admin zonder actieve workspace sessie kan geen rapporten zien
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
+        flash('U moet eerst een werkruimte kiezen om rapporten te bekijken', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    # Alle gebruikers (inclusief super admins in workspace mode) krijgen alleen hun eigen workspace data
+    workspace_id = current_user.workspace_id
+    quarterly_data = get_quarterly_summary(year, workspace_id)
     
     # Get export format
     export_format = request.args.get('format')
@@ -1536,8 +1623,13 @@ def quarterly_report(year):
 
 @app.route('/reports/customers', methods=['GET'])
 def customer_report():
-    # Apply workspace filter for regular users, super admins see all data
-    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    # Super admin zonder actieve workspace sessie kan geen rapporten zien
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
+        flash('U moet eerst een werkruimte kiezen om rapporten te bekijken', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    # Alle gebruikers (inclusief super admins in workspace mode) krijgen alleen hun eigen workspace data
+    workspace_id = current_user.workspace_id
     customer_data = get_customer_summary(workspace_id)
     
     # Get export format
@@ -1583,6 +1675,11 @@ def customer_report():
 # VAT report routes
 @app.route('/vat-report')
 def vat_report_form():
+    # Super admin zonder actieve workspace sessie kan geen BTW-rapport zien
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
+        flash('U moet eerst een werkruimte kiezen om BTW-rapporten te bekijken', 'warning')
+        return redirect(url_for('dashboard'))
+        
     return render_template(
         'vat_report.html',
         years=get_years(),
@@ -1595,12 +1692,17 @@ def vat_report_form():
 
 @app.route('/vat-report/generate', methods=['POST'])
 def generate_vat_report():
+    # Super admin zonder actieve workspace sessie kan geen rapporten zien
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
+        flash('U moet eerst een werkruimte kiezen om BTW-rapporten te genereren', 'warning')
+        return redirect(url_for('dashboard'))
+    
     # Get form data
     year = int(request.form.get('year'))
     report_type = request.form.get('report_type')  # 'quarterly' or 'monthly'
     
-    # Apply workspace filter for regular users, super admins see all data
-    workspace_id = None if current_user.is_super_admin else current_user.workspace_id
+    # Alle gebruikers (inclusief super admins in workspace mode) krijgen alleen hun eigen workspace data
+    workspace_id = current_user.workspace_id
     
     if report_type == 'quarterly':
         quarter = int(request.form.get('quarter'))
@@ -1705,6 +1807,11 @@ def generate_vat_report():
 # Bulk upload routes
 @app.route('/bulk-upload', methods=['GET', 'POST'])
 def bulk_upload():
+    # Super admin zonder actieve workspace sessie kan geen bulk upload doen
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
+        flash('U moet eerst een werkruimte kiezen om bulk uploads te doen', 'warning')
+        return redirect(url_for('dashboard'))
+    
     # Get optional customer_id from URL parameter (for GET)
     url_customer_id = request.args.get('customer_id')
     
