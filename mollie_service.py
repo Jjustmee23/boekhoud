@@ -323,7 +323,11 @@ class MollieService:
             
             # Update velden
             if api_key is not None:
-                settings.api_key = api_key
+                # Stel de juiste API key in op basis van test mode
+                if is_test_mode:
+                    settings.api_key_test = api_key
+                else:
+                    settings.api_key_live = api_key
             
             settings.is_test_mode = is_test_mode
             

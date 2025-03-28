@@ -686,11 +686,24 @@ class MollieSettings(db.Model):
     __tablename__ = 'mollie_settings'
     
     id = db.Column(db.Integer, primary_key=True)
-    api_key = db.Column(db.String(255))
+    api_key_live = db.Column(db.String(255))
+    api_key_test = db.Column(db.String(255))
     is_test_mode = db.Column(db.Boolean, default=True)
     webhook_url = db.Column(db.String(255))
     redirect_url = db.Column(db.String(255))
-    is_system_default = db.Column(db.Boolean, default=False)
+    
+    @property
+    def api_key(self):
+        """Geeft de juiste API key terug op basis van de test mode instelling"""
+        return self.api_key_test if self.is_test_mode else self.api_key_live
+    
+    @api_key.setter
+    def api_key(self, value):
+        """Stelt de juiste API key in op basis van de test mode instelling"""
+        if self.is_test_mode:
+            self.api_key_test = value
+        else:
+            self.api_key_live = value
     
     # Workspace relatie
     workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'))

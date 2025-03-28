@@ -24,18 +24,30 @@
                         </div>
                         <div class="card-body">
                             <form method="POST" action="{{ url_for('update_mollie_settings') }}">
-                                <div class="mb-3">
-                                    <label for="api_key" class="form-label">API Sleutel</label>
-                                    <input type="text" class="form-control" id="api_key" name="api_key" 
-                                           value="{{ mollie_settings.api_key if mollie_settings else '' }}">
-                                    <div class="form-text">Je API sleutel is te vinden in je Mollie Dashboard.</div>
-                                </div>
-                                
                                 <div class="mb-3 form-check">
                                     <input type="checkbox" class="form-check-input" id="is_test_mode" name="is_test_mode" 
                                            {% if mollie_settings and mollie_settings.is_test_mode %}checked{% endif %}>
                                     <label class="form-check-label" for="is_test_mode">Test modus</label>
                                     <div class="form-text">In test modus worden geen echte transacties verwerkt.</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="api_key" class="form-label">
+                                        {% if mollie_settings and mollie_settings.is_test_mode %}
+                                            Test API Sleutel
+                                        {% else %}
+                                            Live API Sleutel
+                                        {% endif %}
+                                    </label>
+                                    <input type="text" class="form-control" id="api_key" name="api_key" 
+                                           value="{% if mollie_settings %}{% if mollie_settings.is_test_mode %}{{ mollie_settings.api_key_test }}{% else %}{{ mollie_settings.api_key_live }}{% endif %}{% else %}{% endif %}">
+                                    <div class="form-text">
+                                        {% if mollie_settings and mollie_settings.is_test_mode %}
+                                            Je test API sleutel is te vinden in je Mollie Dashboard. Begint meestal met 'test_'.
+                                        {% else %}
+                                            Je live API sleutel is te vinden in je Mollie Dashboard. Begint meestal met 'live_'.
+                                        {% endif %}
+                                    </div>
                                 </div>
                                 
                                 <div class="mb-3">
@@ -264,4 +276,35 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Test mode toggle handler
+        const testModeCheckbox = document.getElementById('is_test_mode');
+        const apiKeyLabel = document.querySelector('label[for="api_key"]');
+        const apiKeyInfo = document.querySelector('#api_key').nextElementSibling;
+        
+        function updateApiKeyLabels() {
+            const isTestMode = testModeCheckbox.checked;
+            
+            if (isTestMode) {
+                apiKeyLabel.textContent = 'Test API Sleutel';
+                apiKeyInfo.textContent = 'Je test API sleutel is te vinden in je Mollie Dashboard. Begint meestal met \'test_\'.';
+            } else {
+                apiKeyLabel.textContent = 'Live API Sleutel';
+                apiKeyInfo.textContent = 'Je live API sleutel is te vinden in je Mollie Dashboard. Begint meestal met \'live_\'.';
+            }
+        }
+        
+        // Update bij checkbox wijziging
+        testModeCheckbox.addEventListener('change', function() {
+            updateApiKeyLabels();
+            // Leeg het API key veld wanneer van modus gewisseld wordt
+            document.getElementById('api_key').value = '';
+        });
+    });
+</script>
 {% endblock %}
