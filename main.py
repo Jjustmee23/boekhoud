@@ -1,6 +1,7 @@
 from app import app
 import routes
 import subscription_routes
+import subscription_admin_routes
 from mollie_service import mollie_service
 
 if __name__ == "__main__":

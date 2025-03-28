@@ -489,3 +489,22 @@ def permission_required(permission_name):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+
+def admin_required(f):
+    """
+    Decorator die controleert of een gebruiker een admin is
+    Voorkomt toegang voor niet-admin gebruikers
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('U moet ingelogd zijn om deze pagina te bekijken', 'danger')
+            return redirect(url_for('login'))
+        
+        if not (current_user.is_admin or current_user.is_super_admin):
+            flash('U heeft geen beheerders-toegang tot deze pagina', 'danger')
+            return redirect(url_for('dashboard'))
+        
+        return f(*args, **kwargs)
+    return decorated_function

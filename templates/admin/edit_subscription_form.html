@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Nieuw abonnement' if not subscription else 'Abonnement bewerken' }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{{ 'Nieuw abonnement' if not subscription else 'Abonnement bewerken' }}</h1>
+        <div>
+            <a href="{{ url_for('admin_subscriptions') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Terug naar abonnementenbeheer
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Abonnement details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('save_subscription', subscription_id=subscription.id) if subscription else url_for('create_subscription') }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">Naam <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ subscription.name if subscription else '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Status</label>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if not subscription or subscription.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">Actief</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Omschrijving <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="description" name="description" rows="3" required>{{ subscription.description if subscription else '' }}</textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="price_monthly" class="form-label">Prijs per maand (€) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="price_monthly" name="price_monthly" step="0.01" min="0" value="{{ subscription.price_monthly if subscription else '' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="price_yearly" class="form-label">Prijs per jaar (€) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="price_yearly" name="price_yearly" step="0.01" min="0" value="{{ subscription.price_yearly if subscription else '' }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="max_users" class="form-label">Max. gebruikers <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="max_users" name="max_users" min="1" value="{{ subscription.max_users if subscription else '1' }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="max_invoices_per_month" class="form-label">Max. facturen/maand <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="max_invoices_per_month" name="max_invoices_per_month" min="1" value="{{ subscription.max_invoices_per_month if subscription else '50' }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="price_per_extra_user" class="form-label">Prijs per extra gebruiker (€) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="price_per_extra_user" name="price_per_extra_user" step="0.01" min="0" value="{{ subscription.price_per_extra_user if subscription else '5.00' }}" required>
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h5 class="mb-3">Inbegrepen functies</h5>
+
+                        {% set features = subscription.features|tojson|fromjson if subscription and subscription.features else {} %}
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="feature_facturen" name="features[facturen]" checked disabled>
+                                    <label class="form-check-label" for="feature_facturen">Facturen (standaard)</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="feature_klantenbeheer" name="features[klantenbeheer]" checked disabled>
+                                    <label class="form-check-label" for="feature_klantenbeheer">Klantenbeheer (standaard)</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="feature_basis_rapporten" name="features[basis_rapporten]" checked disabled>
+                                    <label class="form-check-label" for="feature_basis_rapporten">Basis rapporten (standaard)</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="feature_geavanceerde_rapporten" name="features[geavanceerde_rapporten]" {% if features.geavanceerde_rapporten %}checked{% endif %}>
+                                    <label class="form-check-label" for="feature_geavanceerde_rapporten">Geavanceerde rapporten</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="feature_documentverwerking" name="features[documentverwerking]" {% if features.documentverwerking %}checked{% endif %}>
+                                    <label class="form-check-label" for="feature_documentverwerking">Documentverwerking</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="feature_email_integratie" name="features[email_integratie]" {% if features.email_integratie %}checked{% endif %}>
+                                    <label class="form-check-label" for="feature_email_integratie">E-mail integratie</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="feature_api_toegang" name="features[api_toegang]" {% if features.api_toegang %}checked{% endif %}>
+                                    <label class="form-check-label" for="feature_api_toegang">API-toegang</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="feature_prioriteit_support" name="features[prioriteit_support]" {% if features.prioriteit_support %}checked{% endif %}>
+                                    <label class="form-check-label" for="feature_prioriteit_support">Prioriteit support</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="feature_dedicated_account_manager" name="features[dedicated_account_manager]" {% if features.dedicated_account_manager %}checked{% endif %}>
+                                    <label class="form-check-label" for="feature_dedicated_account_manager">Dedicated accountmanager</label>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="feature_eerste_maand_gratis" name="features[eerste_maand_gratis]" {% if not features or features.eerste_maand_gratis %}checked{% endif %}>
+                                    <label class="form-check-label" for="feature_eerste_maand_gratis">Eerste maand gratis</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{{ url_for('admin_subscriptions') }}" class="btn btn-light me-md-2">Annuleren</a>
+                            <button type="submit" class="btn btn-primary">Opslaan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Help</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-2">Prijzen</h6>
+                    <p class="text-muted small mb-3">
+                        Maandprijs wordt gebruikt voor maandelijkse betalingen. Jaarprijs voor jaarlijkse betalingen. 
+                        Stel de jaarprijs lager in (bijv. ~17% korting) om klanten te stimuleren jaarlijks te betalen.
+                    </p>
+
+                    <h6 class="mb-2">Max. gebruikers</h6>
+                    <p class="text-muted small mb-3">
+                        Het maximum aantal gebruikers dat is inbegrepen in het abonnement. 
+                        Extra gebruikers worden gefactureerd volgens het tarief 'Prijs per extra gebruiker'.
+                    </p>
+
+                    <h6 class="mb-2">Max. facturen/maand</h6>
+                    <p class="text-muted small mb-3">
+                        Het maximum aantal facturen dat een werkruimte per maand kan maken. 
+                        Extra facturen worden apart in rekening gebracht.
+                    </p>
+
+                    <h6 class="mb-2">Functies</h6>
+                    <p class="text-muted small">
+                        Selecteer welke functies inbegrepen zijn in dit abonnement. 
+                        Facturen, klantenbeheer en basis rapporten zijn standaard inbegrepen in alle abonnementen.
+                    </p>
+                </div>
+            </div>
+
+            {% if subscription and subscription.workspaces %}
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Werkruimtes met dit abonnement</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for workspace in subscription.workspaces %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            {{ workspace.name }}
+                            <span class="badge bg-primary rounded-pill">
+                                {{ workspace.users|length }} gebruiker{% if workspace.users|length != 1 %}s{% endif %}
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Bereken jaarprijs automatisch bij wijziging maandprijs (17% korting)
+    const monthlyInput = document.getElementById('price_monthly');
+    const yearlyInput = document.getElementById('price_yearly');
+    
+    monthlyInput.addEventListener('input', function() {
+        if (this.value) {
+            const monthlyPrice = parseFloat(this.value);
+            const yearlyPrice = (monthlyPrice * 12 * 0.83).toFixed(2); // ~17% korting
+            yearlyInput.value = yearlyPrice;
+        }
+    });
+});
+</script>
+{% endblock %}

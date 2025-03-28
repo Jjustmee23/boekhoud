@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %}Abonnementen beheer{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Abonnementen beheer</h1>
+        <div>
+            <a href="{{ url_for('new_subscription') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Nieuw abonnement
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-9">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Beschikbare abonnementen</h5>
+                    <span class="badge bg-primary">{{ subscriptions|length }}</span>
+                </div>
+                <div class="card-body">
+                    {% if subscriptions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Naam</th>
+                                    <th>Prijs (maand)</th>
+                                    <th>Prijs (jaar)</th>
+                                    <th>Gebruikers</th>
+                                    <th>Facturen/maand</th>
+                                    <th>Status</th>
+                                    <th>Werkruimtes</th>
+                                    <th>Acties</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subscription in subscriptions %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('view_subscription', subscription_id=subscription.id) }}" class="text-decoration-none">
+                                            {{ subscription.name }}
+                                        </a>
+                                    </td>
+                                    <td>€ {{ format_currency(subscription.price_monthly) }}</td>
+                                    <td>€ {{ format_currency(subscription.price_yearly) }}</td>
+                                    <td>{{ subscription.max_users }}</td>
+                                    <td>{{ subscription.max_invoices_per_month }}</td>
+                                    <td>
+                                        <span class="badge {% if subscription.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ 'Actief' if subscription.is_active else 'Inactief' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ subscription.workspaces|length }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{{ url_for('view_subscription', subscription_id=subscription.id) }}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('admin_edit_subscription', subscription_id=subscription.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{{ url_for('toggle_subscription', subscription_id=subscription.id) }}" class="btn btn-sm btn-outline-{{ 'danger' if subscription.is_active else 'success' }}">
+                                                <i class="fas fa-{{ 'times' if subscription.is_active else 'check' }}"></i>
+                                            </a>
+                                            {% if subscription.workspaces|length == 0 %}
+                                            <a href="{{ url_for('delete_subscription', subscription_id=subscription.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Weet je zeker dat je dit abonnement wilt verwijderen?');">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                            {% else %}
+                                            <button class="btn btn-sm btn-outline-secondary" disabled title="Kan niet worden verwijderd omdat er werkruimtes aan gekoppeld zijn">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-cube fa-4x text-muted mb-3"></i>
+                        <h5>Geen abonnementen gevonden</h5>
+                        <p class="text-muted">Er zijn nog geen abonnementen aangemaakt.</p>
+                        <a href="{{ url_for('new_subscription') }}" class="btn btn-primary mt-2">
+                            <i class="fas fa-plus me-2"></i>Nieuw abonnement
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Statistieken</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Totaal aantal abonnementen</label>
+                        <p class="h3">{{ subscriptions|length }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Actieve abonnementen</label>
+                        <p class="h3">{{ subscriptions|selectattr('is_active', 'eq', true)|list|length }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Werkruimtes met abonnement</label>
+                        <p class="h3">{{ subscriptions|map(attribute='workspaces')|map('length')|sum }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Handleiding</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">
+                        Hier kun je de beschikbare abonnementen beheren die klanten kunnen kiezen.
+                    </p>
+                    <p class="text-muted small">
+                        <i class="fas fa-info-circle me-1"></i> Abonnementen die in gebruik zijn door werkruimtes 
+                        kunnen niet worden verwijderd.
+                    </p>
+                    <hr>
+                    <h6>Abonnement prijzen</h6>
+                    <p class="text-muted small">
+                        Stel de maandelijkse en jaarlijkse prijs in voor elk abonnement. Voor jaarabonnementen wordt 
+                        meestal een korting gegeven (bijv. 10-20% korting op de jaarprijs).
+                    </p>
+                    <h6>Extra gebruikers</h6>
+                    <p class="text-muted small">
+                        Werkruimtes kunnen extra gebruikers kopen naast het aantal dat in hun 
+                        abonnement is inbegrepen tegen het tarief dat is ingesteld in het abonnement.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

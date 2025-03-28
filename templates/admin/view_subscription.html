@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+
+{% block title %}Abonnementdetails{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Abonnementdetails</h1>
+        <div>
+            <a href="{{ url_for('admin_subscriptions') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Terug naar abonnementenbeheer
+            </a>
+            <a href="{{ url_for('edit_subscription', subscription_id=subscription.id) }}" class="btn btn-primary">
+                <i class="fas fa-edit me-2"></i>Bewerken
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">{{ subscription.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <h6 class="text-muted mb-3">Omschrijving</h6>
+                            <p>{{ subscription.description }}</p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <span class="badge {% if subscription.is_active %}bg-success{% else %}bg-danger{% endif %} mb-2">
+                                {{ 'Actief' if subscription.is_active else 'Inactief' }}
+                            </span>
+                            <div>
+                                <small class="text-muted">Aangemaakt op: {{ subscription.created_at.strftime('%d-%m-%Y') }}</small>
+                            </div>
+                            {% if subscription.updated_at %}
+                            <div>
+                                <small class="text-muted">Laatst bijgewerkt: {{ subscription.updated_at.strftime('%d-%m-%Y') }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <h6 class="text-muted mb-2">Prijs (maandelijks)</h6>
+                            <p class="mb-0 h5">€ {{ format_currency(subscription.price_monthly) }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted mb-2">Prijs (jaarlijks)</h6>
+                            <p class="mb-0 h5">€ {{ format_currency(subscription.price_yearly) }}</p>
+                            <small class="text-muted">
+                                {% set discount = (1 - (subscription.price_yearly / (subscription.price_monthly * 12))) * 100 %}
+                                {{ "%.1f"|format(discount) }}% korting
+                            </small>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted mb-2">Max. gebruikers</h6>
+                            <p class="mb-0 h5">{{ subscription.max_users }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted mb-2">Extra gebruiker</h6>
+                            <p class="mb-0 h5">€ {{ format_currency(subscription.price_per_extra_user) }}</p>
+                            <small class="text-muted">per gebruiker per maand</small>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <h6 class="text-muted mb-2">Max. facturen per maand</h6>
+                            <p class="mb-0 h5">{{ subscription.max_invoices_per_month }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-muted mb-2">Aantal werkruimtes</h6>
+                            <p class="mb-0 h5">{{ subscription.workspaces|length }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-muted mb-2">Maandelijkse omzet</h6>
+                            <p class="mb-0 h5">€ {{ format_currency(subscription.workspaces|length * subscription.price_monthly) }}</p>
+                            <small class="text-muted">op basis van maandelijks abonnement</small>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="mb-3">Inbegrepen functies</h6>
+                    {% set features = subscription.features|tojson|fromjson if subscription.features else {} %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex align-items-center px-0">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <span>Facturen</span>
+                                    <span class="badge bg-secondary ms-2">Standaard</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center px-0">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <span>Klantenbeheer</span>
+                                    <span class="badge bg-secondary ms-2">Standaard</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center px-0">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <span>Basis rapporten</span>
+                                    <span class="badge bg-secondary ms-2">Standaard</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center px-0">
+                                    {% if features.geavanceerde_rapporten %}
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {% else %}
+                                    <i class="fas fa-times-circle text-danger me-2"></i>
+                                    {% endif %}
+                                    <span>Geavanceerde rapporten</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center px-0">
+                                    {% if features.documentverwerking %}
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {% else %}
+                                    <i class="fas fa-times-circle text-danger me-2"></i>
+                                    {% endif %}
+                                    <span>Documentverwerking</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex align-items-center px-0">
+                                    {% if features.email_integratie %}
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {% else %}
+                                    <i class="fas fa-times-circle text-danger me-2"></i>
+                                    {% endif %}
+                                    <span>E-mail integratie</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center px-0">
+                                    {% if features.api_toegang %}
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {% else %}
+                                    <i class="fas fa-times-circle text-danger me-2"></i>
+                                    {% endif %}
+                                    <span>API-toegang</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center px-0">
+                                    {% if features.prioriteit_support %}
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {% else %}
+                                    <i class="fas fa-times-circle text-danger me-2"></i>
+                                    {% endif %}
+                                    <span>Prioriteit support</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center px-0">
+                                    {% if features.dedicated_account_manager %}
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {% else %}
+                                    <i class="fas fa-times-circle text-danger me-2"></i>
+                                    {% endif %}
+                                    <span>Dedicated accountmanager</span>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center px-0">
+                                    {% if not features or features.eerste_maand_gratis %}
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {% else %}
+                                    <i class="fas fa-times-circle text-danger me-2"></i>
+                                    {% endif %}
+                                    <span>Eerste maand gratis</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            {% if subscription.workspaces %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Werkruimtes</h5>
+                    <span class="badge bg-primary">{{ subscription.workspaces|length }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Naam</th>
+                                    <th>Gebruikers</th>
+                                    <th>Verloopt op</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for workspace in subscription.workspaces %}
+                                <tr>
+                                    <td>{{ workspace.name }}</td>
+                                    <td>{{ workspace.users|length }}</td>
+                                    <td>
+                                        {% if workspace.subscription_end_date %}
+                                        <span class="text-{{ 'success' if workspace.subscription_end_date > now else 'danger' }}">
+                                            {{ workspace.subscription_end_date.strftime('%d-%m-%Y') }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">Onbekend</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Omzetstatistieken</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="revenueChart" width="100%" height="250"></canvas>
+                </div>
+            </div>
+            {% else %}
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="text-center py-4">
+                        <i class="fas fa-cube fa-4x text-muted mb-3"></i>
+                        <h5>Geen werkruimtes</h5>
+                        <p class="text-muted">Dit abonnement wordt momenteel door geen enkele werkruimte gebruikt.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if subscription.workspaces %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Omzetstatistieken
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    
+    // Verzamel gegevens over betaalcyclus van werkruimtes
+    let monthlyCount = 0;
+    let yearlyCount = 0;
+    
+    {% for workspace in subscription.workspaces %}
+        {% if workspace.billing_cycle == 'monthly' %}
+            monthlyCount++;
+        {% else %}
+            yearlyCount++;
+        {% endif %}
+    {% endfor %}
+    
+    // Bereken omzet
+    const monthlyRevenue = monthlyCount * {{ subscription.price_monthly }};
+    const yearlyRevenue = yearlyCount * ({{ subscription.price_yearly }} / 12); // Maandelijkse waarde
+    
+    const chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Maandelijkse abonnementen', 'Jaarlijkse abonnementen'],
+            datasets: [{
+                data: [monthlyRevenue, yearlyRevenue],
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.5)',
+                    'rgba(75, 192, 192, 0.5)'
+                ],
+                borderColor: [
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(75, 192, 192, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

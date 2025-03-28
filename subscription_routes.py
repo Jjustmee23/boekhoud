@@ -393,12 +393,12 @@ def process_subscription():
     if not subscription or not subscription.is_active:
         flash('Ongeldig abonnement geselecteerd', 'danger')
         return redirect(url_for('select_subscription'))
-    
+        
     # Maak betaling aan via Mollie
     payment_data = mollie_service.create_payment(workspace.id, subscription.id, period)
     
     if not payment_data:
-        flash('Er is een fout opgetreden bij het aanmaken van de betaling. Probeer het opnieuw of neem contact op met de beheerder.', 'danger')
+        flash('Er is een fout opgetreden bij het aanmaken van de betaling. Controleer de Mollie instellingen of probeer het later opnieuw.', 'danger')
         return redirect(url_for('select_subscription'))
     
     # Sla het gekozen abonnement tijdelijk op in de database

@@ -663,17 +663,21 @@ class MollieSettings(db.Model):
     __tablename__ = 'mollie_settings'
     
     id = db.Column(db.Integer, primary_key=True)
-    api_key_live = db.Column(db.String(255))
-    api_key_test = db.Column(db.String(255))
+    api_key = db.Column(db.String(255))
     is_test_mode = db.Column(db.Boolean, default=True)
     webhook_url = db.Column(db.String(255))
     redirect_url = db.Column(db.String(255))
+    is_system_default = db.Column(db.Boolean, default=False)
+    
+    # Workspace relatie
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'))
+    workspace = db.relationship('Workspace', back_populates='mollie_settings')
+    
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, onupdate=datetime.now)
     
-    def get_active_api_key(self):
-        """Geef de actieve API key terug op basis van test mode instelling"""
-        return self.api_key_test if self.is_test_mode else self.api_key_live
+    def __repr__(self):
+        return f"<MollieSettings id={self.id} workspace_id={self.workspace_id}>"
 
 class Payment(db.Model):
     """Model voor betalingen"""
@@ -743,6 +747,7 @@ class Workspace(db.Model):
     subscription = db.relationship('Subscription', back_populates='workspaces')
     email_templates = db.relationship('EmailTemplate', back_populates='workspace', cascade='all, delete-orphan')
     email_messages = db.relationship('EmailMessage', back_populates='workspace', cascade='all, delete-orphan')
+    mollie_settings = db.relationship('MollieSettings', uselist=False, back_populates='workspace', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Workspace {self.name}>'
