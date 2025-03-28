@@ -86,7 +86,12 @@
                     <hr>
 
                     <h6 class="mb-3">Inbegrepen functies</h6>
-                    {% set features = subscription.features|tojson|fromjson if subscription.features else {} %}
+                    {% if subscription.features %}
+                        {% set features = subscription.features|tojson %}
+                        {% set features_list = features|replace('"', '')|replace('[', '')|replace(']', '')|split(',') %}
+                    {% else %}
+                        {% set features_list = [] %}
+                    {% endif %}
 
                     <div class="row">
                         <div class="col-md-6">
@@ -107,7 +112,7 @@
                                     <span class="badge bg-secondary ms-2">Standaard</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center px-0">
-                                    {% if features.geavanceerde_rapporten %}
+                                    {% if 'geavanceerde_rapporten' in features_list %}
                                     <i class="fas fa-check-circle text-success me-2"></i>
                                     {% else %}
                                     <i class="fas fa-times-circle text-danger me-2"></i>
@@ -115,7 +120,7 @@
                                     <span>Geavanceerde rapporten</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center px-0">
-                                    {% if features.documentverwerking %}
+                                    {% if 'documentverwerking' in features_list %}
                                     <i class="fas fa-check-circle text-success me-2"></i>
                                     {% else %}
                                     <i class="fas fa-times-circle text-danger me-2"></i>
@@ -127,7 +132,7 @@
                         <div class="col-md-6">
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item d-flex align-items-center px-0">
-                                    {% if features.email_integratie %}
+                                    {% if 'email_integratie' in features_list %}
                                     <i class="fas fa-check-circle text-success me-2"></i>
                                     {% else %}
                                     <i class="fas fa-times-circle text-danger me-2"></i>
@@ -135,7 +140,7 @@
                                     <span>E-mail integratie</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center px-0">
-                                    {% if features.api_toegang %}
+                                    {% if 'api_toegang' in features_list %}
                                     <i class="fas fa-check-circle text-success me-2"></i>
                                     {% else %}
                                     <i class="fas fa-times-circle text-danger me-2"></i>
@@ -143,7 +148,7 @@
                                     <span>API-toegang</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center px-0">
-                                    {% if features.prioriteit_support %}
+                                    {% if 'prioriteit_support' in features_list %}
                                     <i class="fas fa-check-circle text-success me-2"></i>
                                     {% else %}
                                     <i class="fas fa-times-circle text-danger me-2"></i>
@@ -151,7 +156,7 @@
                                     <span>Prioriteit support</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center px-0">
-                                    {% if features.dedicated_account_manager %}
+                                    {% if 'dedicated_account_manager' in features_list %}
                                     <i class="fas fa-check-circle text-success me-2"></i>
                                     {% else %}
                                     <i class="fas fa-times-circle text-danger me-2"></i>
@@ -159,7 +164,7 @@
                                     <span>Dedicated accountmanager</span>
                                 </li>
                                 <li class="list-group-item d-flex align-items-center px-0">
-                                    {% if not features or features.eerste_maand_gratis %}
+                                    {% if not features_list or 'eerste_maand_gratis' in features_list %}
                                     <i class="fas fa-check-circle text-success me-2"></i>
                                     {% else %}
                                     <i class="fas fa-times-circle text-danger me-2"></i>
