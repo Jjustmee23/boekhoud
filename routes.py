@@ -64,28 +64,27 @@ def login():
         
         # Regular login flow for when workspaces exist
         if workspaces_exist:
-            # Validate input
-            if not username or not password or (not workspace_name and not workspace_id):
-                flash('Gebruikersnaam, wachtwoord en werkruimte zijn verplicht', 'danger')
-                return render_template('login.html', workspaces=workspaces, no_workspaces=not workspaces_exist, now=datetime.now())
-            
-            # Als werkruimtenaam wordt gebruikt, zoek de bijbehorende workspace_id
-            if workspace_name and not workspace_id:
-                workspace = Workspace.query.filter_by(name=workspace_name).first()
-                if workspace:
-                    workspace_id = workspace.id
-                else:
-                    flash(f'Werkruimte "{workspace_name}" niet gevonden', 'danger')
+            # Controleer eerst of dit een admin-login is, die kan zonder werkruimte inloggen
+            super_admin = User.query.filter_by(username=username, is_super_admin=True).first()
+            if super_admin and super_admin.check_password(password):
+                user = super_admin
+            else:
+                # Voor normale gebruikers is werkruimte wel verplicht
+                if not username or not password or (not workspace_name and not workspace_id):
+                    flash('Gebruikersnaam, wachtwoord en werkruimte zijn verplicht', 'danger')
                     return render_template('login.html', workspaces=workspaces, no_workspaces=not workspaces_exist, now=datetime.now())
-            
-            # Find user by username in the selected workspace
-            user = User.query.filter_by(username=username, workspace_id=workspace_id).first()
-            
-            # If not found in regular workspace, check if they're a super admin
-            if not user:
-                super_admin = User.query.filter_by(username=username, is_super_admin=True).first()
-                if super_admin and super_admin.check_password(password):
-                    user = super_admin
+                
+                # Als werkruimtenaam wordt gebruikt, zoek de bijbehorende workspace_id
+                if workspace_name and not workspace_id:
+                    workspace = Workspace.query.filter_by(name=workspace_name).first()
+                    if workspace:
+                        workspace_id = workspace.id
+                    else:
+                        flash(f'Werkruimte "{workspace_name}" niet gevonden', 'danger')
+                        return render_template('login.html', workspaces=workspaces, no_workspaces=not workspaces_exist, now=datetime.now())
+                
+                # Find user by username in the selected workspace
+                user = User.query.filter_by(username=username, workspace_id=workspace_id).first()
         
         # Check if user exists and password is correct
         if user and user.check_password(password):

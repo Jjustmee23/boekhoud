@@ -22,8 +22,12 @@
                         {% if workspaces|length > 0 %}
                         <div class="mb-3">
                             <label for="workspace" class="form-label">Werkruimte</label>
-                            <input type="text" class="form-control" id="workspace" name="workspace_name" placeholder="Voer werkruimtenaam in" required>
-                            <div class="form-text">Voer de naam van uw werkruimte in om in te loggen.</div>
+                            <input type="text" class="form-control" id="workspace" name="workspace_name" placeholder="Voer werkruimtenaam in">
+                            <div class="form-text">
+                                Voer de naam van uw werkruimte in om in te loggen.
+                                <br>
+                                <strong>Admin gebruikers:</strong> U kunt inloggen zonder werkruimte.
+                            </div>
                         </div>
                         {% else %}
                         <div class="alert alert-info">
