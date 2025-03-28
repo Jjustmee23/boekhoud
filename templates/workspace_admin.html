@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+
+{% block title %}Werkruimte Beheer{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Werkruimte Beheer</h1>
+        <div>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Terug naar dashboard
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Werkruimte instellingen -->
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Werkruimte instellingen</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('update_workspace_settings') }}" method="POST">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Naam</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ workspace.name }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Omschrijving</label>
+                            <textarea class="form-control" id="description" name="description" rows="2">{{ workspace.description }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="domain" class="form-label">Domein</label>
+                            <input type="text" class="form-control" id="domain" name="domain" value="{{ workspace.domain }}">
+                            <div class="form-text">Optioneel: domein van je bedrijf voor e-mail validatie (bijv. voorbeeld.nl)</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Instellingen opslaan</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Abonnement instellingen -->
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Abonnement</h5>
+                </div>
+                <div class="card-body">
+                    {% if workspace.subscription %}
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="mb-2">Abonnement</h6>
+                            <p class="mb-0"><strong>{{ workspace.subscription.name }}</strong></p>
+                            <p class="mb-0 text-muted">{{ workspace.subscription.description }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-2">Kosten</h6>
+                            <p class="mb-0">
+                                {% if workspace.billing_cycle == 'monthly' %}
+                                <strong>€ {{ format_currency(workspace.subscription.price_monthly) }}</strong> per maand
+                                {% else %}
+                                <strong>€ {{ format_currency(workspace.subscription.price_yearly) }}</strong> per jaar
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="mb-2">Betaalcyclus</h6>
+                            <p class="mb-0">
+                                {% if workspace.billing_cycle == 'monthly' %}
+                                <span class="badge bg-info">Maandelijks</span>
+                                {% else %}
+                                <span class="badge bg-primary">Jaarlijks</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-2">Status</h6>
+                            <p class="mb-0">
+                                {% if workspace.subscription_end_date and workspace.subscription_end_date > now %}
+                                <span class="badge bg-success">Actief</span>
+                                tot {{ workspace.subscription_end_date.strftime('%d-%m-%Y') }}
+                                {% else %}
+                                <span class="badge bg-warning text-dark">Verlopen</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="mb-2">Max. gebruikers</h6>
+                            <p class="mb-0">{{ workspace.subscription.max_users + workspace.extra_users }}</p>
+                            
+                            {% if workspace.extra_users > 0 %}
+                            <p class="text-muted small">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Inclusief {{ workspace.extra_users }} extra gebruiker{% if workspace.extra_users != 1 %}s{% endif %}
+                                (+ € {{ format_currency(workspace.extra_users * workspace.subscription.price_per_extra_user) }} 
+                                {% if workspace.billing_cycle == 'monthly' %}per maand{% else %}per maand, € {{ format_currency(workspace.extra_users * workspace.subscription.price_per_extra_user * 12) }} per jaar{% endif %})
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-2">Max. facturen/maand</h6>
+                            <p class="mb-0">{{ workspace.subscription.max_invoices_per_month }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <form action="{{ url_for('update_extra_users') }}" method="GET">
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="fas fa-user-plus me-1"></i> Extra gebruikers
+                            </button>
+                        </form>
+                        
+                        <div>
+                            <a href="{{ url_for('change_subscription') }}" class="btn btn-primary me-2">
+                                <i class="fas fa-exchange-alt me-1"></i> Wijzig abonnement
+                            </a>
+                            
+                            <a href="{{ url_for('cancel_subscription') }}" class="btn btn-outline-danger"
+                               onclick="return confirm('Weet je zeker dat je het abonnement wilt opzeggen?');">
+                                <i class="fas fa-times me-1"></i> Opzeggen
+                            </a>
+                        </div>
+                    </div>
+                    
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i> Je hebt nog geen actief abonnement.
+                    </div>
+                    <div class="text-center">
+                        <a href="{{ url_for('select_subscription') }}" class="btn btn-primary">
+                            <i class="fas fa-shopping-cart me-2"></i> Kies een abonnement
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- E-mailinstellingen -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">E-mailinstellingen</h5>
+        </div>
+        <div class="card-body">
+            {% if email_settings %}
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <h6 class="mb-2">Provider</h6>
+                    <p class="mb-0">
+                        {% if email_settings.provider_type == 'smtp' %}
+                        SMTP ({{ email_settings.smtp_host }})
+                        {% elif email_settings.provider_type == 'microsoft' %}
+                        Microsoft Graph API
+                        {% else %}
+                        {{ email_settings.provider_type }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="mb-2">Van e-mail</h6>
+                    <p class="mb-0">{{ email_settings.from_email }}</p>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="mb-2">Van naam</h6>
+                    <p class="mb-0">{{ email_settings.from_name }}</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> Er zijn nog geen e-mailinstellingen geconfigureerd.
+            </div>
+            {% endif %}
+            
+            <div class="text-end">
+                <a href="{{ url_for('workspace_email_settings') }}" class="btn btn-primary">
+                    <i class="fas fa-cog me-1"></i> E-mailinstellingen beheren
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gebruikers beheer -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Gebruikers beheren</h5>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newUserModal">
+                <i class="fas fa-plus me-1"></i> Nieuwe gebruiker
+            </button>
+        </div>
+        <div class="card-body">
+            {% if users %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Gebruikersnaam</th>
+                            <th>E-mail</th>
+                            <th>Rol</th>
+                            <th>Laatst ingelogd</th>
+                            <th>Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% if user.is_super_admin %}
+                                <span class="badge bg-danger">Super Admin</span>
+                                {% elif user.is_admin %}
+                                <span class="badge bg-primary">Admin</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Gebruiker</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.last_login %}
+                                {{ user.last_login.strftime('%d-%m-%Y %H:%M') }}
+                                {% else %}
+                                Nog niet ingelogd
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('edit_workspace_user', user_id=user.id) }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if current_user.id != user.id %}
+                                    <a href="{{ url_for('delete_workspace_user', user_id=user.id) }}" 
+                                       class="btn btn-outline-danger"
+                                       onclick="return confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?');">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> Er zijn nog geen gebruikers in deze werkruimte.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal voor nieuwe gebruiker -->
+<div class="modal fade" id="newUserModal" tabindex="-1" aria-labelledby="newUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newUserModalLabel">Nieuwe gebruiker toevoegen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Sluiten"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('create_workspace_user') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Gebruikersnaam</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">E-mail</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Wachtwoord</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin">
+                        <label class="form-check-label" for="is_admin">Administrator</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="password_change_required" name="password_change_required" checked>
+                        <label class="form-check-label" for="password_change_required">Wachtwoord wijzigen bij eerste login</label>
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                        <button type="submit" class="btn btn-primary">Gebruiker toevoegen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

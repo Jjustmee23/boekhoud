@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Abonnementen{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Selecteer een abonnement</h1>
+        <div>
+            <a href="{{ url_for('workspace_admin') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Terug naar werkruimtebeheer
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> Kies het abonnement dat het beste bij je past. Je kunt later altijd upgraden of downgraden indien nodig.
+            </div>
+        </div>
+    </div>
+    
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for subscription in subscriptions %}
+        <div class="col">
+            <div class="card h-100 shadow-sm position-relative {% if workspace.subscription_id == subscription.id %}border-primary{% endif %}">
+                {% if workspace.subscription_id == subscription.id %}
+                <div class="position-absolute top-0 end-0 me-3 mt-3">
+                    <span class="badge bg-primary">Huidige abonnement</span>
+                </div>
+                {% endif %}
+                
+                <div class="card-header bg-white text-center py-4">
+                    <h3 class="card-title mb-0">{{ subscription.name }}</h3>
+                </div>
+                
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <h4 class="display-6 mb-0">€{{ format_currency(subscription.price_monthly) }}</h4>
+                        <span class="text-muted">per maand</span>
+                        
+                        <h6 class="mt-2 mb-0 text-success">Of € {{ format_currency(subscription.price_yearly) }} per jaar</h6>
+                        <span class="text-muted small">Bespaar {{ ((1 - (subscription.price_yearly / (subscription.price_monthly * 12))) * 100) | round | int }}%</span>
+                    </div>
+                    
+                    <p class="text-center mb-4">{{ subscription.description }}</p>
+                    
+                    <ul class="list-group list-group-flush mb-4">
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="fas fa-users me-2 text-primary"></i>
+                            <strong>{{ subscription.max_users }}</strong> gebruiker{{ 's' if subscription.max_users != 1 else '' }}
+                        </li>
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="fas fa-file-invoice me-2 text-primary"></i>
+                            <strong>{{ subscription.max_invoices_per_month }}</strong> facturen per maand
+                        </li>
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="fas fa-user-plus me-2 text-primary"></i>
+                            <strong>€ {{ format_currency(subscription.price_per_extra_user) }}</strong> per extra gebruiker/maand
+                        </li>
+                    </ul>
+                    
+                    {% if subscription.features %}
+                    <h6 class="mb-3 fw-bold">Inbegrepen functies:</h6>
+                    <ul class="fa-ul mb-4">
+                        {% for feature in subscription.features %}
+                        <li class="mb-2"><span class="fa-li"><i class="fas fa-check text-success"></i></span>{{ feature }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer bg-white text-center p-4 border-0">
+                    <form action="{{ url_for('process_subscription') }}" method="post">
+                        <input type="hidden" name="subscription_id" value="{{ subscription.id }}">
+                        
+                        <div class="btn-group w-100 mb-3" role="group">
+                            <input type="radio" class="btn-check" name="period" id="period_monthly_{{ subscription.id }}" value="monthly" checked>
+                            <label class="btn btn-outline-primary" for="period_monthly_{{ subscription.id }}">Maandelijks</label>
+                            
+                            <input type="radio" class="btn-check" name="period" id="period_yearly_{{ subscription.id }}" value="yearly">
+                            <label class="btn btn-outline-primary" for="period_yearly_{{ subscription.id }}">Jaarlijks</label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">
+                            {% if workspace.subscription_id == subscription.id %}
+                            Abonnement verlengen
+                            {% else %}
+                            Kies dit abonnement
+                            {% endif %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

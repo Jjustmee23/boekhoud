@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}E-mail OAuth Instellingen - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <h2>Microsoft 365 OAuth E-mail Instellingen</h2>
+            <p class="text-muted">
+                Configureer hier de Microsoft 365 OAuth instellingen voor het versturen van e-mails. 
+                OAuth biedt een veiligere manier van authenticatie dan traditionele wachtwoorden.
+            </p>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="card-title mb-0">Microsoft 365 OAuth Configuratie</h4>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('update_ms_oauth_settings') }}" method="POST">
+                        <div class="alert alert-info">
+                            <h5>Vereiste stappen voor Microsoft 365 OAuth setup:</h5>
+                            <ol>
+                                <li>Registreer een nieuwe app in het <a href="https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank">Azure Portal</a></li>
+                                <li>Zorg dat de app over de benodigde permissions beschikt: <code>SMTP.Send</code></li>
+                                <li>Genereer een client secret voor de app</li>
+                                <li>Vul de gegevens hieronder in</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="ms_graph_client_id" class="form-label">Microsoft 365 Client ID *</label>
+                                <input type="text" class="form-control" id="ms_graph_client_id" name="ms_graph_client_id" 
+                                       value="{{ email_settings.ms_graph_client_id if email_settings and email_settings.ms_graph_client_id else '' }}" required>
+                                <div class="form-text">De Client ID van je Azure App registratie</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="ms_graph_tenant_id" class="form-label">Microsoft 365 Tenant ID *</label>
+                                <input type="text" class="form-control" id="ms_graph_tenant_id" name="ms_graph_tenant_id" 
+                                       value="{{ email_settings.ms_graph_tenant_id if email_settings and email_settings.ms_graph_tenant_id else '' }}" required>
+                                <div class="form-text">De Tenant/Directory ID van je Azure organisatie</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="ms_graph_client_secret" class="form-label">Microsoft 365 Client Secret *</label>
+                                <input type="password" class="form-control" id="ms_graph_client_secret" name="ms_graph_client_secret" 
+                                       placeholder="{% if email_settings and email_settings.ms_graph_client_secret %}••••••••••••••••{% endif %}" 
+                                       {% if not email_settings or not email_settings.ms_graph_client_secret %}required{% endif %}>
+                                <div class="form-text">De Client Secret van je Azure App registratie (wordt versleuteld opgeslagen)</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="ms_graph_sender_email" class="form-label">Afzender E-mailadres *</label>
+                                <input type="email" class="form-control" id="ms_graph_sender_email" name="ms_graph_sender_email" 
+                                       value="{{ email_settings.ms_graph_sender_email if email_settings and email_settings.ms_graph_sender_email else '' }}" required>
+                                <div class="form-text">Het e-mailadres dat gebruikt wordt als afzender</div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="default_sender_name" class="form-label">Afzender Naam</label>
+                                <input type="text" class="form-control" id="default_sender_name" name="default_sender_name" 
+                                       value="{{ email_settings.default_sender_name if email_settings and email_settings.default_sender_name else 'MidaWeb' }}">
+                                <div class="form-text">De naam die wordt weergegeven bij e-mails</div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <button type="submit" class="btn btn-primary">Instellingen Opslaan</button>
+                            <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">Annuleren</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="card-title mb-0">Test OAuth E-mail</h4>
+                </div>
+                <div class="card-body">
+                    <p>Stuur een test e-mail naar jezelf om te controleren of de OAuth configuratie correct werkt.</p>
+                    <a href="{{ url_for('send_test_email', provider='oauth') }}" class="btn btn-info">
+                        <i class="bi bi-envelope"></i> Test E-mail Versturen
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="card-title mb-0">Hulpbronnen</h4>
+                </div>
+                <div class="card-body">
+                    <h5>Instructies voor het configureren van Microsoft 365 OAuth</h5>
+                    <ol>
+                        <li>Ga naar het <a href="https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank">Azure Portal</a> en log in met je Microsoft account.</li>
+                        <li>Klik op "New registration" om een nieuwe app te registreren.</li>
+                        <li>Geef de app een naam (bijv. "MidaWeb Email").</li>
+                        <li>Bij "Supported account types" kies je "Accounts in this organizational directory only".</li>
+                        <li>Je hoeft geen "Redirect URI" in te stellen voor deze toepassing.</li>
+                        <li>Klik op "Register" om de app te registreren.</li>
+                        <li>Noteer de "Application (client) ID" en "Directory (tenant) ID" van de overzichtspagina.</li>
+                        <li>Ga naar "Certificates & secrets" in het linkermenu.</li>
+                        <li>Klik op "New client secret", geef een beschrijving en kies een verloopdatum.</li>
+                        <li>Klik op "Add" en noteer de "Value" van de client secret (deze is slechts één keer zichtbaar).</li>
+                        <li>Ga naar "API permissions" in het linkermenu.</li>
+                        <li>Klik op "Add a permission" en kies "Microsoft Graph" en dan "Application permissions".</li>
+                        <li>Zoek en selecteer de permissie "SMTP.Send" en klik op "Add permissions".</li>
+                        <li>Klik op "Grant admin consent for [your organization]" om de permissies toe te kennen.</li>
+                        <li>Vul de verzamelde gegevens in in het bovenstaande formulier.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

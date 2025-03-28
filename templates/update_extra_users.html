@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Extra gebruikers beheren{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Extra gebruikers beheren</h1>
+        <div>
+            <a href="{{ url_for('workspace_admin') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Terug naar werkruimtebeheer
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Gebruikerscapaciteit aanpassen</h5>
+                </div>
+                <div class="card-body">
+                    {% if workspace.subscription %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Je abonnement bevat <strong>{{ workspace.subscription.max_users }}</strong> gebruiker{{ 's' if workspace.subscription.max_users != 1 else '' }}.
+                        Je kunt extra gebruikers toevoegen voor € {{ format_currency(workspace.subscription.price_per_extra_user) }} per gebruiker per maand.
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-7">
+                                    <h6 class="mb-2">Huidige situatie</h6>
+                                    <p class="mb-0">
+                                        <strong>{{ workspace.subscription.max_users }}</strong> basisgebruikers +
+                                        <strong>{{ workspace.extra_users }}</strong> extra gebruikers =
+                                        <strong>{{ workspace.subscription.max_users + workspace.extra_users }}</strong> totaal
+                                    </p>
+                                </div>
+                                <div class="col-md-5 text-md-end">
+                                    <h6 class="mb-2">Extra gebruikerskosten</h6>
+                                    <p class="mb-0">
+                                        <strong>€ {{ format_currency(workspace.extra_users * workspace.subscription.price_per_extra_user) }}</strong>
+                                        {% if workspace.billing_cycle == 'monthly' %}
+                                        per maand
+                                        {% else %}
+                                        per maand (€ {{ format_currency(workspace.extra_users * workspace.subscription.price_per_extra_user * 12) }} per jaar)
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form action="{{ url_for('update_extra_users') }}" method="POST">
+                        <div class="mb-4">
+                            <label for="extra_users" class="form-label">Aantal extra gebruikers</label>
+                            <input type="number" class="form-control form-control-lg" id="extra_users" name="extra_users" 
+                                   value="{{ workspace.extra_users }}" min="0" max="100">
+                            <div class="form-text">
+                                Je totale capaciteit zal 
+                                <strong>{{ workspace.subscription.max_users }}</strong> + het aantal extra gebruikers zijn.
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            De wijziging wordt direct verwerkt en is van toepassing op je huidige factureringsperiode.
+                            Bij een verhoging van het aantal extra gebruikers zal er een extra bedrag in rekening worden gebracht.
+                            Bij een verlaging van het aantal extra gebruikers zal er geen restitutie plaatsvinden.
+                        </div>
+                        
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary">
+                                Bijwerken
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Je hebt nog geen actief abonnement. Kies eerst een abonnement voordat je extra gebruikers kunt toevoegen.
+                    </div>
+                    <div class="text-center">
+                        <a href="{{ url_for('select_subscription') }}" class="btn btn-primary">
+                            <i class="fas fa-shopping-cart me-2"></i> Kies een abonnement
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Gebruiker bewerken{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Gebruiker bewerken</h1>
+        <div>
+            <a href="{{ url_for('workspace_admin') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Terug naar werkruimtebeheer
+            </a>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">Bewerk gebruiker: {{ user.username }}</h5>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('edit_workspace_user', user_id=user.id) }}" method="POST">
+                <div class="mb-3">
+                    <label for="username" class="form-label">Gebruikersnaam</label>
+                    <input type="text" class="form-control" id="username" value="{{ user.username }}" disabled>
+                    <div class="form-text">Gebruikersnaam kan niet worden gewijzigd.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">E-mail</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="new_password" class="form-label">Nieuw wachtwoord</label>
+                    <input type="password" class="form-control" id="new_password" name="new_password">
+                    <div class="form-text">Laat leeg om het wachtwoord ongewijzigd te laten</div>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin" {% if user.is_admin %}checked{% endif %}>
+                    <label class="form-check-label" for="is_admin">Beheerder</label>
+                    {% if user.id == current_user.id %}
+                    <div class="form-text">Je kunt je eigen beheerdersrechten niet intrekken.</div>
+                    {% endif %}
+                </div>
+                <button type="submit" class="btn btn-primary">Opslaan</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

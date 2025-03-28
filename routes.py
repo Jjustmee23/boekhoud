@@ -3172,14 +3172,26 @@ def send_test_email(provider):
         return redirect(url_for('admin'))
     
     # Create an email service based on the provider
-    email_service = EmailService(email_settings)
+    if provider == 'oauth':
+        # Gebruik de nieuwe OAuth implementatie
+        from email_service_oauth import EmailServiceOAuth
+        email_service = EmailServiceOAuth(email_settings)
+    else:
+        # Gebruik de bestaande email service
+        email_service = EmailService(email_settings)
     
     # Determine the subject and content based on provider
-    subject = f"Test e-mail van MidaWeb via {provider}"
+    provider_name = {
+        'msgraph': 'Microsoft Graph API',
+        'smtp': 'SMTP',
+        'oauth': 'Microsoft 365 OAuth'
+    }.get(provider, provider)
+    
+    subject = f"Test e-mail van MidaWeb via {provider_name}"
     body_html = f"""
     <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
         <h2 style="color: #4a6ee0;">Test E-mail</h2>
-        <p>Dit is een test e-mail verzonden via {provider} provider.</p>
+        <p>Dit is een test e-mail verzonden via {provider_name} provider.</p>
         <p>Als u deze e-mail ontvangt, zijn uw e-mailinstellingen correct geconfigureerd.</p>
         <p>Verzonden op: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</p>
         <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
@@ -3188,12 +3200,12 @@ def send_test_email(provider):
     </div>
     """
     
-    # Force the appropriate provider based on the route parameter
-    if provider == 'msgraph':
+    # Force the appropriate provider based on the route parameter for the standard email service
+    if provider == 'msgraph' and not isinstance(email_service, EmailServiceOAuth):
         email_settings.use_ms_graph = True
-    elif provider == 'smtp':
+    elif provider == 'smtp' and not isinstance(email_service, EmailServiceOAuth):
         email_settings.use_ms_graph = False
-    else:
+    elif provider not in ['msgraph', 'smtp', 'oauth']:
         flash('Ongeldige e-mail provider', 'danger')
         return redirect(url_for('admin'))
     
@@ -3272,6 +3284,93 @@ def update_ms_graph_settings():
         logging.info("MS Graph API instellingen bijgewerkt door gebruiker %s", current_user.username)
     except Exception as e:
         logging.error(f"Fout bij bijwerken van MS Graph instellingen: {str(e)}")
+        flash('Er is een fout opgetreden bij het bijwerken van de instellingen', 'danger')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/email/ms-oauth', methods=['GET', 'POST'])
+@login_required
+def ms_oauth_settings():
+    """Pagina voor Microsoft 365 OAuth instellingen"""
+    # Alleen super-admins kunnen e-mailinstellingen wijzigen
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Als het een POST-verzoek is, verwijs naar de update-functie
+    if request.method == 'POST':
+        return update_ms_oauth_settings()
+    
+    # Haal de huidige e-mail-instellingen op
+    from models import EmailSettings
+    email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+    
+    # Geef de template weer met de huidige instellingen
+    return render_template('admin_email_oauth.html', email_settings=email_settings, now=datetime.now())
+
+@app.route('/admin/email/ms-oauth/update', methods=['POST'])
+@login_required
+def update_ms_oauth_settings():
+    """Update Microsoft 365 OAuth instellingen voor e-mail"""
+    # Alleen super-admins kunnen e-mailinstellingen wijzigen
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Haal de instellingen uit het formulier
+    client_id = request.form.get('ms_graph_client_id', '')
+    tenant_id = request.form.get('ms_graph_tenant_id', '')
+    client_secret = request.form.get('ms_graph_client_secret', '')
+    sender_email = request.form.get('ms_graph_sender_email', '')
+    default_sender_name = request.form.get('default_sender_name', 'MidaWeb')
+    
+    # Valideer invoer
+    if not all([client_id, tenant_id, client_secret, sender_email]):
+        flash('Alle verplichte velden zijn nodig voor Microsoft 365 OAuth configuratie', 'danger')
+        return redirect(url_for('admin'))
+    
+    try:
+        from models import EmailSettings, db
+        
+        # Zoek bestaande systeeminstellingen of maak nieuwe aan
+        system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+        if not system_settings:
+            system_settings = EmailSettings(workspace_id=None)
+            db.session.add(system_settings)
+        
+        # Werk de instellingen bij
+        system_settings.ms_graph_client_id = client_id
+        system_settings.ms_graph_tenant_id = tenant_id
+        system_settings.ms_graph_client_secret = EmailSettings.encrypt_secret(client_secret)
+        system_settings.ms_graph_sender_email = sender_email
+        system_settings.default_sender_name = default_sender_name
+        system_settings.use_ms_graph = True  # We gebruiken de MS Graph settings voor OAuth ook
+        
+        # Sla de wijzigingen op in de database
+        db.session.commit()
+        
+        # Voor compatibiliteit, update ook de omgevingsvariabelen
+        os.environ['MS_GRAPH_CLIENT_ID'] = client_id
+        os.environ['MS_GRAPH_TENANT_ID'] = tenant_id
+        os.environ['MS_GRAPH_CLIENT_SECRET'] = client_secret
+        os.environ['MS_GRAPH_SENDER_EMAIL'] = sender_email
+        
+        # Test de OAuth configuratie
+        from microsoft_365_oauth import Microsoft365OAuth
+        ms_oauth = Microsoft365OAuth(system_settings)
+        
+        # Probeer token te verkrijgen
+        token = ms_oauth.get_oauth_token()
+        if token:
+            logging.info("OAuth token succesvol verkregen voor %s", sender_email)
+            flash('Microsoft 365 OAuth instellingen zijn bijgewerkt en werken correct', 'success')
+        else:
+            logging.warning("OAuth token kon niet worden verkregen voor %s", sender_email)
+            flash('Microsoft 365 OAuth instellingen zijn bijgewerkt, maar het verkrijgen van een token is mislukt. Controleer de instellingen.', 'warning')
+        
+        logging.info("Microsoft 365 OAuth instellingen bijgewerkt door gebruiker %s", current_user.username)
+    except Exception as e:
+        logging.error(f"Fout bij bijwerken van Microsoft 365 OAuth instellingen: {str(e)}")
         flash('Er is een fout opgetreden bij het bijwerken van de instellingen', 'danger')
     
     return redirect(url_for('admin'))

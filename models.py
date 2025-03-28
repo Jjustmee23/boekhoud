@@ -621,24 +621,164 @@ class EmailTemplate(db.Model):
         }
 
 
+class Subscription(db.Model):
+    """Model voor abonnementen die beschikbaar zijn in het systeem"""
+    __tablename__ = 'subscriptions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    price_monthly = db.Column(db.Float, nullable=False)
+    price_yearly = db.Column(db.Float, nullable=False)
+    max_users = db.Column(db.Integer, nullable=False, default=1)
+    max_invoices_per_month = db.Column(db.Integer, nullable=False, default=50)
+    price_per_extra_user = db.Column(db.Float, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    features = db.Column(db.Text)  # JSON string met features
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # Relatie
+    workspaces = db.relationship('Workspace', back_populates='subscription')
+    
+    def to_dict(self):
+        """Converteer naar dictionary voor JSON serialisatie"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'price_monthly': self.price_monthly,
+            'price_yearly': self.price_yearly,
+            'max_users': self.max_users,
+            'max_invoices_per_month': self.max_invoices_per_month,
+            'price_per_extra_user': self.price_per_extra_user,
+            'is_active': self.is_active,
+            'features': json.loads(self.features) if self.features else {},
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+
+class MollieSettings(db.Model):
+    """Model voor Mollie betalingsinstellingen"""
+    __tablename__ = 'mollie_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    api_key_live = db.Column(db.String(255))
+    api_key_test = db.Column(db.String(255))
+    is_test_mode = db.Column(db.Boolean, default=True)
+    webhook_url = db.Column(db.String(255))
+    redirect_url = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    def get_active_api_key(self):
+        """Geef de actieve API key terug op basis van test mode instelling"""
+        return self.api_key_test if self.is_test_mode else self.api_key_live
+
+class Payment(db.Model):
+    """Model voor betalingen"""
+    __tablename__ = 'payments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    mollie_payment_id = db.Column(db.String(255), unique=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'), nullable=False)
+    subscription_id = db.Column(db.Integer, db.ForeignKey('subscriptions.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(3), default='EUR')
+    period = db.Column(db.String(20))  # 'monthly' of 'yearly'
+    status = db.Column(db.String(50))  # 'pending', 'paid', 'failed', etc.
+    payment_method = db.Column(db.String(50))  # 'ideal', 'creditcard', etc.
+    payment_url = db.Column(db.String(255))
+    expiry_date = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # Relaties
+    workspace = db.relationship('Workspace', back_populates='payments')
+    subscription = db.relationship('Subscription')
+    
+    def to_dict(self):
+        """Converteer naar dictionary voor JSON serialisatie"""
+        return {
+            'id': self.id,
+            'mollie_payment_id': self.mollie_payment_id,
+            'workspace_id': self.workspace_id,
+            'subscription_id': self.subscription_id,
+            'amount': self.amount,
+            'currency': self.currency,
+            'period': self.period,
+            'status': self.status,
+            'payment_method': self.payment_method,
+            'payment_url': self.payment_url,
+            'expiry_date': self.expiry_date,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+
 class Workspace(db.Model):
     __tablename__ = 'workspaces'
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.String(200))
+    domain = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Abonnement gegevens
+    subscription_id = db.Column(db.Integer, db.ForeignKey('subscriptions.id'))
+    subscription_start_date = db.Column(db.DateTime)
+    subscription_end_date = db.Column(db.DateTime)
+    extra_users = db.Column(db.Integer, default=0)
+    billing_cycle = db.Column(db.String(20), default='monthly')  # 'monthly' of 'yearly'
+    
     created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
     
     # Relationships
     users = db.relationship('User', back_populates='workspace')
     customers = db.relationship('Customer', back_populates='workspace')
     invoices = db.relationship('Invoice', back_populates='workspace')
     email_settings = db.relationship('EmailSettings', uselist=False, back_populates='workspace', cascade='all, delete-orphan')
+    payments = db.relationship('Payment', back_populates='workspace')
+    subscription = db.relationship('Subscription', back_populates='workspaces')
     email_templates = db.relationship('EmailTemplate', back_populates='workspace', cascade='all, delete-orphan')
     email_messages = db.relationship('EmailMessage', back_populates='workspace', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Workspace {self.name}>'
+        
+    def to_dict(self):
+        """Converteer naar dictionary voor JSON serialisatie"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'domain': self.domain,
+            'is_active': self.is_active,
+            'subscription_id': self.subscription_id,
+            'subscription_start_date': self.subscription_start_date,
+            'subscription_end_date': self.subscription_end_date,
+            'extra_users': self.extra_users,
+            'billing_cycle': self.billing_cycle,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+        
+    def is_subscription_active(self):
+        """Controleer of het abonnement nog actief is"""
+        if not self.subscription_end_date:
+            return False
+        return datetime.now() <= self.subscription_end_date
+        
+    def get_monthly_cost(self):
+        """Bereken maandelijkse kosten op basis van abonnement en extra gebruikers"""
+        if not self.subscription:
+            return 0
+            
+        base_price = self.subscription.price_monthly if self.billing_cycle == 'monthly' else self.subscription.price_yearly / 12
+        extra_users_cost = self.extra_users * self.subscription.price_per_extra_user
+        
+        return base_price + extra_users_cost
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
