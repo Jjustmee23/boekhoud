@@ -641,6 +641,29 @@ class Subscription(db.Model):
     # Relatie
     workspaces = db.relationship('Workspace', back_populates='subscription')
     
+    @property
+    def features_list(self):
+        """Retourneert de features als een lijst (voor gebruik in templates)"""
+        try:
+            if self.features:
+                # Probeer eerst als JSON object/dict te parsen
+                features_data = json.loads(self.features)
+                # Als het een dict is, gebruik de regels uit de oude code 
+                if isinstance(features_data, dict):
+                    return [
+                        f"{v} gebruiker{'s' if v > 1 else ''}" if k == 'max_users' else
+                        f"{v} facturen per maand" if k == 'max_invoices_per_month' else k
+                        for k, v in features_data.items() if v
+                    ]
+                # Anders als het een array is, gebruik direct die lijst    
+                elif isinstance(features_data, list):
+                    return features_data
+            # Fallback: als leeg of geen geldig JSON
+            return []
+        except:
+            # In geval van error, retourneer lege lijst
+            return []
+    
     def to_dict(self):
         """Converteer naar dictionary voor JSON serialisatie"""
         return {

@@ -99,10 +99,10 @@
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="{{ url_for('edit_subscription', subscription_id=sub.id) }}" class="btn btn-info">
+                                                        <a href="{{ url_for('admin_edit_subscription', subscription_id=sub.id) }}" class="btn btn-info">
                                                             <i class="fas fa-edit"></i>
                                                         </a>
-                                                        <a href="{{ url_for('delete_subscription', subscription_id=sub.id) }}" 
+                                                        <a href="{{ url_for('admin_delete_subscription', subscription_id=sub.id) }}" 
                                                            class="btn btn-danger"
                                                            onclick="return confirm('Weet je zeker dat je dit abonnement wilt verwijderen?');">
                                                             <i class="fas fa-trash"></i>
@@ -197,7 +197,7 @@
                 <h5 class="modal-title" id="newSubscriptionModalLabel">Nieuw abonnement aanmaken</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url_for('create_subscription') }}">
+            <form method="POST" action="{{ url_for('admin_create_subscription') }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="name" class="form-label">Naam</label>

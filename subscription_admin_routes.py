@@ -83,7 +83,7 @@ def view_subscription(subscription_id):
 @app.route('/admin/subscriptions/create', methods=['POST'])
 @login_required
 @admin_required
-def create_subscription():
+def admin_create_subscription():
     """Verwerk het aanmaken van een nieuw abonnement"""
     
     # Haal formuliergegevens op
@@ -208,7 +208,7 @@ def toggle_subscription(subscription_id):
 @app.route('/admin/subscriptions/delete/<int:subscription_id>')
 @login_required
 @admin_required
-def delete_subscription(subscription_id):
+def admin_delete_subscription(subscription_id):
     """Verwijder een abonnement"""
     
     # Haal abonnement op
