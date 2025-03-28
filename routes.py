@@ -3014,7 +3014,7 @@ def create_client():
             else:
                 flash(f"Klant \"{company_name}\" en werkruimte \"{workspace_name}\" aangemaakt, maar de uitnodiging kon niet worden verzonden.", "warning")
             
-            return redirect(url_for("admin"))
+            return redirect(url_for("admin", settings=True))
         
         except Exception as e:
             db.session.rollback()
@@ -3319,7 +3319,7 @@ def update_ms_graph_settings():
         logging.error(f"Fout bij bijwerken van MS Graph instellingen: {str(e)}")
         flash('Er is een fout opgetreden bij het bijwerken van de instellingen', 'danger')
     
-    return redirect(url_for('admin'))
+    return redirect(url_for('admin', settings=True))
 
 # Deze functie is vervangen door de functie bovenaan,
 # dit commentaar staat hier om de code te behouden voor referentie
@@ -3362,7 +3362,7 @@ def update_ms_oauth_settings():
     # Valideer invoer
     if not all([client_id, tenant_id, client_secret, sender_email]):
         flash('Alle verplichte velden zijn nodig voor Microsoft 365 OAuth configuratie', 'danger')
-        return redirect(url_for('admin'))
+        return redirect(url_for('admin', settings=True))
     
     try:
         from models import EmailSettings, db
@@ -3408,7 +3408,7 @@ def update_ms_oauth_settings():
         logging.error(f"Fout bij bijwerken van Microsoft 365 OAuth instellingen: {str(e)}")
         flash('Er is een fout opgetreden bij het bijwerken van de instellingen', 'danger')
     
-    return redirect(url_for('admin'))
+    return redirect(url_for('admin', settings=True))
 
 @app.route('/admin/email/smtp', methods=['POST'])
 @login_required
@@ -3434,7 +3434,7 @@ def update_smtp_settings():
     # Valideer de essentiële velden als de gebruiker SMTP wil gebruiken
     if any([smtp_server, smtp_port, smtp_username, smtp_password, email_from]) and not all([smtp_server, smtp_port, smtp_username, smtp_password, email_from]):
         flash('Alle verplichte SMTP velden moeten worden ingevuld (server, poort, gebruikersnaam, wachtwoord, e-mail van)', 'warning')
-        return redirect(url_for('admin'))
+        return redirect(url_for('admin', settings=True))
     
     try:
         from models import EmailSettings, db
@@ -3483,7 +3483,7 @@ def update_smtp_settings():
         logging.error(f"Fout bij bijwerken van SMTP instellingen: {str(e)}")
         flash('Er is een fout opgetreden bij het bijwerken van de instellingen', 'danger')
     
-    return redirect(url_for('admin'))
+    return redirect(url_for('admin', settings=True))
 
 @app.route("/admin/user/invite", methods=["GET", "POST"])
 @login_required
