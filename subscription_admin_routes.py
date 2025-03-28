@@ -8,8 +8,9 @@ from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_required, current_user
 from app import app, db
-from models import Workspace, Subscription, Payment, User
-from utils import format_currency, admin_required
+from models import Workspace, Subscription, Payment, User, MollieSettings
+from utils import format_currency, admin_required, super_admin_required
+from mollie_service import mollie_service
 
 # Admin abonnementen dashboard
 @app.route('/admin/subscriptions')
@@ -264,3 +265,103 @@ def admin_subscription_plans():
         now=now,
         format_currency=format_currency
     )
+    
+# Mollie instellingen (alleen super admins)
+@app.route('/admin/mollie-settings-admin')
+@login_required
+@super_admin_required
+def admin_mollie_settings_config():
+    """Toon en beheer Mollie betalingsinstellingen (alleen voor super admins)"""
+    
+    # Haal huidige Mollie instellingen op
+    mollie_settings = MollieSettings.query.first()
+    
+    # Als geen instellingen bestaan, maak een nieuw object
+    if not mollie_settings:
+        mollie_settings = MollieSettings()
+        
+    # Huidige status van Mollie API controleren
+    mollie_api_status = False
+    api_error = None
+    
+    if mollie_settings.api_key:
+        try:
+            status = mollie_service.check_api_status(mollie_settings.api_key)
+            mollie_api_status = status['success']
+            if not mollie_api_status:
+                api_error = status.get('error', 'Onbekende fout bij het controleren van de Mollie API status.')
+        except Exception as e:
+            logging.error(f"Fout bij controleren Mollie API status: {str(e)}")
+            api_error = str(e)
+    
+    # Haal recente betalingen op
+    recent_payments = Payment.query.order_by(Payment.created_at.desc()).limit(10).all()
+    
+    return render_template(
+        'admin/mollie_settings.html',
+        mollie_settings=mollie_settings,
+        mollie_api_status=mollie_api_status,
+        api_error=api_error,
+        recent_payments=recent_payments,
+        now=datetime.now(),
+        format_currency=format_currency
+    )
+
+# Update Mollie instellingen
+@app.route('/admin/mollie-settings/update-admin', methods=['POST'])
+@login_required
+@super_admin_required
+def update_mollie_settings_admin():
+    """Update Mollie betalingsinstellingen"""
+    
+    # Haal huidige Mollie instellingen op of maak nieuwe
+    mollie_settings = MollieSettings.query.first()
+    if not mollie_settings:
+        mollie_settings = MollieSettings()
+        db.session.add(mollie_settings)
+    
+    # Update instellingen vanuit formulier
+    mollie_settings.api_key = request.form.get('api_key')
+    mollie_settings.webhook_url = request.form.get('webhook_url')
+    mollie_settings.redirect_url = request.form.get('redirect_url')
+    mollie_settings.company_name = request.form.get('company_name')
+    mollie_settings.email = request.form.get('email')
+    mollie_settings.locale = request.form.get('locale')
+    
+    # Opslaan in database
+    try:
+        db.session.commit()
+        flash('Mollie instellingen zijn bijgewerkt!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Fout bij bijwerken Mollie instellingen: {str(e)}")
+        flash('Er is een fout opgetreden bij het bijwerken van de Mollie instellingen', 'danger')
+    
+    return redirect(url_for('admin_mollie_settings_config'))
+
+# Test Mollie API verbinding
+@app.route('/admin/mollie-settings/test')
+@login_required
+@super_admin_required
+def test_mollie_connection():
+    """Test de verbinding met de Mollie API"""
+    
+    # Haal huidige Mollie instellingen op
+    mollie_settings = MollieSettings.query.first()
+    
+    if not mollie_settings or not mollie_settings.api_key:
+        flash('Mollie API-sleutel is niet geconfigureerd', 'warning')
+        return redirect(url_for('admin_mollie_settings_config'))
+    
+    # Test verbinding
+    try:
+        status = mollie_service.check_api_status(mollie_settings.api_key)
+        if status['success']:
+            flash('Verbinding met Mollie API succesvol!', 'success')
+        else:
+            flash(f'Fout bij verbinden met Mollie API: {status.get("error", "Onbekende fout")}', 'danger')
+    except Exception as e:
+        logging.error(f"Fout bij testen Mollie verbinding: {str(e)}")
+        flash(f'Fout bij verbinden met Mollie API: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_mollie_settings_config'))

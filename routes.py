@@ -2400,6 +2400,10 @@ def admin():
     from models import get_users, EmailSettings
     
     # Filter users based on workspace for regular admins
+    # Abonnement informatie ophalen uit de database
+    subscription = None
+    workspace = None
+    
     if current_user.is_super_admin:
         # Super admins can see all users
         users = get_users()
@@ -2411,6 +2415,38 @@ def admin():
         
         # Haal huidige e-mailinstellingen op uit de database of fallback naar omgevingsvariabelen
         system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+    elif current_user.is_admin and current_user.workspace_id:
+        # Haal de workspace op voor reguliere beheerders
+        workspace = Workspace.query.get(current_user.workspace_id)
+        
+        # Haal abonnement op als de werkruimte een subscription_id heeft
+        if workspace and workspace.subscription_id:
+            from models import Subscription
+            subscription = Subscription.query.get(workspace.subscription_id)
+            
+            # Bereid features voor voor weergave
+            if subscription and subscription.features:
+                try:
+                    # Als features al een dict is, maak er een features_list van
+                    if isinstance(subscription.features, dict):
+                        features_dict = subscription.features
+                        subscription.features_list = list(features_dict.keys())
+                    # Als features een string is (JSON), converteer naar een lijst
+                    else:
+                        import json
+                        features_dict = json.loads(subscription.features)
+                        if isinstance(features_dict, list):
+                            subscription.features_list = features_dict
+                        else:
+                            subscription.features_list = [
+                                key for key, value in features_dict.items() if value is True
+                            ]
+                except Exception as e:
+                    logging.error(f"Fout bij verwerken features: {str(e)}")
+                    subscription.features_list = []
+            else:
+                if subscription:
+                    subscription.features_list = []
         
         if system_settings:
             # Gebruik instellingen uit database
@@ -2482,6 +2518,10 @@ def admin():
                            customer_count=customer_count, 
                            invoice_count=invoice_count, 
                            now=datetime.now(),
+                           # Abonnement informatie voor werkruimte beheerders
+                           workspace=workspace,
+                           subscription=subscription,
+                           format_currency=format_currency,
                            # E-mail instellingen voor template
                            ms_graph_client_id=ms_graph_client_id,
                            ms_graph_tenant_id=ms_graph_tenant_id,

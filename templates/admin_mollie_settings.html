@@ -23,7 +23,7 @@
                             <h5 class="mb-0">Mollie API instellingen</h5>
                         </div>
                         <div class="card-body">
-                            <form method="POST" action="{{ url_for('update_mollie_settings') }}">
+                            <form method="POST" action="{{ url_for('update_mollie_settings_admin') }}">
                                 <div class="mb-3 form-check">
                                     <input type="checkbox" class="form-check-input" id="is_test_mode" name="is_test_mode" 
                                            {% if mollie_settings and mollie_settings.is_test_mode %}checked{% endif %}>
