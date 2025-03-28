@@ -2448,7 +2448,11 @@ def admin():
         invoice_count = 0
         
     if current_user.is_admin and current_user.workspace_id:
-        # Haal de workspace op voor reguliere beheerders
+        # Voor reguliere admins die een werkruimte beheren, stuur ze door naar de workspace_admin pagina
+        return redirect(url_for('workspace_admin'))
+        
+        # Onderstaande code wordt nooit bereikt voor reguliere beheerders
+        # omdat ze worden doorgestuurd naar workspace_admin
         workspace = Workspace.query.get(current_user.workspace_id)
         
         # Haal e-mailinstellingen op voor deze werkruimte
