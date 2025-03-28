@@ -2397,6 +2397,10 @@ def admin():
     if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id and not request.args.get('settings'):
         return redirect(url_for('system_overview'))
     
+    # Regular admins are redirected to workspace admin page
+    if current_user.is_admin and not current_user.is_super_admin:
+        return redirect(url_for('workspace_admin'))
+    
     from models import get_users, EmailSettings
     
     # Filter users based on workspace for regular admins
@@ -2447,60 +2451,9 @@ def admin():
         customer_count = 0
         invoice_count = 0
         
-    if current_user.is_admin and current_user.workspace_id:
-        # Voor reguliere admins die een werkruimte beheren, stuur ze door naar de workspace_admin pagina
-        return redirect(url_for('workspace_admin'))
-        
-        # Onderstaande code wordt nooit bereikt voor reguliere beheerders
-        # omdat ze worden doorgestuurd naar workspace_admin
-        workspace = Workspace.query.get(current_user.workspace_id)
-        
-        # Haal e-mailinstellingen op voor deze werkruimte
-        email_settings = EmailSettings.query.filter_by(workspace_id=current_user.workspace_id).first()
-        
-        # Haal abonnement op als de werkruimte een subscription_id heeft
-        if workspace and workspace.subscription_id:
-            from models import Subscription
-            subscription = Subscription.query.get(workspace.subscription_id)
-            
-            # Bereid features voor voor weergave
-            if subscription and subscription.features:
-                try:
-                    # Als features al een dict is, maak er een features_list van
-                    if isinstance(subscription.features, dict):
-                        features_dict = subscription.features
-                        subscription.features_list = list(features_dict.keys())
-                    # Als features een string is (JSON), converteer naar een lijst
-                    else:
-                        import json
-                        features_dict = json.loads(subscription.features)
-                        if isinstance(features_dict, list):
-                            subscription.features_list = features_dict
-                        else:
-                            subscription.features_list = [
-                                key for key, value in features_dict.items() if value is True
-                            ]
-                except Exception as e:
-                    logging.error(f"Fout bij verwerken features: {str(e)}")
-                    subscription.features_list = []
-            else:
-                if subscription:
-                    subscription.features_list = []
-        
-        # Initialiseer alle email variabelen eerst
-        ms_graph_client_id = ''
-        ms_graph_tenant_id = ''
-        ms_graph_client_secret = ''
-        ms_graph_sender_email = ''
-        ms_graph_shared_mailbox = ''
-        ms_graph_use_shared_mailbox = False
-        smtp_server = ''
-        smtp_port = ''
-        smtp_username = ''
-        smtp_password = ''
-        email_from = ''
-        email_from_name = ''
-        
+    # Deze code is nu overbodig omdat we eerder al reguliere admins doorverwijzen naar workspace_admin
+    # Dit codeblok is nu gereserveerd voor super admins met een workspace_id
+    if current_user.is_super_admin and current_user.workspace_id:
         # Vul ze in met gegevens uit system_settings als die beschikbaar is
         if system_settings:
             # Gebruik instellingen uit database
@@ -3933,7 +3886,7 @@ def privacy_policy(lang='nl'):
 # Taal ondersteuning routes en functies
 @app.before_request
 def load_user_language():
-    """Laad taalvoorkeuren van de gebruiker voorafgaand aan elk verzoek"""
+    """Laad taalvoorkeuren van de gebruiker en globale variabelen voorafgaand aan elk verzoek"""
     # Standaardtaal is Nederlands
     g.language = session.get('language', 'nl')
     
@@ -3958,6 +3911,12 @@ def load_user_language():
         
     # Stel datetime in voor templates
     g.now = datetime.now()
+    
+    # Voor super admins, laad de lijst met werkruimtes voor de dropdown in de navigatiebalk
+    if current_user.is_authenticated and current_user.is_super_admin:
+        g.workspaces = Workspace.query.all()
+    else:
+        g.workspaces = []
 
 @app.route('/set-language/<language_code>')
 def set_language(language_code):

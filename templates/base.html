@@ -33,6 +33,33 @@
                             <i class="fas fa-chart-line"></i> Dashboard
                         </a>
                     </li>
+                    
+                    {% if current_user.is_super_admin %}
+                    <!-- Werkruimte dropdown voor super admins -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="workspaceDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-building"></i> 
+                            {% if current_user.workspace %}
+                                {{ current_user.workspace.name }}
+                            {% else %}
+                                Werkruimte kiezen
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="workspaceDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('system_overview') }}"><i class="fas fa-cogs"></i> Systeem Overzicht</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% for workspace in g.workspaces %}
+                            <li>
+                                <a class="dropdown-item {% if current_user.workspace_id == workspace.id %}active{% endif %}" 
+                                   href="{{ url_for('access_workspace', workspace_id=workspace.id) }}">
+                                    <i class="fas fa-building"></i> {{ workspace.name }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% endif %}
+                    
                     <li class="nav-item">
                         <a class="nav-link {% if '/invoices' in request.path %}active{% endif %}" href="{{ url_for('invoices_list') }}">
                             <i class="fas fa-file-invoice"></i> Facturen
