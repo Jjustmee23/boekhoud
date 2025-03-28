@@ -2328,7 +2328,8 @@ def admin():
         return redirect(url_for('dashboard'))
     
     # Super admins without workspace context are redirected to system overview
-    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
+    # BUT ONLY if there's no override parameter
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id and not request.args.get('settings'):
         return redirect(url_for('system_overview'))
     
     from models import get_users, EmailSettings

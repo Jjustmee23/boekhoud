@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="mb-0">Systeemoverzicht Dashboard</h1>
         <div>
-            <a href="{{ url_for('admin') }}" class="btn btn-primary">
+            <a href="{{ url_for('admin', settings=true) }}" class="btn btn-primary">
                 <i class="fas fa-cog me-2"></i> Beheerdersinstellingen
             </a>
         </div>
@@ -17,7 +17,7 @@
         <i class="fas fa-info-circle me-2"></i>
         <strong>Super Admin modus.</strong> U ziet statistieken van alle werkruimtes in het systeem. 
         Voor gedetailleerde gegevens van een specifieke werkruimte, gelieve te navigeren naar 
-        <a href="{{ url_for('admin') }}">Beheerdersinstellingen</a> en kies "Open werkruimte als beheerder".
+        <a href="{{ url_for('admin', settings=true) }}">Beheerdersinstellingen</a> en kies "Open werkruimte als beheerder".
     </div>
     
     <!-- Algemene statistieken -->
@@ -163,7 +163,7 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="{{ url_for('admin') }}" class="btn btn-outline-primary btn-sm">
+                    <a href="{{ url_for('admin', settings=true) }}" class="btn btn-outline-primary btn-sm">
                         Alle werkruimtes bekijken
                     </a>
                 </div>
@@ -211,7 +211,7 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="{{ url_for('admin') }}" class="btn btn-outline-primary btn-sm">
+                    <a href="{{ url_for('admin', settings=true) }}" class="btn btn-outline-primary btn-sm">
                         Alle gebruikers bekijken
                     </a>
                 </div>
@@ -251,7 +251,7 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="{{ url_for('admin') }}" class="btn btn-outline-primary btn-sm">
+                    <a href="{{ url_for('admin', settings=true) }}" class="btn btn-outline-primary btn-sm">
                         Alle werkruimtes bekijken
                     </a>
                 </div>
