@@ -780,6 +780,65 @@ class Workspace(db.Model):
         
         return base_price + extra_users_cost
 
+# Forward reference voor circulaire relatie
+class UserPermission(db.Model):
+    """Model voor gebruikersrechten - de verschillende functies die een gebruiker mag uitvoeren"""
+    __tablename__ = 'user_permissions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    
+    # Klanten rechten
+    can_view_customers = db.Column(db.Boolean, default=True)
+    can_add_customers = db.Column(db.Boolean, default=False)
+    can_edit_customers = db.Column(db.Boolean, default=False)
+    can_delete_customers = db.Column(db.Boolean, default=False)
+    
+    # Facturen rechten
+    can_view_invoices = db.Column(db.Boolean, default=True)
+    can_add_invoices = db.Column(db.Boolean, default=False)
+    can_edit_invoices = db.Column(db.Boolean, default=False)
+    can_delete_invoices = db.Column(db.Boolean, default=False)
+    can_upload_invoices = db.Column(db.Boolean, default=False)
+    
+    # Rapporten rechten
+    can_view_reports = db.Column(db.Boolean, default=True)
+    can_export_reports = db.Column(db.Boolean, default=False)
+    can_generate_vat_report = db.Column(db.Boolean, default=False)
+    
+    # Andere rechten
+    can_view_dashboard = db.Column(db.Boolean, default=True)
+    can_manage_settings = db.Column(db.Boolean, default=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # Relationship met gebruiker - gebruik string reference om circulaire import te vermijden
+    user = db.relationship('User', back_populates='permissions')
+    
+    def to_dict(self):
+        """Converteer naar dictionary voor JSON serialisatie"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'can_view_customers': self.can_view_customers,
+            'can_add_customers': self.can_add_customers,
+            'can_edit_customers': self.can_edit_customers,
+            'can_delete_customers': self.can_delete_customers,
+            'can_view_invoices': self.can_view_invoices,
+            'can_add_invoices': self.can_add_invoices,
+            'can_edit_invoices': self.can_edit_invoices,
+            'can_delete_invoices': self.can_delete_invoices,
+            'can_upload_invoices': self.can_upload_invoices,
+            'can_view_reports': self.can_view_reports,
+            'can_export_reports': self.can_export_reports,
+            'can_generate_vat_report': self.can_generate_vat_report,
+            'can_view_dashboard': self.can_view_dashboard,
+            'can_manage_settings': self.can_manage_settings,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     
@@ -796,11 +855,26 @@ class User(UserMixin, db.Model):
     workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'), nullable=True)
     workspace = db.relationship('Workspace', back_populates='users')
     
+    # User permissions
+    permissions = db.relationship('UserPermission', back_populates='user', cascade='all, delete-orphan', uselist=False)
+    
     # Make username and email unique per workspace
     __table_args__ = (
         sa.UniqueConstraint('username', 'workspace_id', name='uix_user_username_workspace'),
         sa.UniqueConstraint('email', 'workspace_id', name='uix_user_email_workspace'),
     )
+    
+    def has_permission(self, permission_name):
+        """Controleert of de gebruiker een specifieke permissie heeft"""
+        # Super admins en workspace admins hebben altijd alle rechten
+        if self.is_super_admin or self.is_admin:
+            return True
+        
+        # Controleer specifieke permissies voor normale gebruikers
+        if self.permissions:
+            return getattr(self.permissions, permission_name, False)
+        
+        return False
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -1019,3 +1093,5 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     return True
+
+

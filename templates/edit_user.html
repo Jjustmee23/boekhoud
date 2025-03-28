@@ -80,6 +80,9 @@
                         
                         <div class="d-grid gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">Wijzigingen opslaan</button>
+                            {% if not user.is_super_admin and not user.id == current_user.id %}
+                            <a href="{{ url_for('edit_permissions', user_id=user.id) }}" class="btn btn-info">Beheer gebruikersrechten</a>
+                            {% endif %}
                             <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">Annuleren</a>
                         </div>
                     </form>

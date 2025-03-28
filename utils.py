@@ -427,3 +427,65 @@ def allowed_file(filename, allowed_extensions):
         bool: True als de extensie is toegestaan, anders False
     """
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+
+# Gebruikersrechten functies
+from flask_login import current_user
+from functools import wraps
+from flask import flash, redirect, url_for
+
+def check_permission(permission_name):
+    """
+    Controleert of de ingelogde gebruiker een specifieke permissie heeft
+    
+    Args:
+        permission_name: Naam van de permissie om te controleren (bijv. 'can_view_customers')
+        
+    Returns:
+        bool: True als de gebruiker de permissie heeft, anders False
+    """
+    # Super admins hebben altijd alle rechten
+    if current_user.is_super_admin:
+        return True
+    
+    # Normale admins hebben standaard beheerrechten
+    if current_user.is_admin and permission_name not in [
+        'can_view_customers', 'can_add_customers', 'can_edit_customers', 'can_delete_customers',
+        'can_view_invoices', 'can_add_invoices', 'can_edit_invoices', 'can_delete_invoices', 'can_upload_invoices',
+        'can_view_reports', 'can_export_reports', 'can_generate_vat_report',
+        'can_view_dashboard', 'can_manage_settings'
+    ]:
+        return True
+    
+    # Controleer gebruikersrechten
+    permissions = current_user.permissions
+    if not permissions:
+        return False
+    
+    # Controleer specifieke permissie
+    return getattr(permissions, permission_name, False)
+
+def permission_required(permission_name):
+    """
+    Decorator die controleert of een gebruiker een bepaalde permissie heeft
+    
+    Args:
+        permission_name: Naam van de permissie die vereist is
+        
+    Returns:
+        function: Decorator functie
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                flash('U moet ingelogd zijn om deze pagina te bekijken', 'danger')
+                return redirect(url_for('login'))
+            
+            if not check_permission(permission_name):
+                flash('U heeft geen toegang tot deze pagina', 'danger')
+                return redirect(url_for('dashboard'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator

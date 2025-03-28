@@ -8,14 +8,14 @@ from flask import render_template, request, redirect, url_for, flash, send_file,
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 from models import (
-    Customer, Invoice, User, Workspace, EmailSettings, EmailMessage, get_next_invoice_number, check_duplicate_invoice, add_invoice,
+    Customer, Invoice, User, UserPermission, Workspace, EmailSettings, EmailMessage, get_next_invoice_number, check_duplicate_invoice, add_invoice,
     calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary,
     get_users, get_user, create_user, update_user, delete_user
 )
 from utils import (
     format_currency, format_decimal, generate_pdf_invoice, export_to_excel, export_to_csv,
     get_vat_rates, date_to_quarter, get_quarters, get_months, get_years,
-    save_uploaded_file, allowed_file
+    save_uploaded_file, allowed_file, permission_required, check_permission
 )
 from file_processor import FileProcessor
 from email_service import EmailService, EmailServiceHelper
@@ -995,6 +995,8 @@ def view_invoice_attachment(invoice_id):
 
 # Customer management routes
 @app.route('/customers')
+@login_required
+@permission_required('can_view_customers')
 def customers_list():
     # Super admin zonder actieve workspace sessie kan geen klanten zien
     if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
@@ -1039,6 +1041,8 @@ def customers_list():
     )
 
 @app.route('/customers/new', methods=['GET', 'POST'])
+@login_required
+@permission_required('can_add_customers')
 def new_customer():
     if request.method == 'POST':
         # Check if request is coming from an AJAX call
@@ -1158,6 +1162,8 @@ def new_customer():
     )
 
 @app.route('/customers/<customer_id>')
+@login_required
+@permission_required('can_view_customers')
 def view_customer(customer_id):
     try:
         # Convert customer_id from string to UUID if needed
@@ -1214,6 +1220,8 @@ def view_customer(customer_id):
         return redirect(url_for('customers_list'))
 
 @app.route('/customers/<customer_id>/edit', methods=['GET', 'POST'])
+@login_required
+@permission_required('can_edit_customers')
 def edit_customer(customer_id):
     try:
         # Convert customer_id from string to UUID if needed
@@ -1322,6 +1330,8 @@ def edit_customer(customer_id):
         return redirect(url_for('customers_list'))
 
 @app.route('/customers/bulk-action', methods=['POST'])
+@login_required
+@permission_required('can_delete_customers')
 def bulk_action_customers():
     """Process bulk actions for selected customers"""
     selected_ids = request.form.getlist('selected_ids[]')
@@ -1446,6 +1456,8 @@ def bulk_action_customers():
     return redirect(url_for('customers_list'))
 
 @app.route('/customers/<customer_id>/delete', methods=['POST'])
+@login_required
+@permission_required('can_delete_customers')
 def delete_customer_route(customer_id):
     try:
         # Convert customer_id from string to UUID if needed
@@ -1481,6 +1493,8 @@ def delete_customer_route(customer_id):
 
 # Reports routes
 @app.route('/reports')
+@login_required
+@permission_required('can_view_reports')
 def reports():
     # Get the current year and quarter
     current_year = datetime.now().year
@@ -1497,6 +1511,8 @@ def reports():
     )
 
 @app.route('/reports/monthly/<int:year>', methods=['GET'])
+@login_required
+@permission_required('can_view_reports')
 def monthly_report(year):
     # Super admin zonder actieve workspace sessie kan geen rapporten zien
     if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
@@ -1549,6 +1565,8 @@ def monthly_report(year):
     )
 
 @app.route('/reports/quarterly/<int:year>', methods=['GET'])
+@login_required
+@permission_required('can_view_reports')
 def quarterly_report(year):
     # Super admin zonder actieve workspace sessie kan geen rapporten zien
     if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
@@ -1601,6 +1619,8 @@ def quarterly_report(year):
     )
 
 @app.route('/reports/customers', methods=['GET'])
+@login_required
+@permission_required('can_view_reports')
 def customer_report():
     # Super admin zonder actieve workspace sessie kan geen rapporten zien
     if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
@@ -1653,6 +1673,8 @@ def customer_report():
 
 # VAT report routes
 @app.route('/vat-report')
+@login_required
+@permission_required('can_view_vat_reports')
 def vat_report_form():
     # Super admin zonder actieve workspace sessie kan geen BTW-rapport zien
     if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
@@ -1670,6 +1692,8 @@ def vat_report_form():
     )
 
 @app.route('/vat-report/generate', methods=['POST'])
+@login_required
+@permission_required('can_view_vat_reports')
 def generate_vat_report():
     # Super admin zonder actieve workspace sessie kan geen rapporten zien
     if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
@@ -1785,6 +1809,8 @@ def generate_vat_report():
 
 # Bulk upload routes
 @app.route('/bulk-upload', methods=['GET', 'POST'])
+@login_required
+@permission_required('can_upload_invoices')
 def bulk_upload():
     # Super admin zonder actieve workspace sessie kan geen bulk upload doen
     if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
@@ -1894,6 +1920,8 @@ def bulk_upload():
     )
 
 @app.route('/invoices/bulk-action', methods=['POST'])
+@login_required
+@permission_required('can_manage_invoices')
 def bulk_action_invoices():
     """Process bulk actions for selected invoices"""
     selected_ids = request.form.getlist('selected_ids[]')
@@ -1955,6 +1983,8 @@ def bulk_action_invoices():
 
 
 @app.route('/customers/<customer_id>/invoices/bulk-action', methods=['POST'])
+@login_required
+@permission_required('can_manage_invoices')
 def bulk_action_customer_invoices(customer_id):
     """Process bulk actions for selected invoices on the customer detail page"""
     selected_ids = request.form.getlist('selected_ids[]')
@@ -2047,6 +2077,8 @@ def bulk_action_customer_invoices(customer_id):
     return redirect(url_for('view_customer', customer_id=customer_id))
 
 @app.route('/bulk-upload/process', methods=['POST'])
+@login_required
+@permission_required('can_upload_invoices')
 def bulk_upload_process():
     # Haal de ingevulde formuliergegevens op
     file_data = []
@@ -2281,6 +2313,8 @@ def process_to_customer_portal(file_data):
     return redirect(url_for('customers_list'))
 
 @app.route('/bulk-upload/results')
+@login_required
+@permission_required('can_upload_invoices')
 def bulk_upload_results():
     # Get results from session
     results = session.get('bulk_upload_results', {
@@ -2637,6 +2671,80 @@ def admin_create_user():
         flash('Er is een fout opgetreden bij het aanmaken van de gebruiker', 'danger')
     
     return redirect(url_for('admin'))
+
+@app.route('/edit-permissions/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def edit_permissions(user_id):
+    """Beheer rechten van een gebruiker"""
+    # Alleen admins mogen rechten bewerken
+    if not current_user.is_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Haal de gebruiker op
+    user = User.query.get(user_id)
+    if not user:
+        flash('Gebruiker niet gevonden', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Admins mogen geen rechten van super admins bewerken
+    if user.is_super_admin and not current_user.is_super_admin:
+        flash('U heeft geen toegang om rechten van super admins te bewerken', 'danger')
+        return redirect(url_for('admin'))
+    
+    # Super admins hebben altijd alle rechten, eigen rechten kunnen niet worden bewerkt
+    if user.is_super_admin or user.id == current_user.id:
+        flash('Super admins hebben automatisch alle rechten en eigen rechten kunnen niet worden bewerkt', 'warning')
+        return redirect(url_for('edit_user', user_id=user_id))
+    
+    # Haal huidige permissions op of maak een nieuw permissions object aan
+    permissions = user.permissions
+    if not permissions:
+        permissions = UserPermission(user_id=user.id)
+        db.session.add(permissions)
+    
+    # Bij POST verwerken we het formulier
+    if request.method == 'POST':
+        # Klanten rechten
+        permissions.can_view_customers = 'can_view_customers' in request.form
+        permissions.can_add_customers = 'can_add_customers' in request.form
+        permissions.can_edit_customers = 'can_edit_customers' in request.form
+        permissions.can_delete_customers = 'can_delete_customers' in request.form
+        
+        # Facturen rechten
+        permissions.can_view_invoices = 'can_view_invoices' in request.form
+        permissions.can_add_invoices = 'can_add_invoices' in request.form
+        permissions.can_edit_invoices = 'can_edit_invoices' in request.form
+        permissions.can_delete_invoices = 'can_delete_invoices' in request.form
+        permissions.can_upload_invoices = 'can_upload_invoices' in request.form
+        
+        # Rapporten rechten
+        permissions.can_view_reports = 'can_view_reports' in request.form
+        permissions.can_export_reports = 'can_export_reports' in request.form
+        permissions.can_generate_vat_report = 'can_generate_vat_report' in request.form
+        
+        # Andere rechten
+        permissions.can_view_dashboard = 'can_view_dashboard' in request.form
+        permissions.can_manage_settings = 'can_manage_settings' in request.form
+        
+        # Opslaan in database
+        try:
+            db.session.commit()
+            flash('Gebruikersrechten zijn bijgewerkt', 'success')
+            return redirect(url_for('edit_permissions', user_id=user_id))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating user permissions: {str(e)}")
+            flash('Er is een fout opgetreden bij het bijwerken van de rechten', 'danger')
+    
+    # Toon formulier met huidige rechten
+    return render_template('edit_permissions.html', user=user, permissions=permissions, now=datetime.now())
+
+@app.route('/update-permissions/<int:user_id>', methods=['POST'])
+@login_required
+def update_permissions(user_id):
+    """Update de rechten van een gebruiker"""
+    return redirect(url_for('edit_permissions', user_id=user_id))
 
 @app.route('/admin/user/<int:user_id>', methods=['GET', 'POST'])
 @login_required

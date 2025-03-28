@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}- Gebruikersrechten beheren{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="card shadow-sm my-5">
+                <div class="card-body p-4">
+                    <h2 class="card-title text-center mb-4">Gebruikersrechten beheren</h2>
+                    <div class="mb-3">
+                        <h4>Gebruiker: {{ user.username }}</h4>
+                        <p class="text-muted">{{ user.email }}</p>
+                    </div>
+                    
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">{{ message }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST" action="{{ url_for('edit_permissions', user_id=user.id) }}">
+                        <!-- Rechten ingedeeld per categorie -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Dashboard & Algemeen</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_view_dashboard" name="can_view_dashboard" {% if permissions.can_view_dashboard %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_view_dashboard">
+                                        Dashboard bekijken
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_manage_settings" name="can_manage_settings" {% if permissions.can_manage_settings %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_manage_settings">
+                                        Instellingen beheren
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0">Klanten</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_view_customers" name="can_view_customers" {% if permissions.can_view_customers %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_view_customers">
+                                        Klanten bekijken
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_add_customers" name="can_add_customers" {% if permissions.can_add_customers %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_add_customers">
+                                        Klanten toevoegen
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_edit_customers" name="can_edit_customers" {% if permissions.can_edit_customers %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_edit_customers">
+                                        Klanten bewerken
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_delete_customers" name="can_delete_customers" {% if permissions.can_delete_customers %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_delete_customers">
+                                        Klanten verwijderen
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Facturen</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_view_invoices" name="can_view_invoices" {% if permissions.can_view_invoices %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_view_invoices">
+                                        Facturen bekijken
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_add_invoices" name="can_add_invoices" {% if permissions.can_add_invoices %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_add_invoices">
+                                        Facturen toevoegen
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_edit_invoices" name="can_edit_invoices" {% if permissions.can_edit_invoices %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_edit_invoices">
+                                        Facturen bewerken
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_delete_invoices" name="can_delete_invoices" {% if permissions.can_delete_invoices %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_delete_invoices">
+                                        Facturen verwijderen
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_upload_invoices" name="can_upload_invoices" {% if permissions.can_upload_invoices %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_upload_invoices">
+                                        Facturen uploaden (bulk)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-4">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0">Rapporten</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_view_reports" name="can_view_reports" {% if permissions.can_view_reports %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_view_reports">
+                                        Rapporten bekijken
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_export_reports" name="can_export_reports" {% if permissions.can_export_reports %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_export_reports">
+                                        Rapporten exporteren
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="can_generate_vat_report" name="can_generate_vat_report" {% if permissions.can_generate_vat_report %}checked{% endif %}>
+                                    <label class="form-check-label" for="can_generate_vat_report">
+                                        BTW-aangiftes genereren
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">Rechten opslaan</button>
+                            <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-outline-secondary">Terug naar gebruiker</a>
+                            <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">Terug naar admin</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
