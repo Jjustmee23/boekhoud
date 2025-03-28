@@ -690,7 +690,8 @@ class EmailService:
                 template_params = {
                     'customer_name': customer_name or 'Geachte klant',
                     'workspace_name': workspace_name,
-                    'activation_url': activation_url
+                    'activation_url': activation_url,
+                    'registration_instructions': True
                 }
                 
                 # Verstuur de e-mail met het juiste template
@@ -771,7 +772,8 @@ class EmailService:
                 template_params = {
                     'workspace_name': workspace_name,
                     'activation_url': activation_url,
-                    'inviter_name': inviter_name or 'De beheerder'
+                    'inviter_name': inviter_name or 'De beheerder',
+                    'registration_instructions': True
                 }
                 
                 # Verstuur de e-mail met het juiste template
@@ -798,6 +800,7 @@ class EmailService:
                             .button {{ display: inline-block; background-color: #0078D4; color: white; padding: 12px 24px; 
                                       text-decoration: none; border-radius: 4px; margin-top: 20px; }}
                             .footer {{ padding: 20px; text-align: center; font-size: 0.8em; color: #777; }}
+                            .instructions {{ background-color: #eef8ff; border-left: 4px solid #0078D4; padding: 15px; margin: 20px 0; }}
                         </style>
                     </head>
                     <body>
@@ -807,8 +810,23 @@ class EmailService:
                             </div>
                             <div class="content">
                                 <p>Beste,</p>
-                                <p>{inviter} heeft u uitgenodigd voor toegang tot de <strong>{workspace_name}</strong> workspace in het administratie platform.</p>
-                                <p>Klik op onderstaande link om uw account te activeren en een wachtwoord in te stellen:</p>
+                                <p>{inviter} heeft u uitgenodigd voor toegang tot de <strong>{workspace_name}</strong> werkruimte in het administratie platform.</p>
+                                
+                                <div class="instructions">
+                                    <h3>Registratie-instructies:</h3>
+                                    <ol>
+                                        <li>Klik op de onderstaande knop "Activeer uw account"</li>
+                                        <li>Vul uw gewenste gebruikersnaam en wachtwoord in op het registratieformulier</li>
+                                        <li>Na het registreren, gebruikt u bij het inloggen:</li>
+                                        <ul>
+                                            <li>Werkruimte: <strong>{workspace_name}</strong></li>
+                                            <li>Uw gekozen gebruikersnaam</li>
+                                            <li>Uw gekozen wachtwoord</li>
+                                        </ul>
+                                    </ol>
+                                </div>
+                                
+                                <p>Klik op onderstaande link om uw account te activeren:</p>
                                 <p><a href="{activation_url}" class="button">Activeer uw account</a></p>
                                 <p>Als de knop niet werkt, kunt u ook de volgende link kopiëren en plakken in uw browser:</p>
                                 <p>{activation_url}</p>

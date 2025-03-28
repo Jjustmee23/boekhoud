@@ -36,7 +36,8 @@ def login():
         # Get form data
         username = request.form.get('username')
         password = request.form.get('password')
-        workspace_id = request.form.get('workspace_id')
+        workspace_name = request.form.get('workspace_name')
+        workspace_id = request.form.get('workspace_id')  # Fallback voor backward compatibility
         remember = request.form.get('remember', 'false') == 'true'
         
         # Special case: if no workspaces exist yet, allow login with admin/admin123
@@ -64,9 +65,18 @@ def login():
         # Regular login flow for when workspaces exist
         if workspaces_exist:
             # Validate input
-            if not username or not password or not workspace_id:
+            if not username or not password or (not workspace_name and not workspace_id):
                 flash('Gebruikersnaam, wachtwoord en werkruimte zijn verplicht', 'danger')
                 return render_template('login.html', workspaces=workspaces, no_workspaces=not workspaces_exist, now=datetime.now())
+            
+            # Als werkruimtenaam wordt gebruikt, zoek de bijbehorende workspace_id
+            if workspace_name and not workspace_id:
+                workspace = Workspace.query.filter_by(name=workspace_name).first()
+                if workspace:
+                    workspace_id = workspace.id
+                else:
+                    flash(f'Werkruimte "{workspace_name}" niet gevonden', 'danger')
+                    return render_template('login.html', workspaces=workspaces, no_workspaces=not workspaces_exist, now=datetime.now())
             
             # Find user by username in the selected workspace
             user = User.query.filter_by(username=username, workspace_id=workspace_id).first()
