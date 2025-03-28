@@ -105,6 +105,8 @@ def api_get_stats():
 @login_required
 def error_test():
     """Testpagina om verschillende errors te genereren voor log testing"""
+    from flask import flash
+    
     error_type = request.args.get('type', 'info')
     
     if not current_user.is_admin and not current_user.is_super_admin:
@@ -122,8 +124,9 @@ def error_test():
         flash("ERROR bericht is gelogd", "danger")
     elif error_type == 'exception':
         try:
-            # Genereer een bewuste exceptie
-            undefined_variable / 10
+            # Genereer een bewuste exceptie voor logging test
+            # Dit zal een NameError veroorzaken omdat de variabele niet bestaat
+            test = not_defined_variable
         except Exception as e:
             logger.exception(f"Test EXCEPTION gegenereerd via error-test: {str(e)}")
             flash(f"EXCEPTION is gelogd: {str(e)}", "danger")

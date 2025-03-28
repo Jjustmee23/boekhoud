@@ -32,6 +32,8 @@ footer {
 
 .card-header {
     font-weight: 500;
+    background-color: var(--bs-dark-bg-subtle) !important;
+    color: var(--bs-body-color) !important;
 }
 
 /* Dashboard styling */
