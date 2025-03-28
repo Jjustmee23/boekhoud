@@ -229,6 +229,12 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="ms-oauth-tab" data-bs-toggle="tab" data-bs-target="#ms-oauth-config" 
+                            type="button" role="tab" aria-controls="ms-oauth-config" aria-selected="false">
+                        Microsoft 365 OAuth
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link {% if not use_ms_graph %}active{% endif %}" id="smtp-tab" data-bs-toggle="tab" data-bs-target="#smtp-config" 
                             type="button" role="tab" aria-controls="smtp-config" aria-selected="{{ 'true' if not use_ms_graph else 'false' }}">
                         SMTP Instellingen
@@ -336,6 +342,60 @@
                             </div>
                         </div>
                     </form>
+                </div>
+                
+                <!-- Microsoft 365 OAuth Instellingen -->
+                <div class="tab-pane fade" id="ms-oauth-config" role="tabpanel" aria-labelledby="ms-oauth-tab">
+                    <div class="alert alert-info mb-4">
+                        <h5><i class="fas fa-info-circle me-2"></i>Microsoft 365 OAuth 2.0 E-mail Integratie</h5>
+                        <p>OAuth 2.0 biedt een veiligere manier van authenticatie dan traditionele wachtwoorden. Het stelt de applicatie in staat om e-mails te versturen namens een gebruiker zonder dat het wachtwoord bekend hoeft te zijn.</p>
+                        <div class="mt-2">
+                            <a href="{{ url_for('ms_oauth_settings') }}" class="btn btn-primary">
+                                <i class="fas fa-cogs me-1"></i> Microsoft 365 OAuth Instellingen Configureren
+                            </a>
+                            <a href="{{ url_for('send_test_email', provider='oauth') }}" class="btn btn-outline-primary ms-2">
+                                <i class="fas fa-paper-plane me-1"></i> Test OAuth E-mail Versturen
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="card-title mb-0">Voordelen van Microsoft 365 OAuth</h5>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex">
+                                    <div class="me-3 text-primary"><i class="fas fa-shield-alt fa-lg"></i></div>
+                                    <div>
+                                        <strong>Verbeterde beveiliging</strong>
+                                        <p class="mb-0 text-muted">Geen wachtwoorden opgeslagen, alleen tokens met beperkte levensduur</p>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex">
+                                    <div class="me-3 text-primary"><i class="fas fa-user-shield fa-lg"></i></div>
+                                    <div>
+                                        <strong>Multi-factor authenticatie ondersteuning</strong>
+                                        <p class="mb-0 text-muted">Werkt naadloos met MFA-instellingen van uw Microsoft 365 account</p>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex">
+                                    <div class="me-3 text-primary"><i class="fas fa-key fa-lg"></i></div>
+                                    <div>
+                                        <strong>Granulaire permissies</strong>
+                                        <p class="mb-0 text-muted">Alleen specifieke rechten worden verleend, zoals alleen e-mail verzenden</p>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex">
+                                    <div class="me-3 text-primary"><i class="fas fa-sync fa-lg"></i></div>
+                                    <div>
+                                        <strong>Automatische token vernieuwing</strong>
+                                        <p class="mb-0 text-muted">Tokens worden automatisch vernieuwd zonder handmatige interventie</p>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- SMTP Instellingen -->
