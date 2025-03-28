@@ -16,11 +16,20 @@ if [ "$(id -u)" = "0" ]; then
   chmod -R 777 /app/static/uploads
   chown -R appuser:appuser /app/static/uploads
   
+  # Voer database migraties uit als appuser
+  echo "Voer database migraties uit..."
+  gosu appuser python /app/run_migrations.py
+  
   # Voer het commando uit als appuser
   echo "Rechten ingesteld, start applicatie als appuser..."
   exec gosu appuser "$@"
 else
   # Als we niet als root draaien, direct uitvoeren
   echo "Start applicatie direct..."
+  
+  # Voer database migraties uit
+  echo "Voer database migraties uit..."
+  python /app/run_migrations.py
+  
   exec "$@"
 fi
