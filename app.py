@@ -215,6 +215,14 @@ try:
 except ImportError as e:
     app.logger.error(f"Fout bij het registreren van logs monitoring system: {str(e)}")
 
+# Registreer de onboarding blueprint
+try:
+    from onboarding_routes import onboarding_bp
+    app.register_blueprint(onboarding_bp)
+    app.logger.info("Onboarding tutorial system geregistreerd")
+except ImportError as e:
+    app.logger.error(f"Fout bij het registreren van onboarding tutorial system: {str(e)}")
+
 # Voeg custom Jinja2 filters toe
 import json
 @app.template_filter('fromjson')

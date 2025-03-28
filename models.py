@@ -892,6 +892,7 @@ class User(UserMixin, db.Model):
     is_super_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
     password_change_required = db.Column(db.Boolean, default=False)
+    is_new_user = db.Column(db.Boolean, default=True)
     
     # Workspace relationship (nullable for super_admin users who can access all workspaces)
     workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'), nullable=True)
