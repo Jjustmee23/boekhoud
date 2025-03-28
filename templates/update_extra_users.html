@@ -4,93 +4,168 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="mb-0">Extra gebruikers beheren</h1>
-        <div>
-            <a href="{{ url_for('workspace_admin') }}" class="btn btn-outline-primary">
-                <i class="fas fa-arrow-left me-2"></i>Terug naar werkruimtebeheer
-            </a>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0">Gebruikerscapaciteit aanpassen</h5>
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('workspace_admin') }}">Werkruimte beheer</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Extra gebruikers beheren</li>
+                </ol>
+            </nav>
+            
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Extra gebruikers beheren</h5>
                 </div>
                 <div class="card-body">
-                    {% if workspace.subscription %}
                     <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Je abonnement bevat <strong>{{ workspace.subscription.max_users }}</strong> gebruiker{{ 's' if workspace.subscription.max_users != 1 else '' }}.
-                        Je kunt extra gebruikers toevoegen voor € {{ format_currency(workspace.subscription.price_per_extra_user) }} per gebruiker per maand.
+                        <h5 class="alert-heading">Abonnementsinformatie</h5>
+                        <p>Je huidige abonnement "{{ workspace.subscription.name if workspace.subscription else 'Geen' }}" bevat {{ workspace.subscription.max_users if workspace.subscription else 0 }} gebruiker(s).</p>
+                        <p>Je kunt extra gebruikers toevoegen tegen een prijs van {{ format_currency(workspace.subscription.price_per_extra_user) }} per gebruiker per maand.</p>
                     </div>
                     
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-md-7">
-                                    <h6 class="mb-2">Huidige situatie</h6>
-                                    <p class="mb-0">
-                                        <strong>{{ workspace.subscription.max_users }}</strong> basisgebruikers +
-                                        <strong>{{ workspace.extra_users }}</strong> extra gebruikers =
-                                        <strong>{{ workspace.subscription.max_users + workspace.extra_users }}</strong> totaal
-                                    </p>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>Huidige situatie</h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-6">Basis gebruikers:</dt>
+                                        <dd class="col-sm-6">{{ workspace.subscription.max_users if workspace.subscription else 0 }}</dd>
+                                        
+                                        <dt class="col-sm-6">Extra gebruikers:</dt>
+                                        <dd class="col-sm-6">{{ workspace.extra_users or 0 }}</dd>
+                                        
+                                        <dt class="col-sm-6">Totaal gebruikers:</dt>
+                                        <dd class="col-sm-6">{{ (workspace.subscription.max_users if workspace.subscription else 0) + (workspace.extra_users or 0) }}</dd>
+                                        
+                                        <dt class="col-sm-6">Actieve gebruikers:</dt>
+                                        <dd class="col-sm-6">{{ workspace.users|length or 0 }}</dd>
+                                    </dl>
                                 </div>
-                                <div class="col-md-5 text-md-end">
-                                    <h6 class="mb-2">Extra gebruikerskosten</h6>
-                                    <p class="mb-0">
-                                        <strong>€ {{ format_currency(workspace.extra_users * workspace.subscription.price_per_extra_user) }}</strong>
-                                        {% if workspace.billing_cycle == 'monthly' %}
-                                        per maand
-                                        {% else %}
-                                        per maand (€ {{ format_currency(workspace.extra_users * workspace.subscription.price_per_extra_user * 12) }} per jaar)
-                                        {% endif %}
-                                    </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>Extra kosten</h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-7">Prijs per extra gebruiker:</dt>
+                                        <dd class="col-sm-5">{{ format_currency(workspace.subscription.price_per_extra_user) }}</dd>
+                                        
+                                        <dt class="col-sm-7">Totaal extra kosten:</dt>
+                                        <dd class="col-sm-5">{{ format_currency((workspace.extra_users or 0) * workspace.subscription.price_per_extra_user) }}</dd>
+                                        
+                                        <dt class="col-sm-7">Volgende factuurdatum:</dt>
+                                        <dd class="col-sm-5">
+                                            {% if workspace.subscription_start_date %}
+                                                {{ workspace.subscription_start_date.strftime('%d-%m-%Y') }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </dd>
+                                    </dl>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <form action="{{ url_for('update_extra_users') }}" method="POST">
-                        <div class="mb-4">
+                    <form method="POST" action="{{ url_for('update_extra_users') }}">
+                        <div class="mb-3">
                             <label for="extra_users" class="form-label">Aantal extra gebruikers</label>
-                            <input type="number" class="form-control form-control-lg" id="extra_users" name="extra_users" 
-                                   value="{{ workspace.extra_users }}" min="0" max="100">
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="extra_users" name="extra_users" 
+                                       min="0" value="{{ workspace.extra_users or 0 }}">
+                                <button class="btn btn-outline-secondary" type="button" id="decrease">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary" type="button" id="increase">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
                             <div class="form-text">
-                                Je totale capaciteit zal 
-                                <strong>{{ workspace.subscription.max_users }}</strong> + het aantal extra gebruikers zijn.
+                                Je betaalt alleen voor de extra gebruikers bovenop de {{ workspace.subscription.max_users if workspace.subscription else 0 }} 
+                                die al in je abonnement zijn inbegrepen.
                             </div>
                         </div>
                         
-                        <div class="alert alert-warning">
+                        <div class="alert alert-warning" id="userWarning" style="display: none;">
                             <i class="fas fa-exclamation-triangle me-2"></i>
-                            De wijziging wordt direct verwerkt en is van toepassing op je huidige factureringsperiode.
-                            Bij een verhoging van het aantal extra gebruikers zal er een extra bedrag in rekening worden gebracht.
-                            Bij een verlaging van het aantal extra gebruikers zal er geen restitutie plaatsvinden.
+                            <span id="warningMessage"></span>
                         </div>
                         
-                        <div class="text-center">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Extra maandelijkse kosten:</span>
+                                    <span class="h5 mb-0" id="extraCost">{{ format_currency((workspace.extra_users or 0) * workspace.subscription.price_per_extra_user) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('workspace_admin') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i> Terug
+                            </a>
                             <button type="submit" class="btn btn-primary">
-                                Bijwerken
+                                <i class="fas fa-save me-2"></i> Wijzigingen opslaan
                             </button>
                         </div>
                     </form>
-                    {% else %}
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Je hebt nog geen actief abonnement. Kies eerst een abonnement voordat je extra gebruikers kunt toevoegen.
-                    </div>
-                    <div class="text-center">
-                        <a href="{{ url_for('select_subscription') }}" class="btn btn-primary">
-                            <i class="fas fa-shopping-cart me-2"></i> Kies een abonnement
-                        </a>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const extraUsersInput = document.getElementById('extra_users');
+        const increaseBtn = document.getElementById('increase');
+        const decreaseBtn = document.getElementById('decrease');
+        const extraCostElement = document.getElementById('extraCost');
+        const userWarning = document.getElementById('userWarning');
+        const warningMessage = document.getElementById('warningMessage');
+        
+        const pricePerExtraUser = {{ workspace.subscription.price_per_extra_user }};
+        const baseUserCount = {{ workspace.subscription.max_users if workspace.subscription else 0 }};
+        const activeUserCount = {{ workspace.users|length or 0 }};
+        
+        function updateCost() {
+            const extraUsers = parseInt(extraUsersInput.value) || 0;
+            const cost = extraUsers * pricePerExtraUser;
+            extraCostElement.textContent = '€' + cost.toFixed(2).replace('.', ',');
+            
+            // Check if we have enough users for active users
+            const totalAllowedUsers = baseUserCount + extraUsers;
+            if (totalAllowedUsers < activeUserCount) {
+                userWarning.style.display = 'block';
+                warningMessage.textContent = `Je hebt momenteel ${activeUserCount} actieve gebruikers. Als je het aantal extra gebruikers verlaagt naar ${extraUsers}, kunnen sommige gebruikers geen toegang meer krijgen.`;
+            } else {
+                userWarning.style.display = 'none';
+            }
+        }
+        
+        increaseBtn.addEventListener('click', function() {
+            extraUsersInput.value = parseInt(extraUsersInput.value || 0) + 1;
+            updateCost();
+        });
+        
+        decreaseBtn.addEventListener('click', function() {
+            const currentValue = parseInt(extraUsersInput.value || 0);
+            if (currentValue > 0) {
+                extraUsersInput.value = currentValue - 1;
+                updateCost();
+            }
+        });
+        
+        extraUsersInput.addEventListener('input', updateCost);
+        
+        // Initial update
+        updateCost();
+    });
+</script>
+{% endblock %}
+
 {% endblock %}

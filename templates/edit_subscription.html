@@ -4,136 +4,123 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="mb-0">Abonnement bewerken</h1>
-        <div>
-            <a href="{{ url_for('admin_mollie_settings') }}" class="btn btn-outline-primary">
-                <i class="fas fa-arrow-left me-2"></i>Terug naar Mollie instellingen
-            </a>
-        </div>
-    </div>
-    
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white">
-            <h5 class="card-title mb-0">Abonnement: {{ subscription.name }}</h5>
-        </div>
-        <div class="card-body">
-            <form action="{{ url_for('edit_subscription', subscription_id=subscription.id) }}" method="POST">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="name" class="form-label">Naam</label>
-                        <input type="text" class="form-control" id="name" name="name" value="{{ subscription.name }}" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="description" class="form-label">Omschrijving</label>
-                        <input type="text" class="form-control" id="description" name="description" value="{{ subscription.description }}">
-                    </div>
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_mollie_settings') }}">Mollie instellingen</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Abonnement bewerken</li>
+                </ol>
+            </nav>
+            
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Abonnement "{{ subscription.name }}" bewerken</h5>
                 </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="price_monthly" class="form-label">Maandelijkse prijs (€)</label>
-                        <input type="number" class="form-control" id="price_monthly" name="price_monthly" step="0.01" min="0" value="{{ subscription.price_monthly }}" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="price_yearly" class="form-label">Jaarlijkse prijs (€)</label>
-                        <input type="number" class="form-control" id="price_yearly" name="price_yearly" step="0.01" min="0" value="{{ subscription.price_yearly }}" required>
-                    </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('edit_subscription', subscription_id=subscription.id) }}">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Naam</label>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           value="{{ subscription.name }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Beschrijving</label>
+                                    <textarea class="form-control" id="description" name="description" rows="3">{{ subscription.description }}</textarea>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="price_monthly" class="form-label">Maandprijs (€)</label>
+                                            <input type="number" class="form-control" id="price_monthly" name="price_monthly" 
+                                                   step="0.01" min="0" value="{{ subscription.price_monthly }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="price_yearly" class="form-label">Jaarprijs (€)</label>
+                                            <input type="number" class="form-control" id="price_yearly" name="price_yearly" 
+                                                   step="0.01" min="0" value="{{ subscription.price_yearly }}">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="max_users" class="form-label">Max. gebruikers</label>
+                                            <input type="number" class="form-control" id="max_users" name="max_users" 
+                                                   min="1" value="{{ subscription.max_users }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="max_invoices_per_month" class="form-label">Max. facturen/maand</label>
+                                            <input type="number" class="form-control" id="max_invoices_per_month" name="max_invoices_per_month" 
+                                                   min="1" value="{{ subscription.max_invoices_per_month }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="price_per_extra_user" class="form-label">Prijs per extra gebruiker</label>
+                                            <input type="number" class="form-control" id="price_per_extra_user" name="price_per_extra_user" 
+                                                   step="0.01" min="0" value="{{ subscription.price_per_extra_user }}">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="true" 
+                                           {% if subscription.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">Actief</label>
+                                    <div class="form-text">Alleen actieve abonnementen worden getoond aan gebruikers.</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="features" class="form-label">Features (één per regel)</label>
+                                    <textarea class="form-control" id="features" name="features" rows="10">{{ features_text }}</textarea>
+                                    <div class="form-text">Voer elke feature op een aparte regel in.</div>
+                                </div>
+                                
+                                <div class="card bg-light">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="mb-0">Abonnementsdetails</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <dl class="row mb-0">
+                                            <dt class="col-sm-6">Gecreëerd op:</dt>
+                                            <dd class="col-sm-6">{{ subscription.created_at.strftime('%d-%m-%Y %H:%M') if subscription.created_at else 'Onbekend' }}</dd>
+                                            
+                                            <dt class="col-sm-6">Laatst bijgewerkt:</dt>
+                                            <dd class="col-sm-6">{{ subscription.updated_at.strftime('%d-%m-%Y %H:%M') if subscription.updated_at else 'Onbekend' }}</dd>
+                                            
+                                            <dt class="col-sm-6">Aantal actieve gebruikers:</dt>
+                                            <dd class="col-sm-6">{{ subscription.workspaces|length }}</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('admin_mollie_settings') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i> Terug
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i> Wijzigingen opslaan
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label for="max_users" class="form-label">Max. gebruikers</label>
-                        <input type="number" class="form-control" id="max_users" name="max_users" min="1" value="{{ subscription.max_users }}" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="max_invoices_per_month" class="form-label">Max. facturen/maand</label>
-                        <input type="number" class="form-control" id="max_invoices_per_month" name="max_invoices_per_month" min="1" value="{{ subscription.max_invoices_per_month }}" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="price_per_extra_user" class="form-label">Prijs per extra gebruiker (€)</label>
-                        <input type="number" class="form-control" id="price_per_extra_user" name="price_per_extra_user" step="0.01" min="0" value="{{ subscription.price_per_extra_user }}" required>
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="features" class="form-label">Functies (één per regel)</label>
-                    <textarea class="form-control" id="features" name="features" rows="5">{{ features_text }}</textarea>
-                    <div class="form-text">Voer elke functie op een nieuwe regel in, bijvoorbeeld "Onbeperkt aantal klanten"</div>
-                </div>
-                
-                <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="true" {% if subscription.is_active %}checked{% endif %}>
-                    <label class="form-check-label" for="is_active">Abonnement actief</label>
-                </div>
-                
-                <div class="d-flex justify-content-between">
-                    <button type="submit" class="btn btn-primary">Abonnement opslaan</button>
-                    
-                    <div class="text-danger">
-                        <a href="{{ url_for('delete_subscription', subscription_id=subscription.id) }}" 
-                           class="btn btn-outline-danger"
-                           onclick="return confirm('Weet je zeker dat je dit abonnement wilt verwijderen?');">
-                            <i class="fas fa-trash-alt me-1"></i> Verwijderen
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    {% if subscription.workspaces %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white">
-            <h5 class="card-title mb-0">Werkruimtes met dit abonnement ({{ subscription.workspaces|length }})</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Naam</th>
-                            <th>Start datum</th>
-                            <th>Eind datum</th>
-                            <th>Betaalcyclus</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for workspace in subscription.workspaces %}
-                        <tr>
-                            <td>{{ workspace.id }}</td>
-                            <td>{{ workspace.name }}</td>
-                            <td>
-                                {% if workspace.subscription_start_date %}
-                                {{ workspace.subscription_start_date.strftime('%d-%m-%Y') }}
-                                {% else %}
-                                -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if workspace.subscription_end_date %}
-                                {{ workspace.subscription_end_date.strftime('%d-%m-%Y') }}
-                                {% else %}
-                                -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if workspace.billing_cycle == 'monthly' %}
-                                <span class="badge bg-info">Maandelijks</span>
-                                {% elif workspace.billing_cycle == 'yearly' %}
-                                <span class="badge bg-primary">Jaarlijks</span>
-                                {% else %}
-                                -
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
-    {% endif %}
 </div>
 {% endblock %}

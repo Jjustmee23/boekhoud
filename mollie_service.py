@@ -297,6 +297,57 @@ class MollieService:
             logging.error(f"Fout bij verwerken betalings-webhook: {str(e)}")
             return False
     
+    def update_settings(self, api_key=None, is_test_mode=False, webhook_url=None, redirect_url=None, workspace_id=None):
+        """
+        Update Mollie instellingen
+        
+        Args:
+            api_key: API sleutel
+            is_test_mode: Test modus actief
+            webhook_url: URL voor webhooks
+            redirect_url: URL voor redirects na betaling
+            workspace_id: Optionele workspace ID voor specifieke instellingen
+            
+        Returns:
+            bool: True als succesvol, anders False
+        """
+        try:
+            # Haal bestaande instellingen op of maak nieuwe
+            settings = self.get_settings(workspace_id)
+            if not settings:
+                settings = MollieSettings()
+                if workspace_id:
+                    settings.workspace_id = workspace_id
+                else:
+                    settings.is_system_default = True
+            
+            # Update velden
+            if api_key is not None:
+                settings.api_key = api_key
+            
+            settings.is_test_mode = is_test_mode
+            
+            if webhook_url is not None:
+                settings.webhook_url = webhook_url
+                
+            if redirect_url is not None:
+                settings.redirect_url = redirect_url
+            
+            # Sla op
+            db.session.add(settings)
+            db.session.commit()
+            
+            # Update ook lokale API key als er geen workspace_id is
+            if not workspace_id and api_key is not None:
+                self.set_api_key(api_key)
+                
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Fout bij updaten Mollie instellingen: {str(e)}")
+            return False
+    
     def get_payment_methods(self, workspace_id=None):
         """
         Haal beschikbare betaalmethoden op

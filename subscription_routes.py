@@ -409,14 +409,14 @@ def process_subscription():
     # Redirect naar betaalpagina
     return redirect(payment_data['payment_url'])
 
-@app.route('/payment/completed')
+@app.route('/payment/return')
 @login_required
-def payment_completed():
+def payment_return():
     """Pagina die getoond wordt na terugkeer van Mollie betaalpagina"""
     return render_template('payment_completed.html', now=datetime.now())
 
-@app.route('/webhook/mollie', methods=['POST'])
-def mollie_webhook():
+@app.route('/payment/webhook', methods=['POST'])
+def payment_webhook():
     """Webhook voor Mollie betalingen"""
     # Mollie stuurt een id parameter met het payment ID
     payment_id = request.form.get('id')
@@ -425,7 +425,7 @@ def mollie_webhook():
         return 'No payment ID provided', 400
     
     # Verwerk de betaling
-    if mollie_service.process_webhook(payment_id):
+    if mollie_service.process_payment_webhook(payment_id):
         return 'Webhook processed', 200
     else:
         return 'Failed to process webhook', 500
@@ -502,12 +502,19 @@ def cancel_subscription():
         flash('Je moet eerst een werkruimte kiezen', 'warning')
         return redirect(url_for('dashboard'))
     
-    result = mollie_service.cancel_subscription(current_user.workspace_id)
-    
-    if result:
-        flash('Je abonnement is opgezegd. Je hebt nog toegang tot het einde van de huidige periode.', 'success')
+    # Update workspace subscription info
+    workspace = Workspace.query.get(current_user.workspace_id)
+    if workspace:
+        workspace.subscription_end_date = datetime.now() + timedelta(days=30)  # Geef 30 dagen toegang
+        try:
+            db.session.commit()
+            flash('Je abonnement is opgezegd. Je hebt nog toegang tot het einde van de huidige periode.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Fout bij opzeggen abonnement: {str(e)}")
+            flash('Er is een fout opgetreden bij het opzeggen van je abonnement. Probeer het opnieuw of neem contact op met de beheerder.', 'danger')
     else:
-        flash('Er is een fout opgetreden bij het opzeggen van je abonnement. Probeer het opnieuw of neem contact op met de beheerder.', 'danger')
+        flash('Werkruimte niet gevonden', 'danger')
     
     return redirect(url_for('workspace_admin'))
 
@@ -549,16 +556,14 @@ def update_mollie_settings():
         return redirect(url_for('dashboard'))
     
     # Haal formuliergegevens op
-    api_key_test = request.form.get('api_key_test')
-    api_key_live = request.form.get('api_key_live')
+    api_key = request.form.get('api_key')
     is_test_mode = 'is_test_mode' in request.form
     webhook_url = request.form.get('webhook_url')
     redirect_url = request.form.get('redirect_url')
     
     # Update instellingen
     result = mollie_service.update_settings(
-        api_key_test=api_key_test,
-        api_key_live=api_key_live,
+        api_key=api_key,
         is_test_mode=is_test_mode,
         webhook_url=webhook_url,
         redirect_url=redirect_url

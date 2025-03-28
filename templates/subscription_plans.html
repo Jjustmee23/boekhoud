@@ -3,271 +3,181 @@
 {% block title %}Abonnementen{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Kies een abonnement</h1>
-        <div>
-            <a href="{{ url_for('workspace_admin') }}" class="btn btn-outline-primary">
-                <i class="fas fa-arrow-left me-2"></i>Terug naar werkruimtebeheer
-            </a>
-        </div>
-    </div>
-
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="alert alert-info">
-                <p class="mb-0">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Uw werkruimte 
-                    {% if workspace.subscription %}
-                    gebruikt momenteel het <strong>{{ workspace.subscription.name }}</strong> abonnement.
-                    {% if workspace.subscription_end_date > now %}
-                    Dit abonnement verloopt op <strong>{{ workspace.subscription_end_date.strftime('%d-%m-%Y') }}</strong>.
-                    {% else %}
-                    Dit abonnement is <strong>verlopen</strong>. Selecteer een nieuw abonnement hieronder.
-                    {% endif %}
-                    {% else %}
-                    heeft nog geen actief abonnement. Selecteer een abonnement hieronder.
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        {% for subscription in subscriptions %}
-        {% set features = subscription.features|tojson|fromjson if subscription.features else {} %}
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm h-100 {% if workspace.subscription and workspace.subscription.id == subscription.id %}border border-primary{% endif %}">
-                <div class="card-header bg-white text-center py-4">
-                    <h4 class="mb-1">{{ subscription.name }}</h4>
-                    <p class="text-muted mb-0">{{ subscription.description }}</p>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm mb-5">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Kies een abonnement</h2>
                 </div>
                 <div class="card-body">
-                    <div class="text-center mb-4">
-                        <span class="h1">€ {{ format_currency(subscription.price_monthly) }}</span>
-                        <span class="text-muted">/maand</span>
-                        <p class="text-muted mb-0">of € {{ format_currency(subscription.price_yearly) }} per jaar</p>
-                        
-                        {% set discount = (1 - (subscription.price_yearly / (subscription.price_monthly * 12))) * 100 %}
-                        {% if discount > 1 %}
-                        <span class="badge bg-success mt-2">{{ "%.1f"|format(discount) }}% korting op jaarbasis</span>
-                        {% endif %}
-                        
-                        {% if features.eerste_maand_gratis %}
-                        <div class="mt-2">
-                            <span class="badge bg-warning text-dark">Eerste maand gratis</span>
+                    <p class="lead mb-4">Kies het abonnement dat het beste bij je bedrijf past. Je kunt altijd later upgraden of downgraden.</p>
+                    
+                    <!-- Billing cycle selector -->
+                    <div class="row justify-content-center mb-5">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="text-center mb-3">
+                                        <h5 class="mb-0">Factureringsperiode</h5>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-center">
+                                        <div class="btn-group" role="group" aria-label="Factureringsperiode">
+                                            <input type="radio" class="btn-check" name="billing_cycle" id="monthly" value="monthly" checked>
+                                            <label class="btn btn-outline-primary" for="monthly">Maandelijks</label>
+                                            
+                                            <input type="radio" class="btn-check" name="billing_cycle" id="yearly" value="yearly">
+                                            <label class="btn btn-outline-primary" for="yearly">Jaarlijks <span class="badge bg-success">Korting</span></label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        {% endif %}
                     </div>
                     
-                    <hr>
-
-                    <ul class="list-unstyled">
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Max. {{ subscription.max_users }} gebruikers
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Max. {{ subscription.max_invoices_per_month }} facturen/maand
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            € {{ format_currency(subscription.price_per_extra_user) }} per extra gebruiker
-                        </li>
-                        
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Facturen
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Klantenbeheer
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Basis rapporten
-                        </li>
-                        
-                        {% if features.geavanceerde_rapporten %}
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Geavanceerde rapporten
-                        </li>
-                        {% else %}
-                        <li class="mb-2 text-muted">
-                            <i class="fas fa-times-circle text-danger me-2"></i>
-                            <del>Geavanceerde rapporten</del>
-                        </li>
-                        {% endif %}
-                        
-                        {% if features.documentverwerking %}
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Documentverwerking
-                        </li>
-                        {% else %}
-                        <li class="mb-2 text-muted">
-                            <i class="fas fa-times-circle text-danger me-2"></i>
-                            <del>Documentverwerking</del>
-                        </li>
-                        {% endif %}
-                        
-                        {% if features.email_integratie %}
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            E-mail integratie
-                        </li>
-                        {% else %}
-                        <li class="mb-2 text-muted">
-                            <i class="fas fa-times-circle text-danger me-2"></i>
-                            <del>E-mail integratie</del>
-                        </li>
-                        {% endif %}
-                        
-                        {% if features.api_toegang %}
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            API-toegang
-                        </li>
-                        {% else %}
-                        <li class="mb-2 text-muted">
-                            <i class="fas fa-times-circle text-danger me-2"></i>
-                            <del>API-toegang</del>
-                        </li>
-                        {% endif %}
-                        
-                        {% if features.prioriteit_support %}
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Prioriteit support
-                        </li>
-                        {% else %}
-                        <li class="mb-2 text-muted">
-                            <i class="fas fa-times-circle text-danger me-2"></i>
-                            <del>Prioriteit support</del>
-                        </li>
-                        {% endif %}
-                        
-                        {% if features.dedicated_account_manager %}
-                        <li class="mb-2">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            Dedicated accountmanager
-                        </li>
-                        {% else %}
-                        <li class="mb-2 text-muted">
-                            <i class="fas fa-times-circle text-danger me-2"></i>
-                            <del>Dedicated accountmanager</del>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </div>
-                <div class="card-footer bg-white p-3">
-                    {% if workspace.subscription and workspace.subscription.id == subscription.id %}
-                    <button class="btn btn-secondary w-100" disabled>
-                        <i class="fas fa-check me-2"></i>Huidig abonnement
-                    </button>
-                    {% else %}
-                    <form action="{{ url_for('process_subscription') }}" method="post">
-                        <input type="hidden" name="subscription_id" value="{{ subscription.id }}">
-                        <div class="d-flex mb-3">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="period" id="period_monthly_{{ subscription.id }}" value="monthly" checked>
-                                <label class="form-check-label" for="period_monthly_{{ subscription.id }}">Maandelijks</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="period" id="period_yearly_{{ subscription.id }}" value="yearly">
-                                <label class="form-check-label" for="period_yearly_{{ subscription.id }}">Jaarlijks</label>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-shopping-cart me-2"></i>Selecteer
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    
-    {% if not subscriptions %}
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-body text-center py-5">
-                    <i class="fas fa-cube fa-4x text-muted mb-3"></i>
-                    <h3>Geen abonnementen beschikbaar</h3>
-                    <p class="text-muted">Er zijn momenteel geen actieve abonnementen beschikbaar.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Veelgestelde vragen</h5>
-                </div>
-                <div class="card-body">
-                    <div class="accordion" id="faqAccordion">
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="faq1">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqContent1" aria-expanded="false" aria-controls="faqContent1">
-                                    Hoe werkt de facturering?
-                                </button>
-                            </h2>
-                            <div id="faqContent1" class="accordion-collapse collapse" aria-labelledby="faq1" data-bs-parent="#faqAccordion">
-                                <div class="accordion-body">
-                                    Bij maandelijkse abonnementen wordt elke maand het abonnementsgeld van je rekening afgeschreven.
-                                    Bij jaarlijkse abonnementen betaal je vooraf voor een heel jaar tegen een gereduceerd tarief.
-                                    Betaling gebeurt via Mollie, waar je kunt kiezen uit verschillende betaalmethoden zoals iDEAL, 
-                                    creditcard of bankoverschrijving.
+                    <!-- Subscription plans -->
+                    <div class="row">
+                        {% for subscription in subscriptions %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100 {% if subscription.name == 'Business' %}border-primary{% endif %}">
+                                {% if subscription.name == 'Business' %}
+                                <div class="card-header bg-primary text-white text-center">
+                                    <span class="badge bg-warning">Meest gekozen</span>
+                                </div>
+                                {% else %}
+                                <div class="card-header text-center">
+                                    {{ subscription.name }}
+                                </div>
+                                {% endif %}
+                                
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title text-center {% if subscription.name == 'Business' %}text-primary{% endif %}">
+                                        {{ subscription.name }}
+                                    </h5>
+                                    <p class="card-text text-center text-muted mb-3">{{ subscription.description }}</p>
+                                    
+                                    <div class="text-center mb-4">
+                                        <h2 class="price-monthly">{{ format_currency(subscription.price_monthly) }}<small class="text-muted"> / maand</small></h2>
+                                        <h2 class="price-yearly" style="display: none;">{{ format_currency(subscription.price_yearly) }}<small class="text-muted"> / jaar</small></h2>
+                                        {% if subscription.price_yearly < subscription.price_monthly * 12 %}
+                                        <span class="badge bg-success yearly-badge" style="display: none;">
+                                            Bespaar {{ format_currency(subscription.price_monthly * 12 - subscription.price_yearly) }} per jaar
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <ul class="list-group list-group-flush mb-4">
+                                        {% for feature in subscription.features_list %}
+                                        <li class="list-group-item">
+                                            <i class="fas fa-check text-success me-2"></i> {{ feature }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    
+                                    <div class="mt-auto">
+                                        <form method="POST" action="{{ url_for('process_subscription') }}">
+                                            <input type="hidden" name="subscription_id" value="{{ subscription.id }}">
+                                            <input type="hidden" name="period" value="monthly" class="period-input">
+                                            <button type="submit" class="btn btn-block w-100 {% if subscription.name == 'Business' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                                Selecteer abonnement
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-footer text-center text-muted">
+                                    <small>
+                                        {{ subscription.max_users }} gebruiker{{ 's' if subscription.max_users > 1 }}, 
+                                        {{ subscription.max_invoices_per_month }} facturen/maand
+                                    </small>
                                 </div>
                             </div>
                         </div>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="faq2">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqContent2" aria-expanded="false" aria-controls="faqContent2">
-                                    Kan ik mijn abonnement later upgraden of downgraden?
-                                </button>
-                            </h2>
-                            <div id="faqContent2" class="accordion-collapse collapse" aria-labelledby="faq2" data-bs-parent="#faqAccordion">
-                                <div class="accordion-body">
-                                    Ja, je kunt op elk moment upgraden naar een hoger abonnement. De meerprijs wordt dan naar 
-                                    rato in rekening gebracht voor de resterende abonnementsperiode. Downgraden is mogelijk bij 
-                                    verlenging van je abonnement.
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Feature comparison -->
+                    <div class="mt-5">
+                        <h3 class="mb-4">Alle abonnementen omvatten:</h3>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="d-flex">
+                                    <div class="me-3">
+                                        <i class="fas fa-shield-alt text-primary fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h5>Veilig & beveiligd</h5>
+                                        <p class="text-muted">Al je gegevens zijn versleuteld en veilig opgeslagen.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="d-flex">
+                                    <div class="me-3">
+                                        <i class="fas fa-headset text-primary fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h5>Ondersteuning</h5>
+                                        <p class="text-muted">Onze klantenservice staat voor je klaar als je hulp nodig hebt.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="d-flex">
+                                    <div class="me-3">
+                                        <i class="fas fa-sync text-primary fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h5>Regelmatige updates</h5>
+                                        <p class="text-muted">We verbeteren het platform continu met nieuwe functies.</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="faq3">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqContent3" aria-expanded="false" aria-controls="faqContent3">
-                                    Wat gebeurt er als ik meer dan het maximale aantal facturen per maand maak?
-                                </button>
-                            </h2>
-                            <div id="faqContent3" class="accordion-collapse collapse" aria-labelledby="faq3" data-bs-parent="#faqAccordion">
-                                <div class="accordion-body">
-                                    Als je het maximale aantal facturen per maand bereikt, kun je nog steeds facturen maken. 
-                                    Deze extra facturen worden afzonderlijk in rekening gebracht op je volgende factuur, 
-                                    volgens het geldende tarief voor extra facturen dat bij je abonnement past.
+                    </div>
+                    
+                    <!-- FAQ section -->
+                    <div class="mt-5">
+                        <h3 class="mb-4">Veelgestelde vragen</h3>
+                        
+                        <div class="accordion" id="subscriptionFAQ">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingOne">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                        Kan ik op elk moment van abonnement veranderen?
+                                    </button>
+                                </h2>
+                                <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#subscriptionFAQ">
+                                    <div class="accordion-body">
+                                        Ja, je kunt op elk moment upgraden naar een hoger abonnement. De prijsaanpassing wordt pro-rata berekend. Downgraden is mogelijk aan het einde van je huidige factureringsperiode.
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header" id="faq4">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqContent4" aria-expanded="false" aria-controls="faqContent4">
-                                    Hoe kan ik extra gebruikers toevoegen?
-                                </button>
-                            </h2>
-                            <div id="faqContent4" class="accordion-collapse collapse" aria-labelledby="faq4" data-bs-parent="#faqAccordion">
-                                <div class="accordion-body">
-                                    Je kunt op elk moment extra gebruikers toevoegen via het werkruimtebeheer, ongeacht het 
-                                    maximale aantal gebruikers in je abonnement. Voor elke extra gebruiker boven het maximum 
-                                    betaal je een maandelijkse toeslag volgens het tarief dat bij je abonnement hoort.
+                            
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingTwo">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                        Wat gebeurt er als ik meer dan het maximale aantal facturen maak?
+                                    </button>
+                                </h2>
+                                <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#subscriptionFAQ">
+                                    <div class="accordion-body">
+                                        Als je meer facturen nodig hebt dan je abonnement toestaat, kun je upgraden naar een hoger abonnement of betalen voor extra facturen. Neem contact op met onze klantenservice voor meer informatie.
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingThree">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                        Hoe werkt betaling voor extra gebruikers?
+                                    </button>
+                                </h2>
+                                <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#subscriptionFAQ">
+                                    <div class="accordion-body">
+                                        Voor elk abonnement is er een maximum aantal gebruikers inbegrepen. Als je meer gebruikers nodig hebt, wordt er per extra gebruiker een maandelijkse toeslag in rekening gebracht, afhankelijk van je abonnement.
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -277,4 +187,39 @@
         </div>
     </div>
 </div>
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const monthlyRadio = document.getElementById('monthly');
+        const yearlyRadio = document.getElementById('yearly');
+        const monthlyPrices = document.querySelectorAll('.price-monthly');
+        const yearlyPrices = document.querySelectorAll('.price-yearly');
+        const yearlyBadges = document.querySelectorAll('.yearly-badge');
+        const periodInputs = document.querySelectorAll('.period-input');
+        
+        function updatePriceDisplay() {
+            if (yearlyRadio.checked) {
+                monthlyPrices.forEach(el => el.style.display = 'none');
+                yearlyPrices.forEach(el => el.style.display = 'block');
+                yearlyBadges.forEach(el => el.style.display = 'inline-block');
+                periodInputs.forEach(input => input.value = 'yearly');
+            } else {
+                monthlyPrices.forEach(el => el.style.display = 'block');
+                yearlyPrices.forEach(el => el.style.display = 'none');
+                yearlyBadges.forEach(el => el.style.display = 'none');
+                periodInputs.forEach(input => input.value = 'monthly');
+            }
+        }
+        
+        // Initial state
+        updatePriceDisplay();
+        
+        // Event listeners
+        monthlyRadio.addEventListener('change', updatePriceDisplay);
+        yearlyRadio.addEventListener('change', updatePriceDisplay);
+    });
+</script>
+{% endblock %}
+
 {% endblock %}

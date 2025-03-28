@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Betaling Verwerkt{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-check-circle mr-2"></i> Bedankt voor je betaling</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-check-circle text-success" style="font-size: 64px;"></i>
+                    </div>
+                    
+                    <h5 class="card-title text-center">Je betaling wordt verwerkt</h5>
+                    
+                    <p class="card-text text-center">
+                        We hebben je betaling ontvangen en verwerken deze zo snel mogelijk. Je abonnement zal binnen enkele 
+                        minuten actief zijn. Als dit langer duurt dan 30 minuten, neem dan contact op met onze klantenservice.
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <p class="mb-0">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            De betalingsbevestiging wordt naar je e-mailadres gestuurd als het abonnement is geactiveerd.
+                        </p>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="text-center">
+                        <a href="{{ url_for('workspace_admin') }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left mr-2"></i> Terug naar Workspace-beheer
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

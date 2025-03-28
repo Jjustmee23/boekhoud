@@ -1,140 +1,147 @@
 {% extends 'base.html' %}
 
-{% block title %}Mollie Betalingsinstellingen{% endblock %}
+{% block title %}Mollie Instellingen{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="mb-0">Mollie Betalingsinstellingen</h1>
-        <div>
-            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">
-                <i class="fas fa-arrow-left me-2"></i>Terug naar dashboard
-            </a>
-        </div>
-    </div>
-    
+<div class="container-fluid mt-4">
     <div class="row">
-        <div class="col-md-6">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0">Mollie API Instellingen</h5>
-                </div>
-                <div class="card-body">
-                    <form action="{{ url_for('update_mollie_settings') }}" method="POST">
-                        <div class="mb-3">
-                            <label for="api_key_test" class="form-label">Test API Key</label>
-                            <input type="password" class="form-control" id="api_key_test" name="api_key_test" 
-                                   value="{{ mollie_settings.api_key_test if mollie_settings else '' }}">
-                            <div class="form-text">Begint met 'test_'</div>
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Mollie instellingen</li>
+                </ol>
+            </nav>
+            
+            <h1 class="mb-4">Mollie Betalingsinstellingen</h1>
+            
+            <div class="row">
+                <!-- Mollie Instellingen -->
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Mollie API instellingen</h5>
                         </div>
-                        <div class="mb-3">
-                            <label for="api_key_live" class="form-label">Live API Key</label>
-                            <input type="password" class="form-control" id="api_key_live" name="api_key_live" 
-                                   value="{{ mollie_settings.api_key_live if mollie_settings else '' }}">
-                            <div class="form-text">Begint met 'live_'</div>
+                        <div class="card-body">
+                            <form method="POST" action="{{ url_for('update_mollie_settings') }}">
+                                <div class="mb-3">
+                                    <label for="api_key" class="form-label">API Sleutel</label>
+                                    <input type="text" class="form-control" id="api_key" name="api_key" 
+                                           value="{{ mollie_settings.api_key if mollie_settings else '' }}">
+                                    <div class="form-text">Je API sleutel is te vinden in je Mollie Dashboard.</div>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="is_test_mode" name="is_test_mode" 
+                                           {% if mollie_settings and mollie_settings.is_test_mode %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_test_mode">Test modus</label>
+                                    <div class="form-text">In test modus worden geen echte transacties verwerkt.</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="webhook_url" class="form-label">Webhook URL</label>
+                                    <input type="text" class="form-control" id="webhook_url" name="webhook_url" 
+                                           value="{{ mollie_settings.webhook_url if mollie_settings else url_for('payment_webhook', _external=True) }}">
+                                    <div class="form-text">URL waarop Mollie webhook-events stuurt.</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="redirect_url" class="form-label">Redirect URL</label>
+                                    <input type="text" class="form-control" id="redirect_url" name="redirect_url" 
+                                           value="{{ mollie_settings.redirect_url if mollie_settings else url_for('payment_return', _external=True) }}">
+                                    <div class="form-text">URL waarnaar gebruikers worden doorverwezen na betaling.</div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Instellingen Opslaan</button>
+                            </form>
                         </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="is_test_mode" name="is_test_mode" 
-                                  {% if mollie_settings and mollie_settings.is_test_mode %}checked{% endif %}>
-                            <label class="form-check-label" for="is_test_mode">Testmodus inschakelen</label>
-                            <div class="form-text">In testmodus worden geen echte betalingen verwerkt</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="webhook_url" class="form-label">Webhook URL</label>
-                            <input type="text" class="form-control" id="webhook_url" name="webhook_url" 
-                                   value="{{ mollie_settings.webhook_url if mollie_settings else '' }}">
-                            <div class="form-text">URL die Mollie aanroept na een betaalgebeurtenis</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="redirect_url" class="form-label">Redirect URL</label>
-                            <input type="text" class="form-control" id="redirect_url" name="redirect_url" 
-                                   value="{{ mollie_settings.redirect_url if mollie_settings else '' }}">
-                            <div class="form-text">URL waarnaar gebruikers worden doorverwezen na betaling</div>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Instellingen opslaan</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Abonnementen beheren</h5>
-                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newSubscriptionModal">
-                        <i class="fas fa-plus me-1"></i> Nieuw abonnement
-                    </button>
-                </div>
-                <div class="card-body">
-                    {% if subscriptions %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Naam</th>
-                                    <th>Maandelijks</th>
-                                    <th>Jaarlijks</th>
-                                    <th>Max gebruikers</th>
-                                    <th>Actief</th>
-                                    <th>Acties</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for subscription in subscriptions %}
-                                <tr>
-                                    <td>{{ subscription.name }}</td>
-                                    <td>€ {{ format_currency(subscription.price_monthly) }}</td>
-                                    <td>€ {{ format_currency(subscription.price_yearly) }}</td>
-                                    <td>{{ subscription.max_users }}</td>
-                                    <td>
-                                        {% if subscription.is_active %}
-                                        <span class="badge bg-success">Actief</span>
-                                        {% else %}
-                                        <span class="badge bg-secondary">Inactief</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="{{ url_for('edit_subscription', subscription_id=subscription.id) }}" class="btn btn-outline-primary">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <a href="{{ url_for('delete_subscription', subscription_id=subscription.id) }}" 
-                                               class="btn btn-outline-danger"
-                                               onclick="return confirm('Weet je zeker dat je dit abonnement wilt verwijderen?');">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
                     </div>
-                    {% else %}
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i> Er zijn nog geen abonnementen aangemaakt.
+                </div>
+                
+                <!-- Abonnementen Beheer -->
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">Abonnementen Beheer</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-3">
+                                <h6>Beschikbare abonnementen</h6>
+                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newSubscriptionModal">
+                                    <i class="fas fa-plus"></i> Nieuw abonnement
+                                </button>
+                            </div>
+                            
+                            {% if subscriptions %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Naam</th>
+                                                <th>Prijs (mnd/jaar)</th>
+                                                <th>Gebruikers</th>
+                                                <th>Status</th>
+                                                <th>Acties</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for sub in subscriptions %}
+                                            <tr>
+                                                <td>{{ sub.name }}</td>
+                                                <td>{{ format_currency(sub.price_monthly) }} / {{ format_currency(sub.price_yearly) }}</td>
+                                                <td>{{ sub.max_users }}</td>
+                                                <td>
+                                                    {% if sub.is_active %}
+                                                        <span class="badge bg-success">Actief</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">Inactief</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <a href="{{ url_for('edit_subscription', subscription_id=sub.id) }}" class="btn btn-info">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                        <a href="{{ url_for('delete_subscription', subscription_id=sub.id) }}" 
+                                                           class="btn btn-danger"
+                                                           onclick="return confirm('Weet je zeker dat je dit abonnement wilt verwijderen?');">
+                                                            <i class="fas fa-trash"></i>
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info mb-3">
+                                    <p class="mb-0">Er zijn nog geen abonnementen aangemaakt.</p>
+                                </div>
+                                <a href="{{ url_for('create_example_subscriptions') }}" class="btn btn-success">
+                                    <i class="fas fa-magic"></i> Voorbeeld abonnementen aanmaken
+                                </a>
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="text-center">
-                        <a href="{{ url_for('create_example_subscriptions') }}" class="btn btn-success">
-                            <i class="fas fa-magic me-2"></i> Voorbeeldabonnementen aanmaken
-                        </a>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
             
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0">Recente betalingen</h5>
+            <!-- Recente betalingen -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Recente betalingen</h5>
                 </div>
                 <div class="card-body">
                     {% if payments %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
                                     <th>ID</th>
+                                    <th>Mollie ID</th>
                                     <th>Werkruimte</th>
+                                    <th>Abonnement</th>
                                     <th>Bedrag</th>
                                     <th>Status</th>
                                     <th>Datum</th>
@@ -145,27 +152,25 @@
                                 {% for payment in payments %}
                                 <tr>
                                     <td>{{ payment.id }}</td>
-                                    <td>{{ payment.workspace.name if payment.workspace else 'Onbekend' }}</td>
-                                    <td>€ {{ format_currency(payment.amount) }}</td>
+                                    <td>{{ payment.mollie_payment_id }}</td>
+                                    <td>{{ payment.workspace.name if payment.workspace else "Onbekend" }}</td>
+                                    <td>{{ payment.subscription.name if payment.subscription else "Onbekend" }}</td>
+                                    <td>{{ format_currency(payment.amount) }}</td>
                                     <td>
                                         {% if payment.status == 'paid' %}
-                                        <span class="badge bg-success">Betaald</span>
+                                            <span class="badge bg-success">Betaald</span>
                                         {% elif payment.status == 'pending' %}
-                                        <span class="badge bg-warning text-dark">In afwachting</span>
+                                            <span class="badge bg-warning">In behandeling</span>
                                         {% elif payment.status == 'failed' %}
-                                        <span class="badge bg-danger">Mislukt</span>
-                                        {% elif payment.status == 'expired' %}
-                                        <span class="badge bg-secondary">Verlopen</span>
-                                        {% elif payment.status == 'canceled' %}
-                                        <span class="badge bg-secondary">Geannuleerd</span>
+                                            <span class="badge bg-danger">Mislukt</span>
                                         {% else %}
-                                        <span class="badge bg-secondary">{{ payment.status }}</span>
+                                            <span class="badge bg-secondary">{{ payment.status }}</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ payment.created_at.strftime('%d-%m-%Y %H:%M') }}</td>
                                     <td>
-                                        <a href="{{ url_for('check_payment', payment_id=payment.id) }}" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-sync-alt"></i> Status
+                                        <a href="{{ url_for('check_payment', payment_id=payment.id) }}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-sync"></i> Check
                                         </a>
                                     </td>
                                 </tr>
@@ -175,7 +180,7 @@
                     </div>
                     {% else %}
                     <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i> Er zijn nog geen betalingen verwerkt.
+                        <p class="mb-0">Er zijn nog geen betalingen verwerkt.</p>
                     </div>
                     {% endif %}
                 </div>
@@ -188,68 +193,75 @@
 <div class="modal fade" id="newSubscriptionModal" tabindex="-1" aria-labelledby="newSubscriptionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="newSubscriptionModalLabel">Nieuw abonnement toevoegen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Sluiten"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="newSubscriptionModalLabel">Nieuw abonnement aanmaken</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <form action="{{ url_for('create_subscription') }}" method="POST">
-                    <div class="row mb-3">
+            <form method="POST" action="{{ url_for('create_subscription') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Naam</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Beschrijving</label>
+                        <textarea class="form-control" id="description" name="description" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="row">
                         <div class="col-md-6">
-                            <label for="name" class="form-label">Naam</label>
-                            <input type="text" class="form-control" id="name" name="name" required>
+                            <div class="mb-3">
+                                <label for="price_monthly" class="form-label">Maandprijs (€)</label>
+                                <input type="number" class="form-control" id="price_monthly" name="price_monthly" step="0.01" min="0" value="0">
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <label for="description" class="form-label">Omschrijving</label>
-                            <input type="text" class="form-control" id="description" name="description">
+                            <div class="mb-3">
+                                <label for="price_yearly" class="form-label">Jaarprijs (€)</label>
+                                <input type="number" class="form-control" id="price_yearly" name="price_yearly" step="0.01" min="0" value="0">
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="price_monthly" class="form-label">Maandelijkse prijs (€)</label>
-                            <input type="number" class="form-control" id="price_monthly" name="price_monthly" step="0.01" min="0" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="price_yearly" class="form-label">Jaarlijkse prijs (€)</label>
-                            <input type="number" class="form-control" id="price_yearly" name="price_yearly" step="0.01" min="0" required>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
+                    <div class="row">
                         <div class="col-md-4">
-                            <label for="max_users" class="form-label">Max. gebruikers</label>
-                            <input type="number" class="form-control" id="max_users" name="max_users" min="1" value="1" required>
+                            <div class="mb-3">
+                                <label for="max_users" class="form-label">Max. gebruikers</label>
+                                <input type="number" class="form-control" id="max_users" name="max_users" min="1" value="1">
+                            </div>
                         </div>
                         <div class="col-md-4">
-                            <label for="max_invoices_per_month" class="form-label">Max. facturen/maand</label>
-                            <input type="number" class="form-control" id="max_invoices_per_month" name="max_invoices_per_month" min="1" value="50" required>
+                            <div class="mb-3">
+                                <label for="max_invoices_per_month" class="form-label">Max. facturen/maand</label>
+                                <input type="number" class="form-control" id="max_invoices_per_month" name="max_invoices_per_month" min="1" value="50">
+                            </div>
                         </div>
                         <div class="col-md-4">
-                            <label for="price_per_extra_user" class="form-label">Prijs per extra gebruiker (€)</label>
-                            <input type="number" class="form-control" id="price_per_extra_user" name="price_per_extra_user" step="0.01" min="0" value="2.00" required>
+                            <div class="mb-3">
+                                <label for="price_per_extra_user" class="form-label">Prijs per extra gebruiker</label>
+                                <input type="number" class="form-control" id="price_per_extra_user" name="price_per_extra_user" step="0.01" min="0" value="0">
+                            </div>
                         </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="features" class="form-label">Functies (één per regel)</label>
+                        <label for="features" class="form-label">Features (één per regel)</label>
                         <textarea class="form-control" id="features" name="features" rows="5"></textarea>
-                        <div class="form-text">Voer elke functie op een nieuwe regel in, bijvoorbeeld "Onbeperkt aantal klanten"</div>
+                        <div class="form-text">Voer elke feature op een aparte regel in.</div>
                     </div>
                     
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="true" checked>
-                        <label class="form-check-label" for="is_active">Abonnement actief</label>
+                        <label class="form-check-label" for="is_active">Actief</label>
+                        <div class="form-text">Alleen actieve abonnementen worden getoond aan gebruikers.</div>
                     </div>
-                    
-                    <div class="text-end">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
-                        <button type="submit" class="btn btn-primary">Abonnement opslaan</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                    <button type="submit" class="btn btn-primary">Abonnement aanmaken</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
-
 {% endblock %}
