@@ -103,7 +103,38 @@ def workspace_dashboard():
     )
 
 # Werkruimte beheer voor admins
-# Deze functie is verwijderd en geïntegreerd in de admin() functie in routes.py
+@app.route('/workspace/admin')
+@login_required
+def workspace_admin():
+    """Administratie pagina voor een specifieke werkruimte"""
+    if not current_user.is_admin and not current_user.is_super_admin:
+        flash('Je hebt geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Haal de werkruimte op (super admins moeten een werkruimte gekozen hebben)
+    if not current_user.workspace_id:
+        flash('Je moet eerst een werkruimte kiezen', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    workspace = Workspace.query.get(current_user.workspace_id)
+    if not workspace:
+        flash('Werkruimte niet gevonden', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Haal alle gebruikers binnen deze werkruimte op
+    users = User.query.filter_by(workspace_id=workspace.id).all()
+    
+    # Haal email instellingen op als die bestaan
+    from models import EmailSettings
+    email_settings = EmailSettings.query.filter_by(workspace_id=workspace.id).first()
+    
+    return render_template(
+        'workspace_admin.html',
+        workspace=workspace,
+        users=users,
+        email_settings=email_settings,
+        now=datetime.now()
+    )
 
 @app.route('/workspace/settings', methods=['GET', 'POST'])
 @login_required
