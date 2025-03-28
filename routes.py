@@ -7,12 +7,6 @@ from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
-
-# Import blueprints
-from routes.log_viewer import log_bp
-
-# Register blueprints
-app.register_blueprint(log_bp)
 from models import (
     Customer, Invoice, User, UserPermission, Workspace, EmailSettings, EmailMessage, get_next_invoice_number, check_duplicate_invoice, add_invoice,
     calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary,
@@ -305,7 +299,6 @@ def return_to_super_admin():
 
 # Dashboard routes
 @app.route('/')
-@app.route('/dashboard')
 @login_required
 def dashboard():
     # Get current year
