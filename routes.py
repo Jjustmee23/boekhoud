@@ -2423,6 +2423,10 @@ def admin():
     else:
         # Initialiseer system_settings als None voor andere gebruikers
         system_settings = None
+        users = []  # Initialiseer users als lege lijst voor andere gebruikers
+        workspaces = []
+        customer_count = 0
+        invoice_count = 0
         
     if current_user.is_admin and current_user.workspace_id:
         # Haal de workspace op voor reguliere beheerders
@@ -2460,6 +2464,21 @@ def admin():
                 if subscription:
                     subscription.features_list = []
         
+        # Initialiseer alle email variabelen eerst
+        ms_graph_client_id = ''
+        ms_graph_tenant_id = ''
+        ms_graph_client_secret = ''
+        ms_graph_sender_email = ''
+        ms_graph_shared_mailbox = ''
+        ms_graph_use_shared_mailbox = False
+        smtp_server = ''
+        smtp_port = ''
+        smtp_username = ''
+        smtp_password = ''
+        email_from = ''
+        email_from_name = ''
+        
+        # Vul ze in met gegevens uit system_settings als die beschikbaar is
         if system_settings:
             # Gebruik instellingen uit database
             ms_graph_client_id = system_settings.ms_graph_client_id or ''

@@ -571,8 +571,45 @@ def cancel_subscription():
 def admin_mollie_settings():
     """Beheer van Mollie instellingen (enkel super admins)"""
     
-    # Haal Mollie instellingen op
-    mollie_settings = MollieSettings.query.first()
+    # Haal Mollie instellingen op, gebruik de kolommen die daadwerkelijk in de database bestaan
+    try:
+        # Gebruik specifieke kolommen in plaats van alle kolommen
+        mollie_settings = db.session.query(
+            MollieSettings.id,
+            MollieSettings.api_key_test,
+            MollieSettings.api_key_live,
+            MollieSettings.is_test_mode,
+            MollieSettings.webhook_url,
+            MollieSettings.redirect_url,
+            MollieSettings.is_system_default,
+            MollieSettings.workspace_id,
+            MollieSettings.created_at,
+            MollieSettings.updated_at
+        ).first()
+        
+        if not mollie_settings:
+            # Maak een nieuwe instantie als er geen instellingen zijn
+            mollie_settings = MollieSettings(
+                api_key_test="",
+                api_key_live="",
+                is_test_mode=True,
+                webhook_url="",
+                redirect_url="",
+                is_system_default=True
+            )
+            db.session.add(mollie_settings)
+            db.session.commit()
+    except Exception as e:
+        app.logger.error(f"Fout bij ophalen Mollie instellingen: {str(e)}")
+        # Maak een nieuwe instantie als er iets mis gaat bij het ophalen
+        mollie_settings = MollieSettings(
+            api_key_test="",
+            api_key_live="",
+            is_test_mode=True,
+            webhook_url="",
+            redirect_url="",
+            is_system_default=True
+        )
     
     # Haal abonnementen op
     subscriptions = Subscription.query.all()

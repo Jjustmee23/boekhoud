@@ -204,5 +204,22 @@ try:
 except ImportError as e:
     app.logger.error(f"Fout bij het registreren van logs monitoring system: {str(e)}")
 
+# Voeg custom Jinja2 filters toe
+import json
+@app.template_filter('fromjson')
+def fromjson_filter(value):
+    """Convert a JSON string to Python object"""
+    try:
+        return json.loads(value)
+    except:
+        return {}
+
+@app.template_filter('split')
+def split_filter(value, delimiter=','):
+    """Split a string by delimiter"""
+    if not value:
+        return []
+    return value.split(delimiter)
+
 # Initialize the app after all imports
 initialize_app()

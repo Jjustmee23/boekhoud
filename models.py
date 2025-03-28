@@ -691,6 +691,7 @@ class MollieSettings(db.Model):
     is_test_mode = db.Column(db.Boolean, default=True)
     webhook_url = db.Column(db.String(255))
     redirect_url = db.Column(db.String(255))
+    is_system_default = db.Column(db.Boolean, default=False)
     
     @property
     def api_key(self):

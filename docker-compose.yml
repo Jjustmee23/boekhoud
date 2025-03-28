@@ -57,6 +57,13 @@ services:
       - TZ=Europe/Amsterdam
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db_backups:/db_backups
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c wal_level=logical
+      -c archive_mode=on
+      -c archive_command='test ! -f /db_backups/%f && cp %p /db_backups/%f'
     networks:
       - app-network
     ports:
@@ -119,6 +126,9 @@ networks:
 volumes:
   postgres_data:
     driver: local
+    name: facturatie_postgres_data
+    # Gegevens worden behouden, zelfs als de volumes worden verwijderd
+    # tenzij je expliciet docker volume rm facturatie_postgres_data uitvoert
   # prometheus_data:
   #   driver: local
   # grafana_data:
