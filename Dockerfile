@@ -55,6 +55,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     ca-certificates \
     tzdata \
+    sudo \
+    gosu \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
@@ -79,12 +81,13 @@ COPY --chown=appuser:appuser . /app/
 RUN mkdir -p /app/logs \
     && touch /app/logs/app.log /app/logs/app.json.log /app/logs/error.log \
     && chown -R appuser:appuser /app/logs \
-    && chmod -R 755 /app/logs \
+    && chmod -R 777 /app/logs \
     && mkdir -p /app/static/uploads/subscriptions \
-    && chown -R appuser:appuser /app/static/uploads
+    && chown -R appuser:appuser /app/static/uploads \
+    && chmod -R 777 /app/static/uploads
 
-# Schakel over naar niet-root gebruiker
-USER appuser
+# We gebruiken geen USER commando omdat het entrypoint script als root moet starten
+# om permissies te kunnen zetten, en dan later naar appuser te switchen
 
 # Expose poort waarop de app draait
 EXPOSE 5000
@@ -92,6 +95,13 @@ EXPOSE 5000
 # Verbeterde gezondheidscontrole om container status te monitoren
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:5000/ || exit 1
+
+# Kopieer het entrypoint script
+COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Gebruik het entrypoint script
+ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Commando om te starten
 # Verbeterd om specifieke Gunicorn parameters in te stellen voor betere betrouwbaarheid

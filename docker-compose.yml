@@ -18,8 +18,8 @@ services:
       - MOLLIE_ENABLE_TIMEOUT=60
       - MOLLIE_WEBHOOK_TIMEOUT=60
     volumes:
-      - ./static/uploads:/app/static/uploads
-      - ./logs:/app/logs
+      - ./static/uploads:/app/static/uploads:rw
+      - ./logs:/app/logs:rw
     depends_on:
       db:
         condition: service_healthy
