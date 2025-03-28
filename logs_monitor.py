@@ -125,8 +125,8 @@ def error_test():
     elif error_type == 'exception':
         try:
             # Genereer een bewuste exceptie voor logging test
-            # Dit zal een NameError veroorzaken omdat de variabele niet bestaat
-            test = not_defined_variable
+            # Dit zal een ZeroDivisionError veroorzaken
+            test = 1 / 0
         except Exception as e:
             logger.exception(f"Test EXCEPTION gegenereerd via error-test: {str(e)}")
             flash(f"EXCEPTION is gelogd: {str(e)}", "danger")
