@@ -12,49 +12,91 @@
                 OAuth biedt een veiligere manier van authenticatie dan traditionele wachtwoorden.
             </p>
             
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> <strong>Fout bij opslaan:</strong> {{ error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+            
+            {% if success %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i> <strong>Succes!</strong> {{ success }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+            
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
                     <h4 class="card-title mb-0">Microsoft 365 OAuth Configuratie</h4>
                 </div>
                 <div class="card-body">
-                    <form action="{{ url_for('update_ms_oauth_settings') }}" method="POST">
+                    <form action="{{ url_for('update_ms_oauth_settings') }}" method="POST" id="oauth-email-form">
                         <div class="alert alert-info">
                             <h5>Vereiste stappen voor Microsoft 365 OAuth setup:</h5>
                             <ol>
                                 <li>Registreer een nieuwe app in het <a href="https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank">Azure Portal</a></li>
                                 <li>Zorg dat de app over de benodigde permissions beschikt: <code>SMTP.Send</code></li>
                                 <li>Genereer een client secret voor de app</li>
-                                <li>Vul de gegevens hieronder in</li>
+                                <li>Vul de gegevens hieronder in <strong class="text-danger">(gebruik de secret VALUE, niet de secret ID!)</strong></li>
                             </ol>
                         </div>
                         
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="ms_graph_client_id" class="form-label">Microsoft 365 Client ID *</label>
-                                <input type="text" class="form-control" id="ms_graph_client_id" name="ms_graph_client_id" 
-                                       value="{{ email_settings.ms_graph_client_id if email_settings and email_settings.ms_graph_client_id else '' }}" required>
-                                <div class="form-text">De Client ID van je Azure App registratie</div>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="ms_graph_client_id" name="ms_graph_client_id" 
+                                           value="{{ email_settings.ms_graph_client_id if email_settings and email_settings.ms_graph_client_id else '' }}" required>
+                                    <span class="input-group-text" data-bs-toggle="tooltip" title="Dit is de Application (client) ID van je Azure App registratie, bijv. '574d2096-15c1-436c-b8c6-603ae54fd28b'">
+                                        <i class="bi bi-info-circle"></i>
+                                    </span>
+                                </div>
+                                <div class="form-text">De Application (client) ID van je Azure App registratie</div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="ms_graph_tenant_id" class="form-label">Microsoft 365 Tenant ID *</label>
-                                <input type="text" class="form-control" id="ms_graph_tenant_id" name="ms_graph_tenant_id" 
-                                       value="{{ email_settings.ms_graph_tenant_id if email_settings and email_settings.ms_graph_tenant_id else '' }}" required>
-                                <div class="form-text">De Tenant/Directory ID van je Azure organisatie</div>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="ms_graph_tenant_id" name="ms_graph_tenant_id" 
+                                           value="{{ email_settings.ms_graph_tenant_id if email_settings and email_settings.ms_graph_tenant_id else '' }}" required>
+                                    <span class="input-group-text" data-bs-toggle="tooltip" title="Dit is de Directory (tenant) ID van je Azure organisatie, bijv. '52c7588b-0477-4341-bc4b-52aeb1c1af2e'">
+                                        <i class="bi bi-info-circle"></i>
+                                    </span>
+                                </div>
+                                <div class="form-text">De Directory (tenant) ID van je Azure organisatie</div>
                             </div>
                         </div>
                         
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="ms_graph_client_secret" class="form-label">Microsoft 365 Client Secret *</label>
-                                <input type="password" class="form-control" id="ms_graph_client_secret" name="ms_graph_client_secret" 
-                                       placeholder="{% if email_settings and email_settings.ms_graph_client_secret %}••••••••••••••••{% endif %}" 
-                                       {% if not email_settings or not email_settings.ms_graph_client_secret %}required{% endif %}>
-                                <div class="form-text">De Client Secret van je Azure App registratie (wordt versleuteld opgeslagen)</div>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="ms_graph_client_secret" name="ms_graph_client_secret" 
+                                           placeholder="{% if email_settings and email_settings.ms_graph_client_secret %}••••••••••••••••{% endif %}" 
+                                           {% if not email_settings or not email_settings.ms_graph_client_secret %}required{% endif %}>
+                                    <button class="btn btn-outline-secondary" type="button" id="toggle-secret">
+                                        <i class="bi bi-eye"></i> Toon
+                                    </button>
+                                    <span class="input-group-text" data-bs-toggle="tooltip" 
+                                          title="Gebruik de VALUE van de client secret, niet de ID! De value ziet eruit als 'Rvi8Q~...' en is slechts één keer zichtbaar in het Azure portaal.">
+                                        <i class="bi bi-info-circle text-danger"></i>
+                                    </span>
+                                </div>
+                                <div class="form-text">
+                                    <span class="text-danger">Let op:</span> Gebruik de client secret VALUE, niet de ID! 
+                                    De secret value wordt maar één keer getoond in het Azure portaal.
+                                </div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="ms_graph_sender_email" class="form-label">Afzender E-mailadres *</label>
-                                <input type="email" class="form-control" id="ms_graph_sender_email" name="ms_graph_sender_email" 
-                                       value="{{ email_settings.ms_graph_sender_email if email_settings and email_settings.ms_graph_sender_email else '' }}" required>
+                                <div class="input-group">
+                                    <input type="email" class="form-control" id="ms_graph_sender_email" name="ms_graph_sender_email" 
+                                           value="{{ email_settings.ms_graph_sender_email if email_settings and email_settings.ms_graph_sender_email else '' }}" required>
+                                    <span class="input-group-text" data-bs-toggle="tooltip" 
+                                          title="Dit e-mailadres moet toestemming hebben om e-mails te verzenden via de geregistreerde app">
+                                        <i class="bi bi-info-circle"></i>
+                                    </span>
+                                </div>
                                 <div class="form-text">Het e-mailadres dat gebruikt wordt als afzender</div>
                             </div>
                         </div>
@@ -68,9 +110,16 @@
                             </div>
                         </div>
                         
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                            <button type="submit" class="btn btn-primary">Instellingen Opslaan</button>
-                            <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">Annuleren</a>
+                        <div id="validation-result"></div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-between mt-4">
+                            <button type="button" class="btn btn-outline-info" onclick="validateOAuthSettings()">
+                                <i class="bi bi-check-circle"></i> Valideer Instellingen
+                            </button>
+                            <div>
+                                <button type="submit" class="btn btn-primary">Instellingen Opslaan</button>
+                                <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">Annuleren</a>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -82,9 +131,56 @@
                 </div>
                 <div class="card-body">
                     <p>Stuur een test e-mail naar jezelf om te controleren of de OAuth configuratie correct werkt.</p>
-                    <a href="{{ url_for('send_test_email', provider='oauth') }}" class="btn btn-info">
-                        <i class="bi bi-envelope"></i> Test E-mail Versturen
-                    </a>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('send_test_email', provider='oauth') }}" class="btn btn-info">
+                            <i class="bi bi-envelope"></i> Test E-mail Versturen
+                        </a>
+                        {% if logs %}
+                        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#logCollapse" aria-expanded="false" aria-controls="logCollapse">
+                            <i class="bi bi-file-text"></i> Toon Logs
+                        </button>
+                        {% endif %}
+                    </div>
+                    
+                    {% if logs %}
+                    <div class="collapse mt-3" id="logCollapse">
+                        <div class="card card-body">
+                            <h5>Laatste test logs:</h5>
+                            <pre class="bg-light p-3 rounded small" style="max-height: 300px; overflow-y: auto;">{{ logs }}</pre>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="card-title mb-0">Veelvoorkomende Problemen</h4>
+                </div>
+                <div class="card-body">
+                    <h5>Probleem: "Invalid client secret provided"</h5>
+                    <div class="alert alert-warning">
+                        <p><strong>Oplossing:</strong> Zorg ervoor dat je de client secret VALUE gebruikt, niet de client secret ID.</p>
+                        <p>
+                            <strong>Voorbeeld van een Client Secret ID (VERKEERD):</strong><br>
+                            <code>ClientSecret_1a2b3c4d5e6f7g8h9i0j_k1l2m3n4o5p6q7r8s9t0</code>
+                        </p>
+                        <p>
+                            <strong>Voorbeeld van een Client Secret Value (CORRECT):</strong><br>
+                            <code>Rvi8Q~abcdefghijklmnopqrstuvwxyz123456789</code>
+                        </p>
+                        <p>De Client Secret Value wordt slechts één keer getoond in het Azure Portal nadat je deze hebt aangemaakt. Als je deze niet hebt opgeslagen, moet je een nieuwe aanmaken.</p>
+                    </div>
+                    
+                    <h5>Probleem: "Application with identifier was not found in the directory"</h5>
+                    <div class="alert alert-warning">
+                        <p><strong>Oplossing:</strong></p>
+                        <ol>
+                            <li>Controleer of de Client ID en Tenant ID correct zijn</li>
+                            <li>Zorg ervoor dat de app registratie nog actief is in Azure</li>
+                            <li>Controleer dat je de juiste permissies hebt toegekend</li>
+                        </ol>
+                    </div>
                 </div>
             </div>
             
@@ -104,7 +200,7 @@
                         <li>Noteer de "Application (client) ID" en "Directory (tenant) ID" van de overzichtspagina.</li>
                         <li>Ga naar "Certificates & secrets" in het linkermenu.</li>
                         <li>Klik op "New client secret", geef een beschrijving en kies een verloopdatum.</li>
-                        <li>Klik op "Add" en noteer de "Value" van de client secret (deze is slechts één keer zichtbaar).</li>
+                        <li>Klik op "Add" en <strong class="text-danger">noteer de "Value" van de client secret</strong> (deze is slechts één keer zichtbaar).</li>
                         <li>Ga naar "API permissions" in het linkermenu.</li>
                         <li>Klik op "Add a permission" en kies "Microsoft Graph" en dan "Application permissions".</li>
                         <li>Zoek en selecteer de permissie "SMTP.Send" en klik op "Add permissions".</li>
@@ -116,4 +212,9 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/admin-email-oauth.js') }}"></script>
 {% endblock %}

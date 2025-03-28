@@ -3223,6 +3223,22 @@ def send_test_email(provider):
     
     return redirect(url_for('admin'))
 
+@app.route('/admin/email/ms-oauth', methods=['GET'])
+@login_required
+def ms_oauth_settings():
+    """Pagina voor Microsoft 365 OAuth instellingen"""
+    # Alleen super-admins kunnen e-mailinstellingen wijzigen
+    if not current_user.is_super_admin:
+        flash('U heeft geen toegang tot deze pagina', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Haal de huidige e-mail-instellingen op
+    from models import EmailSettings
+    email_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+    
+    # Geef de template weer met de huidige instellingen
+    return render_template('admin_email_oauth.html', email_settings=email_settings, now=datetime.now())
+
 @app.route('/admin/email/ms-graph', methods=['POST'])
 @login_required
 def update_ms_graph_settings():

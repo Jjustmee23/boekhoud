@@ -125,14 +125,28 @@ class Microsoft365OAuth:
             authority = f'https://login.microsoftonline.com/{self.tenant_id}'
             scope = ['https://outlook.office365.com/.default']  # Voor SMTP
             
+            # Debug de waarden voor betere foutopsporing
+            client_id_preview = ""
+            if self.client_id and len(self.client_id) > 10:
+                client_id_preview = f"{self.client_id[:5]}...{self.client_id[-5:]}"
+            elif self.client_id:
+                client_id_preview = self.client_id
+                
+            logger.debug(f"Client ID: {client_id_preview}")
+            logger.debug(f"Tenant ID: {self.tenant_id}")
+            logger.debug(f"Email account: {self.email_account}")
+            logger.debug(f"Authority: {authority}")
+            
             # Token ophalen via MSAL
+            # client_credential moet een string zijn voor client secret flow
             app = ConfidentialClientApplication(
                 client_id=self.client_id,
-                client_credential=self.client_secret,
+                client_credential=self.client_secret,  # Let op: dit moet de plain text secret zijn
                 authority=authority
             )
             
             # Verkrijg token voor client credentials flow
+            logger.debug(f"Scope voor token: {scope}")
             result = app.acquire_token_for_client(scopes=scope)
             
             if 'access_token' not in result:
@@ -143,11 +157,16 @@ class Microsoft365OAuth:
                     logger.error("Onbekende fout bij het verkrijgen van een token")
                 return None
             
-            logger.info("OAuth2 token succesvol verkregen")
+            # Toon een preview van het token (eerste 10 karakters) voor debugging
+            token_preview = result['access_token'][:10] + "..." if result['access_token'] else None
+            logger.info(f"OAuth2 token succesvol verkregen: {token_preview}")
             return result['access_token']
             
         except Exception as e:
             logger.error(f"Exception bij het verkrijgen van OAuth token: {str(e)}")
+            # Log meer details over de exceptie voor betere foutopsporing
+            import traceback
+            logger.debug(f"Traceback: {traceback.format_exc()}")
             return None
     
     def send_email(self, recipient, subject, body_html, cc=None, attachments=None):
@@ -166,12 +185,19 @@ class Microsoft365OAuth:
         """
         if not self.is_configured():
             logger.error("E-mail instellingen niet volledig geconfigureerd")
+            logger.debug(f"Client ID aanwezig: {bool(self.client_id)}")
+            logger.debug(f"Client Secret aanwezig: {bool(self.client_secret)}")
+            logger.debug(f"Tenant ID aanwezig: {bool(self.tenant_id)}")
+            logger.debug(f"Email account aanwezig: {bool(self.email_account)}")
             return False
         
         try:
+            logger.info(f"Start e-mail verzenden met OAuth naar: {recipient}")
+            
             # OAuth token ophalen
             access_token = self.get_oauth_token()
             if not access_token:
+                logger.error("Geen toegangstoken verkregen, e-mail verzending gestopt")
                 return False
             
             # Formateer het OAuth2 authentication token voor SMTP
@@ -197,14 +223,25 @@ class Microsoft365OAuth:
             smtp_server = "smtp.office365.com"
             smtp_port = 587
             
+            logger.info(f"Verbinding maken met {smtp_server}:{smtp_port}")
+            
             with smtplib.SMTP(smtp_server, smtp_port) as server:
+                # Debug mode inschakelen voor SMTP voor uitgebreide logging
+                server.set_debuglevel(1)
+                
+                logger.debug("Start TLS verbinding")
                 server.starttls()
+                
+                logger.debug("EHLO commando")
                 server.ehlo()
                 
                 # SMTP authenticatie met OAuth2
-                server.docmd('AUTH', 'XOAUTH2 ' + auth_bytes.decode())
+                logger.debug("OAuth2 authenticatie uitvoeren")
+                response = server.docmd('AUTH', 'XOAUTH2 ' + auth_bytes.decode())
+                logger.debug(f"AUTH response: {response}")
                 
                 # E-mail verzenden
+                logger.debug(f"E-mail verzenden naar: {recipients}")
                 server.send_message(msg)
                 
                 logger.info(f"E-mail succesvol verzonden naar {recipients}")
@@ -212,6 +249,9 @@ class Microsoft365OAuth:
                 
         except Exception as e:
             logger.error(f"Fout bij versturen e-mail: {str(e)}")
+            # Meer details over de exceptie loggen
+            import traceback
+            logger.debug(f"Traceback: {traceback.format_exc()}")
             return False
     
     def _build_email_message(self, recipient, subject, body_html, cc=None):
