@@ -52,6 +52,16 @@ def apply_migrations(conn):
             "description": "Add is_new_user column to users table", 
             "sql": "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_new_user BOOLEAN DEFAULT TRUE;",
             "verify_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='is_new_user'"
+        },
+        {
+            "description": "Add workspace_id column to mollie_settings table",
+            "sql": "ALTER TABLE mollie_settings ADD COLUMN IF NOT EXISTS workspace_id INTEGER REFERENCES workspaces(id);",
+            "verify_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='mollie_settings' AND column_name='workspace_id'"
+        },
+        {
+            "description": "Add is_system_default column to mollie_settings table",
+            "sql": "ALTER TABLE mollie_settings ADD COLUMN IF NOT EXISTS is_system_default BOOLEAN DEFAULT FALSE;",
+            "verify_sql": "SELECT column_name FROM information_schema.columns WHERE table_name='mollie_settings' AND column_name='is_system_default'"
         }
         # Add more migrations here as needed
     ]
