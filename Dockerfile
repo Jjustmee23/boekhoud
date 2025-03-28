@@ -41,6 +41,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Maak logs directory en zet permissies
+RUN mkdir -p /app/logs && \
+    chmod 777 /app/logs
+
 # Installeer alleen runtime afhankelijkheden
 RUN apt-get update && apt-get install -y \
     libcairo2 \
