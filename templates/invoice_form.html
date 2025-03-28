@@ -121,7 +121,7 @@
             </div>
             {% endif %}
             <div class="mt-4">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" data-show-animation="invoice">
                     <i class="fas fa-save"></i> Opslaan
                 </button>
                 <a href="{{ url_for('invoices_list') }}" class="btn btn-outline-secondary">
@@ -239,7 +239,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
-                <button type="button" class="btn btn-success" id="saveCustomerBtn">Klant Opslaan</button>
+                <button type="button" class="btn btn-success" id="saveCustomerBtn" data-show-animation="customer">Klant Opslaan</button>
             </div>
         </div>
     </div>

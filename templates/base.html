@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/language-switcher.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
     {% block head %}{% endblock %}
 </head>
 <body{% if current_user.is_authenticated %} data-user-role="{% if current_user.is_super_admin %}superadmin{% elif current_user.is_admin %}admin{% else %}user{% endif %}" data-new-user="{{ 'true' if current_user.is_new_user else 'false' }}"{% endif %}>
@@ -201,6 +202,7 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/language-switcher.js') }}"></script>
     <script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/animations.js') }}"></script>
     
     {% block scripts %}{% endblock %}
 </body>
