@@ -129,6 +129,12 @@ def workspace_admin():
     from models import EmailSettings
     email_settings = EmailSettings.query.filter_by(workspace_id=workspace.id).first()
     
+    # Haal abonnement op als de werkruimte een subscription_id heeft
+    if workspace.subscription_id:
+        workspace.subscription = Subscription.query.get(workspace.subscription_id)
+    else:
+        workspace.subscription = None
+    
     return render_template(
         'workspace_admin.html',
         workspace=workspace,
