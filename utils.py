@@ -6,7 +6,11 @@ import json
 import logging
 import uuid
 import calendar
+import re
+from functools import wraps
 from datetime import datetime, timedelta
+from flask import request, abort, current_app
+from flask_login import current_user, login_required
 
 
 def format_currency(value):
@@ -429,8 +433,147 @@ def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 
+# Logging helpers
+def highlight_log_line(line, search_term):
+    """
+    Markeer een zoekterm in een log regel met HTML highlighting
+    
+    Args:
+        line: De log regel
+        search_term: De te markeren zoekterm
+        
+    Returns:
+        str: De gemarkeerde regel
+    """
+    if not search_term:
+        return line
+        
+    # Simpele markering met span-tag
+    marked_line = line.replace(
+        search_term, 
+        f'<span class="highlight">{search_term}</span>'
+    )
+    return marked_line
+
+def get_log_context(filepath, line_number, context_lines=5):
+    """
+    Haal context rond een specifieke regel in een logbestand op
+    
+    Args:
+        filepath: Pad naar het logbestand
+        line_number: Regelnummer (beginnend bij 1)
+        context_lines: Aantal regels context voor en na (standaard 5)
+        
+    Returns:
+        list: Lijst met context regels
+    """
+    if not os.path.exists(filepath):
+        return []
+        
+    context = []
+    start_line = max(1, line_number - context_lines)
+    end_line = line_number + context_lines
+    
+    with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+        for i, line in enumerate(f, 1):
+            if start_line <= i <= end_line:
+                # Markeer de hoofdregel
+                if i == line_number:
+                    context.append((i, line.strip(), True))
+                else:
+                    context.append((i, line.strip(), False))
+                    
+            if i > end_line:
+                break
+                
+    return context
+
+def analyze_log_errors(log_file, max_entries=100):
+    """
+    Analyseer logbestand voor veelvoorkomende fouten
+    
+    Args:
+        log_file: Pad naar het logbestand
+        max_entries: Maximum aantal fouten om te analyseren
+        
+    Returns:
+        dict: Analyse van fouten (frequentie, voorbeelden)
+    """
+    if not os.path.exists(log_file):
+        return {}
+        
+    error_patterns = {}
+    
+    with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+        for line in f:
+            if 'ERROR' not in line and 'CRITICAL' not in line:
+                continue
+                
+            # Probeer een foutpatroon te identificeren
+            patterns = [
+                r'Error: (.*?)( at |$)',
+                r'Exception: (.*?)( at |$)',
+                r'ERROR .* (.*?)( in |$)',
+                r'CRITICAL .* (.*?)( in |$)'
+            ]
+            
+            error_text = None
+            for pattern in patterns:
+                match = re.search(pattern, line)
+                if match:
+                    error_text = match.group(1).strip()
+                    break
+            
+            if not error_text:
+                error_text = "Unknown error"
+                
+            # Houd foutfrequentie bij
+            if error_text in error_patterns:
+                error_patterns[error_text]['count'] += 1
+                if len(error_patterns[error_text]['examples']) < 3:  # Max 3 voorbeelden
+                    error_patterns[error_text]['examples'].append(line.strip())
+            else:
+                error_patterns[error_text] = {
+                    'count': 1,
+                    'examples': [line.strip()]
+                }
+                
+            # Stop als we genoeg fouten hebben
+            if len(error_patterns) >= max_entries:
+                break
+                
+    # Sorteer op frequentie
+    sorted_patterns = dict(sorted(
+        error_patterns.items(), 
+        key=lambda item: item[1]['count'], 
+        reverse=True
+    ))
+    
+    return sorted_patterns
+
+# Admin vereist decorator (voor log viewer)
+def admin_required(f):
+    """
+    Decorator die controleert of een gebruiker admin-rechten heeft
+    
+    Args:
+        f: De functie om te decoreren
+        
+    Returns:
+        function: Gedecoreerde functie
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return abort(401)  # Unauthorized
+        
+        if not current_user.is_admin:
+            return abort(403)  # Forbidden
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
 # Gebruikersrechten functies
-from flask_login import current_user
 from functools import wraps
 from flask import flash, redirect, url_for
 
