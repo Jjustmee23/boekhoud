@@ -10,7 +10,7 @@ from flask_login import login_required, current_user
 from app import app, db
 from models import Workspace, Subscription, Payment, User, MollieSettings
 from mollie_service import mollie_service
-from utils import format_currency
+from utils import format_currency, super_admin_required
 
 # Werkruimte dashboard voor admins
 @app.route('/workspace/dashboard')
@@ -521,12 +521,9 @@ def cancel_subscription():
 # Admin routes voor abonnementen en Mollie
 @app.route('/admin/mollie-settings', methods=['GET'])
 @login_required
+@super_admin_required
 def admin_mollie_settings():
     """Beheer van Mollie instellingen (enkel super admins)"""
-    # Controleer of de gebruiker een super admin is
-    if not current_user.is_super_admin:
-        flash('Je hebt geen toegang tot deze pagina', 'danger')
-        return redirect(url_for('dashboard'))
     
     # Haal Mollie instellingen op
     mollie_settings = MollieSettings.query.first()
@@ -548,12 +545,9 @@ def admin_mollie_settings():
 
 @app.route('/admin/update-mollie-settings', methods=['POST'])
 @login_required
+@super_admin_required
 def update_mollie_settings():
     """Update Mollie instellingen"""
-    # Controleer of de gebruiker een super admin is
-    if not current_user.is_super_admin:
-        flash('Je hebt geen toegang tot deze functie', 'danger')
-        return redirect(url_for('dashboard'))
     
     # Haal formuliergegevens op
     api_key = request.form.get('api_key')
@@ -578,12 +572,9 @@ def update_mollie_settings():
 
 @app.route('/admin/create-subscription', methods=['POST'])
 @login_required
+@super_admin_required
 def create_subscription():
     """Maak een nieuw abonnement aan"""
-    # Controleer of de gebruiker een super admin is
-    if not current_user.is_super_admin:
-        flash('Je hebt geen toegang tot deze functie', 'danger')
-        return redirect(url_for('dashboard'))
     
     # Haal formuliergegevens op
     name = request.form.get('name')
@@ -632,12 +623,9 @@ def create_subscription():
 
 @app.route('/admin/edit-subscription/<int:subscription_id>', methods=['GET', 'POST'])
 @login_required
+@super_admin_required
 def edit_subscription(subscription_id):
     """Bewerk een abonnement"""
-    # Controleer of de gebruiker een super admin is
-    if not current_user.is_super_admin:
-        flash('Je hebt geen toegang tot deze functie', 'danger')
-        return redirect(url_for('dashboard'))
     
     # Haal abonnement op
     subscription = Subscription.query.get(subscription_id)
@@ -695,12 +683,9 @@ def edit_subscription(subscription_id):
 
 @app.route('/admin/delete-subscription/<int:subscription_id>')
 @login_required
+@super_admin_required
 def delete_subscription(subscription_id):
     """Verwijder een abonnement"""
-    # Controleer of de gebruiker een super admin is
-    if not current_user.is_super_admin:
-        flash('Je hebt geen toegang tot deze functie', 'danger')
-        return redirect(url_for('dashboard'))
     
     # Haal abonnement op
     subscription = Subscription.query.get(subscription_id)
@@ -726,12 +711,9 @@ def delete_subscription(subscription_id):
 
 @app.route('/admin/check-payment/<int:payment_id>')
 @login_required
+@super_admin_required
 def check_payment(payment_id):
     """Controleer de status van een betaling"""
-    # Controleer of de gebruiker een super admin is
-    if not current_user.is_super_admin:
-        flash('Je hebt geen toegang tot deze functie', 'danger')
-        return redirect(url_for('dashboard'))
     
     status = mollie_service.check_payment_status(payment_id)
     
@@ -747,12 +729,9 @@ def check_payment(payment_id):
 
 @app.route('/admin/create-example-subscriptions')
 @login_required
+@super_admin_required
 def create_example_subscriptions():
     """Maak voorbeeld abonnementen aan"""
-    # Controleer of de gebruiker een super admin is
-    if not current_user.is_super_admin:
-        flash('Je hebt geen toegang tot deze functie', 'danger')
-        return redirect(url_for('dashboard'))
     
     # Controleer of er al abonnementen zijn
     existing_count = Subscription.query.count()

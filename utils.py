@@ -508,3 +508,21 @@ def admin_required(f):
         
         return f(*args, **kwargs)
     return decorated_function
+
+def super_admin_required(f):
+    """
+    Decorator die controleert of een gebruiker een super admin is
+    Voorkomt toegang voor gebruikers die geen super admin zijn
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('U moet ingelogd zijn om deze pagina te bekijken', 'danger')
+            return redirect(url_for('login'))
+        
+        if not current_user.is_super_admin:
+            flash('U heeft geen toegang tot deze pagina. Deze functie is alleen beschikbaar voor super administrators.', 'danger')
+            return redirect(url_for('dashboard'))
+        
+        return f(*args, **kwargs)
+    return decorated_function
