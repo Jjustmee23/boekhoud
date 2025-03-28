@@ -69,7 +69,36 @@
                         <hr>
                         <h5 class="mb-3">Inbegrepen functies</h5>
 
-                        {% set features = subscription.features|tojson|fromjson if subscription and subscription.features else {} %}
+                        {% if subscription and subscription.features %}
+                            {% set features_json = subscription.features %}
+                            {% if subscription.features[:1] != '{' %}
+                                {% set features_json = subscription.features|tojson %}
+                            {% endif %}
+                            {% set features = {} %}
+                            {% if "geavanceerde_rapporten" in features_json %}
+                                {% set _= features.update({"geavanceerde_rapporten": True}) %}
+                            {% endif %}
+                            {% if "documentverwerking" in features_json %}
+                                {% set _= features.update({"documentverwerking": True}) %}
+                            {% endif %}
+                            {% if "email_integratie" in features_json %}
+                                {% set _= features.update({"email_integratie": True}) %}
+                            {% endif %}
+                            {% if "api_toegang" in features_json %}
+                                {% set _= features.update({"api_toegang": True}) %}
+                            {% endif %}
+                            {% if "prioriteit_support" in features_json %}
+                                {% set _= features.update({"prioriteit_support": True}) %}
+                            {% endif %}
+                            {% if "dedicated_account_manager" in features_json %}
+                                {% set _= features.update({"dedicated_account_manager": True}) %}
+                            {% endif %}
+                            {% if "eerste_maand_gratis" in features_json %}
+                                {% set _= features.update({"eerste_maand_gratis": True}) %}
+                            {% endif %}
+                        {% else %}
+                            {% set features = {} %}
+                        {% endif %}
 
                         <div class="row mb-3">
                             <div class="col-md-6">

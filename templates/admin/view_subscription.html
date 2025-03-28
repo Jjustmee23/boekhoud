@@ -87,8 +87,32 @@
 
                     <h6 class="mb-3">Inbegrepen functies</h6>
                     {% if subscription.features %}
-                        {% set features = subscription.features|tojson %}
-                        {% set features_list = features|replace('"', '')|replace('[', '')|replace(']', '')|split(',') %}
+                        {% set features_json = subscription.features %}
+                        {% if subscription.features[:1] != '{' %}
+                            {% set features_json = subscription.features|tojson %}
+                        {% endif %}
+                        {% set features_list = [] %}
+                        {% if "geavanceerde_rapporten" in features_json %}
+                            {% set features_list = features_list + ["geavanceerde_rapporten"] %}
+                        {% endif %}
+                        {% if "documentverwerking" in features_json %}
+                            {% set features_list = features_list + ["documentverwerking"] %}
+                        {% endif %}
+                        {% if "email_integratie" in features_json %}
+                            {% set features_list = features_list + ["email_integratie"] %}
+                        {% endif %}
+                        {% if "api_toegang" in features_json %}
+                            {% set features_list = features_list + ["api_toegang"] %}
+                        {% endif %}
+                        {% if "prioriteit_support" in features_json %}
+                            {% set features_list = features_list + ["prioriteit_support"] %}
+                        {% endif %}
+                        {% if "dedicated_account_manager" in features_json %}
+                            {% set features_list = features_list + ["dedicated_account_manager"] %}
+                        {% endif %}
+                        {% if "eerste_maand_gratis" in features_json %}
+                            {% set features_list = features_list + ["eerste_maand_gratis"] %}
+                        {% endif %}
                     {% else %}
                         {% set features_list = [] %}
                     {% endif %}
