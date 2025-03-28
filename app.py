@@ -90,7 +90,18 @@ logging.info(f"MS_GRAPH_SENDER_EMAIL: {'Ingesteld' if os.environ.get('MS_GRAPH_S
 
 # Create Flask app
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET")
+# Stel secret key in vanuit .env file of gebruik een fallback voor development
+session_secret = os.environ.get("SESSION_SECRET")
+if not session_secret:
+    if os.environ.get("FLASK_ENV") == "production":
+        logging.error("SESSION_SECRET is niet ingesteld in .env bestand! De applicatie is niet veilig.")
+        # In productie moet de secret key in .env staan, anders stoppen we
+        raise ValueError("SESSION_SECRET moet worden ingesteld in het .env bestand voor productiegebruik.")
+    else:
+        # Voor development gebruiken we een statische key
+        logging.warning("SESSION_SECRET is niet ingesteld in .env bestand. Fallback key wordt gebruikt, NIET GEBRUIKEN IN PRODUCTIE!")
+        session_secret = "ontwikkeling_test_key_niet_gebruiken_in_productie"
+app.secret_key = session_secret
 
 # Configure database
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
