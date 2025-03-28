@@ -305,6 +305,7 @@ def return_to_super_admin():
 
 # Dashboard routes
 @app.route('/')
+@app.route('/dashboard')
 @login_required
 def dashboard():
     # Get current year

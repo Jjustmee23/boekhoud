@@ -2,22 +2,15 @@ from app import app
 from flask import Blueprint, render_template, redirect, url_for, send_from_directory
 from flask_login import login_required, current_user
 
-# Routeringsfuncties direct in main.py toevoegen
-@app.route('/')
-@login_required
-def root_dashboard():
-    """Root dashboard route"""
-    from routes import dashboard
-    return dashboard()
+# Direct naar routes.py verwijzen voor de root URL
 
 # Importeer de routes in de juiste volgorde
 import routes  # Dit bevat de basale routes zoals / en /dashboard
 import subscription_routes
 from mollie_service import mollie_service
 
-# Importeer en registreer blueprints na de andere imports
+# Importeer de blueprints, maar de registratie gebeurt al in routes.py
 from routes.log_viewer import log_bp
-app.register_blueprint(log_bp)
 
 # Omdat sommige routes niet correct worden geregistreerd,
 # voegen we deze hier handmatig toe

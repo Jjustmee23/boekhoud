@@ -283,5 +283,10 @@ def initialize_app():
 # Import routes at the end to avoid circular imports
 from routes import *
 
+# Simpele route voor testen van de root URL
+@app.route('/test')
+def test_route():
+    return "Applicatie werkt! Dit is een test route."
+
 # Initialize the app after all imports
 initialize_app()
