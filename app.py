@@ -283,10 +283,22 @@ def initialize_app():
 # Import routes at the end to avoid circular imports
 from routes import *
 
-# Simpele route voor testen van de root URL
+# Simpele routes voor testen 
 @app.route('/test')
 def test_route():
     return "Applicatie werkt! Dit is een test route."
+
+# Noodoplossing voor de hoofdpagina
+@app.route('/')
+@app.route('/dashboard')
+def home():
+    """Hoofdpagina redirect naar de dashboardpagina"""
+    # Hier zou normaal de dashboard route code staan
+    # Maar als noodoplossing tonen we gewoon een eenvoudige pagina
+    # Mocht deze pagina te zien zijn in plaats van de echte dashboard
+    return "Dit is een tijdelijke noodoplossing voor de hoofdpagina. <br><br>" + \
+           "<a href='/test'>Test pagina</a><br>" + \
+           "<a href='/logs/'>Logs bekijken</a>"
 
 # Initialize the app after all imports
 initialize_app()
