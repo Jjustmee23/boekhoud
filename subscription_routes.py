@@ -344,14 +344,25 @@ def select_subscription():
     # Bereid features voor in subscriptions
     for subscription in subscriptions:
         if subscription.features:
-            # Convert the features string to a list
             try:
-                features_list = json.loads(subscription.features)
-                subscription.features = features_list
-            except:
-                subscription.features = []
+                # Als features al een dict is, maak er een features_list van
+                if isinstance(subscription.features, dict):
+                    features_dict = subscription.features
+                    subscription.features_list = list(features_dict.keys())
+                # Als features een string is (JSON), converteer naar een lijst
+                else:
+                    features_dict = json.loads(subscription.features)
+                    if isinstance(features_dict, list):
+                        subscription.features_list = features_dict
+                    else:
+                        subscription.features_list = [
+                            key for key, value in features_dict.items() if value is True
+                        ]
+            except Exception as e:
+                logging.error(f"Fout bij verwerken features: {str(e)}")
+                subscription.features_list = []
         else:
-            subscription.features = []
+            subscription.features_list = []
     
     return render_template(
         'subscriptions.html',
@@ -501,6 +512,26 @@ def workspace_subscription():
     
     # Haal alle beschikbare abonnementen op
     subscriptions = Subscription.query.filter_by(is_active=True).all()
+    
+    # Bereid features voor in subscriptions
+    for subscription in subscriptions:
+        if subscription.features:
+            try:
+                # Als features al een dict is, maak er een features_list van
+                if isinstance(subscription.features, dict):
+                    features_dict = subscription.features
+                    subscription.features_list = list(features_dict.keys())
+                # Als features een string is (JSON), converteer naar een lijst
+                else:
+                    features_dict = json.loads(subscription.features)
+                    subscription.features_list = [
+                        key for key, value in features_dict.items() if value is True
+                    ]
+            except Exception as e:
+                logging.error(f"Fout bij verwerken features: {str(e)}")
+                subscription.features_list = []
+        else:
+            subscription.features_list = []
     
     # Haal de betalingen op voor deze werkruimte
     payments = Payment.query.filter_by(workspace_id=workspace.id)\
