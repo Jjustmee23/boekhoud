@@ -73,8 +73,6 @@
                             <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="fas fa-user-cog"></i> Mijn Profiel</a></li>
                             {% if current_user.is_admin %}
                             <li><a class="dropdown-item" href="{{ url_for('admin') }}"><i class="fas fa-users-cog"></i> Beheerdersdashboard</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('workspace_dashboard') }}"><i class="fas fa-th-large"></i> Werkruimte Dashboard</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('workspace_admin') }}"><i class="fas fa-cogs"></i> Werkruimte Beheer</a></li>
                             {% endif %}
                             
                             {% if session.get('super_admin_id') %}

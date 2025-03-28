@@ -42,7 +42,7 @@ def workspace_dashboard():
     
     # Bereken totale omzet
     invoices = Invoice.query.filter_by(workspace_id=workspace.id).all()
-    total_revenue = sum(invoice.total_amount for invoice in invoices)
+    total_revenue = sum(invoice.amount_incl_vat for invoice in invoices)
     total_revenue_format = format_currency(total_revenue)
     
     # Bereken recente facturen
@@ -82,7 +82,7 @@ def workspace_dashboard():
         if invoice.date.year == current_year:
             quarter = (invoice.date.month - 1) // 3
             if 0 <= quarter < 4:  # Controleer of het een geldig kwartaal is
-                revenue_data[quarter] += invoice.total_amount
+                revenue_data[quarter] += invoice.amount_incl_vat
     
     return render_template(
         'workspace_dashboard.html',
