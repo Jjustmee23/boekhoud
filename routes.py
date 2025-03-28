@@ -89,9 +89,9 @@ def login():
                 return redirect(url_for('profile'))
             
             # Redirect to requested page or dashboard
-            # Als de gebruiker een superadmin is, stuur naar admin dashboard
+            # Als de gebruiker een superadmin is zonder workspace, stuur naar systeemoverzicht
             if user.is_super_admin and not user.workspace_id:
-                return redirect(url_for('admin'))
+                return redirect(url_for('system_overview'))
             
             # Anders, check next parameter of ga naar gewone dashboard
             next_page = request.args.get('next')
@@ -286,7 +286,7 @@ def return_to_super_admin():
     session.pop('super_admin_id', None)
     
     flash('Je bent teruggekeerd naar je super admin account', 'success')
-    return redirect(url_for('admin'))
+    return redirect(url_for('system_overview'))
 
 # Dashboard routes
 @app.route('/')
@@ -2322,12 +2322,12 @@ def internal_error(error):
 @app.route('/admin')
 @login_required
 def admin():
-    # Only admins can access admin panel
+    # Only admins and super admins can access admin panel
     if not current_user.is_admin and not current_user.is_super_admin:
         flash('U heeft geen toegang tot deze pagina', 'danger')
         return redirect(url_for('dashboard'))
     
-    # Super admins zonder werkruimte worden doorgestuurd naar het systeem overzicht
+    # Super admins without workspace context are redirected to system overview
     if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
         return redirect(url_for('system_overview'))
     
