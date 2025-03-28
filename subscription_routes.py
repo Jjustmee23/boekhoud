@@ -480,6 +480,44 @@ def update_extra_users():
         now=datetime.now()
     )
 
+@app.route('/workspace/subscription')
+@login_required
+def workspace_subscription():
+    """Beheer abonnement voor huidige werkruimte"""
+    # Controleer of de gebruiker een admin is
+    if not current_user.is_admin and not current_user.is_super_admin:
+        flash('Je hebt geen toegang tot deze functie', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Controleer of werkruimte bestaat
+    if not current_user.workspace_id:
+        flash('Je moet eerst een werkruimte kiezen', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    workspace = Workspace.query.get(current_user.workspace_id)
+    if not workspace:
+        flash('Werkruimte niet gevonden', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Haal alle beschikbare abonnementen op
+    subscriptions = Subscription.query.filter_by(is_active=True).all()
+    
+    # Haal de betalingen op voor deze werkruimte
+    payments = Payment.query.filter_by(workspace_id=workspace.id)\
+                           .order_by(Payment.created_at.desc())\
+                           .limit(10).all()
+    
+    now = datetime.now()
+    
+    return render_template(
+        'subscription_plans.html',
+        workspace=workspace,
+        subscriptions=subscriptions,
+        payments=payments,
+        now=now,
+        format_currency=format_currency
+    )
+
 @app.route('/workspace/change-subscription')
 @login_required
 def change_subscription():
@@ -534,13 +572,16 @@ def admin_mollie_settings():
     # Haal recente betalingen op
     payments = Payment.query.order_by(Payment.created_at.desc()).limit(20).all()
     
+    # Huidige datum voor templates
+    now = datetime.now()
+    
     return render_template(
         'admin_mollie_settings.html',
         mollie_settings=mollie_settings,
         subscriptions=subscriptions,
+        now=now,
         payments=payments,
-        format_currency=format_currency,
-        now=datetime.now()
+        format_currency=format_currency
     )
 
 @app.route('/admin/update-mollie-settings', methods=['POST'])

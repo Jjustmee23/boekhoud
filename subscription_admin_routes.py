@@ -37,10 +37,12 @@ def admin_subscriptions():
 @admin_required
 def new_subscription():
     """Toon formulier voor nieuw abonnement"""
+    now = datetime.now()
     return render_template(
         'admin/edit_subscription_form.html',
         subscription=None,
-        format_currency=format_currency
+        format_currency=format_currency,
+        now=now
     )
 
 # Bestaand abonnement bewerken
@@ -52,11 +54,13 @@ def admin_edit_subscription(subscription_id):
     
     # Haal abonnement op
     subscription = Subscription.query.get_or_404(subscription_id)
+    now = datetime.now()
     
     return render_template(
         'admin/edit_subscription_form.html',
         subscription=subscription,
-        format_currency=format_currency
+        format_currency=format_currency,
+        now=now
     )
 
 # Bekijk abonnementdetails
