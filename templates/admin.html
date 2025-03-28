@@ -71,11 +71,14 @@
                             <td>
                                 <div class="btn-group">
                                     {% if current_user.is_super_admin or (current_user.is_admin and not user.is_super_admin) %}
-                                    <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary" title="Gebruiker bewerken">
                                         <i class="fas fa-edit"></i>
                                     </a>
+                                    <a href="{{ url_for('edit_permissions', user_id=user.id) }}" class="btn btn-sm btn-outline-success" title="Rechten bewerken">
+                                        <i class="fas fa-key"></i>
+                                    </a>
                                     {% if not user.is_super_admin and not (user.id == current_user.id) %}
-                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal-{{ user.id }}">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal-{{ user.id }}" title="Gebruiker verwijderen">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                     {% endif %}

@@ -420,6 +420,7 @@ def api_quarterly_data(year):
 # Invoice management routes
 @app.route('/invoices')
 @login_required
+@permission_required('can_view_invoices')
 def invoices_list():
     # Super admin zonder actieve workspace sessie kan geen facturen zien
     if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
@@ -497,6 +498,7 @@ def invoices_list():
 
 @app.route('/invoices/new', methods=['GET', 'POST'])
 @login_required
+@permission_required('can_add_invoices')
 def new_invoice():
     if request.method == 'POST':
         # Get form data
@@ -662,6 +664,7 @@ def new_invoice():
 
 @app.route('/invoices/<invoice_id>')
 @login_required
+@permission_required('can_view_invoices')
 def view_invoice(invoice_id):
     try:
         # Convert invoice_id from string to UUID if needed
@@ -697,6 +700,7 @@ def view_invoice(invoice_id):
 
 @app.route('/invoices/<invoice_id>/edit', methods=['GET', 'POST'])
 @login_required
+@permission_required('can_edit_invoices')
 def edit_invoice(invoice_id):
     try:
         # Convert invoice_id from string to UUID if needed
@@ -865,6 +869,8 @@ def edit_invoice(invoice_id):
         return redirect(url_for('invoices_list'))
 
 @app.route('/invoices/<invoice_id>/delete', methods=['POST'])
+@login_required
+@permission_required('can_delete_invoices')
 def delete_invoice_route(invoice_id):
     try:
         # Convert invoice_id from string to UUID if needed
@@ -892,6 +898,8 @@ def delete_invoice_route(invoice_id):
     return redirect(url_for('invoices_list'))
 
 @app.route('/invoices/<invoice_id>/pdf')
+@login_required
+@permission_required('can_view_invoices')
 def generate_invoice_pdf(invoice_id):
     try:
         # Convert invoice_id from string to UUID if needed
@@ -936,6 +944,8 @@ def generate_invoice_pdf(invoice_id):
         return redirect(url_for('view_invoice', invoice_id=invoice_id))
 
 @app.route('/invoices/<invoice_id>/attachment')
+@login_required
+@permission_required('can_view_invoices')
 def view_invoice_attachment(invoice_id):
     try:
         # Convert invoice_id from string to UUID if needed
