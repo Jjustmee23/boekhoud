@@ -2415,7 +2415,11 @@ def admin():
         
         # Haal huidige e-mailinstellingen op uit de database of fallback naar omgevingsvariabelen
         system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
-    elif current_user.is_admin and current_user.workspace_id:
+    else:
+        # Initialiseer system_settings als None voor andere gebruikers
+        system_settings = None
+        
+    if current_user.is_admin and current_user.workspace_id:
         # Haal de workspace op voor reguliere beheerders
         workspace = Workspace.query.get(current_user.workspace_id)
         
