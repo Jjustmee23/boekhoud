@@ -1,0 +1,395 @@
+{% extends 'base.html' %}
+
+{% block title %}Systeembeheer Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Systeemoverzicht Dashboard</h1>
+        <div>
+            <a href="{{ url_for('admin') }}" class="btn btn-primary">
+                <i class="fas fa-cog me-2"></i> Beheerdersinstellingen
+            </a>
+        </div>
+    </div>
+    
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Super Admin modus.</strong> U ziet statistieken van alle werkruimtes in het systeem. 
+        Voor gedetailleerde gegevens van een specifieke werkruimte, gelieve te navigeren naar 
+        <a href="{{ url_for('admin') }}">Beheerdersinstellingen</a> en kies "Open werkruimte als beheerder".
+    </div>
+    
+    <!-- Algemene statistieken -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card h-100 text-white bg-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Werkruimtes</h5>
+                            <h2 class="mb-0">{{ workspace_count }}</h2>
+                        </div>
+                        <div class="fs-1">
+                            <i class="fas fa-building"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Gebruikers</h5>
+                            <h2 class="mb-0">{{ user_count }}</h2>
+                        </div>
+                        <div class="fs-1">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Klanten</h5>
+                            <h2 class="mb-0">{{ customer_count }}</h2>
+                        </div>
+                        <div class="fs-1">
+                            <i class="fas fa-handshake"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Facturen</h5>
+                            <h2 class="mb-0">{{ invoice_count }}</h2>
+                        </div>
+                        <div class="fs-1">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Grafieken -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Nieuwe aanmeldingen per maand</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="signupsChart" width="400" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Top 5 werkruimtes (gebruikers)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="workspacesChart" width="400" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top werkruimtes -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Top werkruimtes</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="toggleWorkspaceStats()">
+                        <span id="toggleStatsText">Toon financiële statistieken</span>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Naam</th>
+                                    <th>Gebruikers</th>
+                                    <th>Klanten</th>
+                                    <th>Facturen</th>
+                                    <th class="financial-stats" style="display: none;">Inkomsten</th>
+                                    <th class="financial-stats" style="display: none;">Uitgaven</th>
+                                    <th class="financial-stats" style="display: none;">Resultaat</th>
+                                    <th>Aangemaakt</th>
+                                    <th>Acties</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for workspace in top_workspaces %}
+                                <tr>
+                                    <td>{{ workspace.name }}</td>
+                                    <td>{{ workspace.users_count }}</td>
+                                    <td>{{ workspace.customers_count }}</td>
+                                    <td>{{ workspace.invoices_count }}</td>
+                                    <td class="financial-stats" style="display: none;">{{ format_currency(workspace.income) }}</td>
+                                    <td class="financial-stats" style="display: none;">{{ format_currency(workspace.expenses) }}</td>
+                                    <td class="financial-stats" style="display: none;">
+                                        {% if workspace.profit >= 0 %}
+                                        <span class="text-success">{{ format_currency(workspace.profit) }}</span>
+                                        {% else %}
+                                        <span class="text-danger">{{ format_currency(workspace.profit) }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ workspace.created_at.strftime('%d-%m-%Y') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('access_workspace', workspace_id=workspace.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-sign-in-alt me-1"></i> Openen
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('admin') }}" class="btn btn-outline-primary btn-sm">
+                        Alle werkruimtes bekijken
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recente activiteit -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Recente gebruikers</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Gebruikersnaam</th>
+                                    <th>E-mail</th>
+                                    <th>Rol</th>
+                                    <th>Aangemaakt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in recent_users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.is_super_admin %}
+                                        <span class="badge bg-danger">Super Admin</span>
+                                        {% elif user.is_admin %}
+                                        <span class="badge bg-warning">Admin</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Gebruiker</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.created_at.strftime('%d-%m-%Y') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('admin') }}" class="btn btn-outline-primary btn-sm">
+                        Alle gebruikers bekijken
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Recente werkruimtes</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Naam</th>
+                                    <th>Domein</th>
+                                    <th>Aangemaakt</th>
+                                    <th>Acties</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for workspace in recent_workspaces %}
+                                <tr>
+                                    <td>{{ workspace.name }}</td>
+                                    <td>{{ workspace.domain }}</td>
+                                    <td>{{ workspace.created_at.strftime('%d-%m-%Y') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('access_workspace', workspace_id=workspace.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-sign-in-alt me-1"></i> Openen
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('admin') }}" class="btn btn-outline-primary btn-sm">
+                        Alle werkruimtes bekijken
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Chart kleuren
+const chartColors = {
+    blue: 'rgb(54, 162, 235)',
+    green: 'rgb(75, 192, 192)',
+    purple: 'rgb(153, 102, 255)',
+    red: 'rgb(255, 99, 132)',
+    orange: 'rgb(255, 159, 64)',
+    yellow: 'rgb(255, 205, 86)'
+};
+
+// Aanmeldingen chart
+document.addEventListener('DOMContentLoaded', function() {
+    const signupsCtx = document.getElementById('signupsChart').getContext('2d');
+    const signupsChart = new Chart(signupsCtx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_months|tojson }},
+            datasets: [{
+                label: 'Nieuwe gebruikers',
+                data: {{ chart_users|tojson }},
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: chartColors.blue,
+                borderWidth: 2,
+                tension: 0.3
+            }, {
+                label: 'Nieuwe werkruimtes',
+                data: {{ chart_workspaces|tojson }},
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: chartColors.green,
+                borderWidth: 2,
+                tension: 0.3
+            }, {
+                label: 'Nieuwe klanten',
+                data: {{ chart_customers|tojson }},
+                backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                borderColor: chartColors.orange,
+                borderWidth: 2,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+    
+    // Werkruimtes chart
+    const workspacesCtx = document.getElementById('workspacesChart').getContext('2d');
+    const workspacesChart = new Chart(workspacesCtx, {
+        type: 'bar',
+        data: {
+            labels: [{% for workspace in top_workspaces %}'{{ workspace.name }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+            datasets: [{
+                label: 'Gebruikers',
+                data: [{% for workspace in top_workspaces %}{{ workspace.users_count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: chartColors.blue,
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Klanten',
+                data: [{% for workspace in top_workspaces %}{{ workspace.customers_count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: chartColors.orange,
+                borderColor: 'rgba(255, 159, 64, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                },
+                x: {
+                    ticks: {
+                        autoSkip: false,
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+});
+
+// Functie om financiële statistieken weer te geven of te verbergen
+function toggleWorkspaceStats() {
+    const financialStats = document.querySelectorAll('.financial-stats');
+    const toggleText = document.getElementById('toggleStatsText');
+    
+    const isVisible = financialStats[0].style.display !== 'none';
+    
+    financialStats.forEach(element => {
+        element.style.display = isVisible ? 'none' : 'table-cell';
+    });
+    
+    toggleText.textContent = isVisible ? 'Toon financiële statistieken' : 'Verberg financiële statistieken';
+}
+</script>
+{% endblock %}

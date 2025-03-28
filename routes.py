@@ -291,7 +291,7 @@ def dashboard():
     
     # Controleer of het een superadmin is zonder actieve workspace sessie
     # Super admins hebben geen workspace_id of hebben een actieve workspace sessie (via session['super_admin_id'])
-    if current_user.is_super_admin and not session.get('super_admin_id'):
+    if current_user.is_super_admin and not session.get('super_admin_id') and not current_user.workspace_id:
         # Super admin dashboard zonder specifieke workspace data
         # Haal alleen systeemstatistieken op
         workspaces = Workspace.query.all()
@@ -308,26 +308,95 @@ def dashboard():
             customers_count = Customer.query.filter_by(workspace_id=workspace.id).count()
             invoices_count = Invoice.query.filter_by(workspace_id=workspace.id).count()
             
+            # Bereken totaal inkomen en uitgaven per werkruimte
+            workspace_invoices = Invoice.query.filter_by(workspace_id=workspace.id).all()
+            income = sum(inv.amount_incl_vat for inv in workspace_invoices if inv.invoice_type == 'income')
+            expenses = sum(inv.amount_incl_vat for inv in workspace_invoices if inv.invoice_type == 'expense')
+            
             top_workspaces.append({
                 'id': workspace.id,
                 'name': workspace.name,
                 'users_count': users_count,
                 'customers_count': customers_count,
                 'invoices_count': invoices_count,
-                'created_at': workspace.created_at
+                'created_at': workspace.created_at,
+                'income': income,
+                'expenses': expenses,
+                'profit': income - expenses
             })
         
         # Sorteer op aantal gebruikers (van hoog naar laag)
         top_workspaces = sorted(top_workspaces, key=lambda x: x['users_count'], reverse=True)[:5]
         
+        # Recente gebruikers en klanten
+        recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
+        recent_workspaces = Workspace.query.order_by(Workspace.created_at.desc()).limit(5).all()
+        
+        # Maandelijks overzicht van nieuwe gebruikers en klanten
+        monthly_signups = {}
+        current_month = datetime.now().month
+        current_year = datetime.now().year
+        
+        # Initialiseer voor de laatste 6 maanden
+        for i in range(6):
+            month = current_month - i
+            year = current_year
+            if month <= 0:
+                month += 12
+                year -= 1
+            month_name = datetime(year, month, 1).strftime('%B')
+            monthly_signups[month_name] = {
+                'users': 0,
+                'workspaces': 0,
+                'customers': 0
+            }
+        
+        # Verzamel data van de laatste 6 maanden
+        six_months_ago = datetime.now() - timedelta(days=180)
+        
+        # Gebruikers per maand
+        users_by_month = User.query.filter(User.created_at >= six_months_ago).all()
+        for user in users_by_month:
+            month_name = user.created_at.strftime('%B')
+            if month_name in monthly_signups:
+                monthly_signups[month_name]['users'] += 1
+        
+        # Werkruimtes per maand
+        workspaces_by_month = Workspace.query.filter(Workspace.created_at >= six_months_ago).all()
+        for workspace in workspaces_by_month:
+            month_name = workspace.created_at.strftime('%B')
+            if month_name in monthly_signups:
+                monthly_signups[month_name]['workspaces'] += 1
+        
+        # Klanten per maand
+        customers_by_month = Customer.query.filter(Customer.created_at >= six_months_ago).all()
+        for customer in customers_by_month:
+            month_name = customer.created_at.strftime('%B')
+            if month_name in monthly_signups:
+                monthly_signups[month_name]['customers'] += 1
+        
+        # Maak arrays voor grafiekdata
+        chart_months = list(monthly_signups.keys())
+        chart_months.reverse()  # Oudste maand eerst
+        chart_users = [monthly_signups[month]['users'] for month in chart_months]
+        chart_workspaces = [monthly_signups[month]['workspaces'] for month in chart_months]
+        chart_customers = [monthly_signups[month]['customers'] for month in chart_months]
+        
         return render_template(
-            'dashboard.html',
+            'admin_dashboard.html',
+            current_year=current_year,
             is_super_admin_dashboard=True,
             workspace_count=workspace_count,
             user_count=user_count,
             customer_count=customer_count,
             invoice_count=invoice_count,
             top_workspaces=top_workspaces,
+            recent_users=recent_users,
+            recent_workspaces=recent_workspaces,
+            chart_months=chart_months,
+            chart_users=chart_users,
+            chart_workspaces=chart_workspaces,
+            chart_customers=chart_customers,
             format_currency=format_currency,
             now=datetime.now()
         )
