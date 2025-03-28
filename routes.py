@@ -2,11 +2,15 @@ import os
 import logging
 import uuid
 import json
+import traceback
 from datetime import datetime, date, timedelta
 from decimal import Decimal
-from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session
+from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
+
+# Logger voor deze module
+logger = logging.getLogger(__name__)
 from models import (
     Customer, Invoice, User, UserPermission, Workspace, EmailSettings, EmailMessage, get_next_invoice_number, check_duplicate_invoice, add_invoice,
     calculate_vat_report, get_monthly_summary, get_quarterly_summary, get_customer_summary,
@@ -3820,4 +3824,65 @@ def privacy_policy(lang='nl'):
         lang = 'nl'
         
     return render_template('privacy_policy.html', lang=lang, now=datetime.now())
+
+
+# Error handling en monitoring routes
+@app.route('/admin/error-test')
+@login_required
+def error_test():
+    """Test route om fouten te genereren voor het testen van het logsysteem"""
+    if not current_user.is_admin and not current_user.is_super_admin:
+        abort(403)  # Forbidden voor niet-admins
+    
+    error_type = request.args.get('type', 'info')
+    
+    # Log verschillende soorten berichten op basis van de 'type' parameter
+    if error_type == 'debug':
+        logger.debug("Dit is een test DEBUG bericht")
+        flash("DEBUG bericht gelogd", "info")
+    elif error_type == 'info':
+        logger.info("Dit is een test INFO bericht")
+        flash("INFO bericht gelogd", "info")
+    elif error_type == 'warning':
+        logger.warning("Dit is een test WARNING bericht")
+        flash("WARNING bericht gelogd", "warning")
+    elif error_type == 'error':
+        logger.error("Dit is een test ERROR bericht")
+        flash("ERROR bericht gelogd", "danger")
+    elif error_type == 'critical':
+        logger.critical("Dit is een test CRITICAL bericht")
+        flash("CRITICAL bericht gelogd", "danger")
+    elif error_type == 'exception':
+        try:
+            # Opzettelijk een fout genereren
+            1/0
+        except Exception as e:
+            logger.exception("Dit is een test exception")
+            flash(f"Exception gelogd: {str(e)}", "danger")
+    elif error_type == 'unhandled':
+        # Genereer een onbehandelde fout
+        non_existent_variable = undefined_variable  # Genereert een NameError
+    else:
+        flash("Onbekend fouttype", "danger")
+    
+    return redirect(url_for('logs.logs_dashboard'))
+
+# Globale errorhandler voor 404 fouten
+@app.errorhandler(404)
+def page_not_found(error):
+    logger.warning(f"404 Pagina niet gevonden: {request.path}")
+    return render_template('404.html', now=datetime.now()), 404
+
+# Globale errorhandler voor 403 fouten
+@app.errorhandler(403)
+def forbidden(error):
+    logger.warning(f"403 Verboden toegang: {request.path} door gebruiker {current_user.username if current_user.is_authenticated else 'onbekend'}")
+    return render_template('403.html', now=datetime.now()), 403
+
+# Globale errorhandler voor 500 fouten
+@app.errorhandler(500)
+def internal_error(error):
+    # Log de error met traceback
+    logger.error(f"500 Server error: {str(error)}\n{traceback.format_exc()}")
+    return render_template('500.html', now=datetime.now()), 500
 

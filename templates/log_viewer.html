@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Log Viewer - {{ log_file }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('logs.logs_dashboard') }}">Logs Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ log_file }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h1>{{ log_file }}</h1>
+        </div>
+        <div class="col-md-4 text-right">
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('logs.view_log', log_file=log_file, lines=100) }}" class="btn btn-outline-primary {% if lines_count == 100 %}active{% endif %}">100 regels</a>
+                <a href="{{ url_for('logs.view_log', log_file=log_file, lines=250) }}" class="btn btn-outline-primary {% if lines_count == 250 %}active{% endif %}">250 regels</a>
+                <a href="{{ url_for('logs.view_log', log_file=log_file, lines=500) }}" class="btn btn-outline-primary {% if lines_count == 500 %}active{% endif %}">500 regels</a>
+                <a href="{{ url_for('logs.api_get_logs', log_file=log_file) }}" class="btn btn-outline-info">JSON</a>
+                <button id="btn-refresh" class="btn btn-outline-success">Vernieuwen</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <strong>Bestand:</strong> {{ log_file }} 
+                        <span class="badge bg-secondary">{{ lines_count }} regels</span>
+                    </span>
+                    <div class="form-inline">
+                        <input type="text" id="log-filter" class="form-control form-control-sm mr-2" placeholder="Filter logs...">
+                        <select id="log-level-filter" class="form-control form-control-sm">
+                            <option value="">Alle niveaus</option>
+                            <option value="DEBUG">DEBUG</option>
+                            <option value="INFO">INFO</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="ERROR">ERROR</option>
+                            <option value="CRITICAL">CRITICAL</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="log-container" class="log-container">
+                        <pre id="log-content" class="log-pre">{% for line in log_content %}{{ line }}{% endfor %}</pre>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <span id="log-stats">Toont {{ log_content|length }} regels</span>
+                    <div>
+                        <button id="btn-copy" class="btn btn-sm btn-outline-secondary">Kopiëren</button>
+                        <button id="btn-download" class="btn btn-sm btn-outline-primary">Downloaden</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Log Analyse</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5 id="error-count" class="text-danger">-</h5>
+                                    <p class="mb-0">ERROR</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5 id="warning-count" class="text-warning">-</h5>
+                                    <p class="mb-0">WARNING</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5 id="info-count" class="text-info">-</h5>
+                                    <p class="mb-0">INFO</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5 id="debug-count" class="text-secondary">-</h5>
+                                    <p class="mb-0">DEBUG</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const logContent = document.getElementById('log-content');
+    const logFilter = document.getElementById('log-filter');
+    const logLevelFilter = document.getElementById('log-level-filter');
+    const logStats = document.getElementById('log-stats');
+    const btnRefresh = document.getElementById('btn-refresh');
+    const btnCopy = document.getElementById('btn-copy');
+    const btnDownload = document.getElementById('btn-download');
+    
+    const errorCount = document.getElementById('error-count');
+    const warningCount = document.getElementById('warning-count');
+    const infoCount = document.getElementById('info-count');
+    const debugCount = document.getElementById('debug-count');
+    
+    // Originele loginhoud
+    const originalLogContent = logContent.textContent;
+    
+    // Functie om logs te filteren
+    function filterLogs() {
+        const filterText = logFilter.value.toLowerCase();
+        const levelFilter = logLevelFilter.value;
+        
+        // Splits de logs in regels
+        const lines = originalLogContent.split('\n');
+        const filteredLines = lines.filter(line => {
+            // Check op filtertext
+            const matchesText = filterText === '' || line.toLowerCase().includes(filterText);
+            
+            // Check op logniveau
+            const matchesLevel = levelFilter === '' || line.includes(` ${levelFilter} `);
+            
+            return matchesText && matchesLevel;
+        });
+        
+        // Zet de gefilterde inhoud terug
+        logContent.textContent = filteredLines.join('\n');
+        
+        // Update statistieken
+        logStats.textContent = `Toont ${filteredLines.length} van ${lines.length} regels`;
+        
+        // Kleur de log levels
+        highlightLogLevels();
+        
+        // Update tellers
+        updateLogLevelCounts(lines);
+    }
+    
+    // Functie om logniveaus te markeren met kleuren
+    function highlightLogLevels() {
+        let html = logContent.textContent;
+        
+        // Vervang logniveaus met gekleurde spans
+        html = html.replace(/\b(ERROR)\b/g, '<span class="text-danger">$1</span>');
+        html = html.replace(/\b(WARNING)\b/g, '<span class="text-warning">$1</span>');
+        html = html.replace(/\b(INFO)\b/g, '<span class="text-info">$1</span>');
+        html = html.replace(/\b(DEBUG)\b/g, '<span class="text-secondary">$1</span>');
+        html = html.replace(/\b(CRITICAL)\b/g, '<span class="text-danger fw-bold">$1</span>');
+        
+        // Vervang loginhoud met HTML
+        logContent.innerHTML = html;
+    }
+    
+    // Functie om aantal per logniveau te tellen
+    function updateLogLevelCounts(lines) {
+        const counts = {
+            ERROR: 0,
+            WARNING: 0,
+            INFO: 0,
+            DEBUG: 0
+        };
+        
+        lines.forEach(line => {
+            if (line.includes(' ERROR ')) counts.ERROR++;
+            if (line.includes(' WARNING ')) counts.WARNING++;
+            if (line.includes(' INFO ')) counts.INFO++;
+            if (line.includes(' DEBUG ')) counts.DEBUG++;
+        });
+        
+        errorCount.textContent = counts.ERROR;
+        warningCount.textContent = counts.WARNING;
+        infoCount.textContent = counts.INFO;
+        debugCount.textContent = counts.DEBUG;
+    }
+    
+    // Event listeners
+    logFilter.addEventListener('input', filterLogs);
+    logLevelFilter.addEventListener('change', filterLogs);
+    
+    // Refresh knop
+    btnRefresh.addEventListener('click', function() {
+        window.location.reload();
+    });
+    
+    // Kopieer knop
+    btnCopy.addEventListener('click', function() {
+        navigator.clipboard.writeText(logContent.textContent)
+            .then(() => {
+                alert('Log inhoud gekopieerd naar klembord!');
+            })
+            .catch(err => {
+                console.error('Kon loginhoud niet kopiëren:', err);
+                alert('Kon loginhoud niet kopiëren');
+            });
+    });
+    
+    // Download knop
+    btnDownload.addEventListener('click', function() {
+        const blob = new Blob([logContent.textContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '{{ log_file }}';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+    
+    // Initiële highlighting
+    highlightLogLevels();
+    
+    // Initiële log level telling
+    updateLogLevelCounts(originalLogContent.split('\n'));
+});
+</script>
+
+<style>
+.log-container {
+    max-height: 600px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    border-radius: 0;
+}
+
+.log-pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 0.85rem;
+    font-family: 'Courier New', Courier, monospace;
+    padding: 15px;
+    margin: 0;
+}
+
+#log-stats {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+</style>
+{% endblock %}

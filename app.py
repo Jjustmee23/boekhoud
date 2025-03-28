@@ -10,7 +10,77 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+import logging.handlers
+import json
+from datetime import datetime
+
+# Zorg ervoor dat logs directory bestaat
+os.makedirs('logs', exist_ok=True)
+
+# Hoofdlogger configuratie
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+# Formatters
+standard_formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Aangepaste JSON formatter klasse
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_data = {
+            'timestamp': datetime.fromtimestamp(record.created).isoformat(),
+            'level': record.levelname,
+            'logger': record.name,
+            'message': record.getMessage(),
+            'path': record.pathname,
+            'line': record.lineno,
+            'function': record.funcName
+        }
+        
+        if record.exc_info:
+            log_data['exception'] = str(record.exc_info[1])
+            
+        return json.dumps(log_data)
+
+json_formatter = JsonFormatter()
+
+# Console handler voor ontwikkeling
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(standard_formatter)
+logger.addHandler(console_handler)
+
+# Roterende bestandshandler voor alle logs
+file_handler = logging.handlers.RotatingFileHandler(
+    'logs/app.log',
+    maxBytes=10*1024*1024,  # 10 MB
+    backupCount=5
+)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(standard_formatter)
+logger.addHandler(file_handler)
+
+# JSON-formathandler voor analyse
+json_handler = logging.handlers.RotatingFileHandler(
+    'logs/app.json.log',
+    maxBytes=10*1024*1024,  # 10 MB
+    backupCount=5
+)
+json_handler.setLevel(logging.DEBUG)
+json_handler.setFormatter(json_formatter)
+logger.addHandler(json_handler)
+
+# Alleen fouten naar aparte log
+error_handler = logging.handlers.RotatingFileHandler(
+    'logs/error.log',
+    maxBytes=5*1024*1024,  # 5 MB
+    backupCount=10
+)
+error_handler.setLevel(logging.ERROR)
+error_handler.setFormatter(standard_formatter)
+logger.addHandler(error_handler)
 
 # Log de MS Graph API configuratiegegevens (alleen voor debug)
 logging.info(f"MS_GRAPH_CLIENT_ID: {'Ingesteld' if os.environ.get('MS_GRAPH_CLIENT_ID') else 'Niet ingesteld'}")
@@ -124,6 +194,15 @@ def initialize_app():
 
 # Import routes at the end to avoid circular imports
 from routes import *
+
+# Registreer logs_monitor blueprint
+try:
+    from logs_monitor import logs_bp, register_error_notification_handlers
+    app.register_blueprint(logs_bp)
+    register_error_notification_handlers(app)
+    app.logger.info("Logs monitoring system geregistreerd")
+except ImportError as e:
+    app.logger.error(f"Fout bij het registreren van logs monitoring system: {str(e)}")
 
 # Initialize the app after all imports
 initialize_app()

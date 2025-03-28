@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Toegang geweigerd{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2 text-center">
+            <div class="error-template">
+                <h1>403</h1>
+                <h2>Toegang geweigerd</h2>
+                <div class="error-details mb-4">
+                    Sorry, je hebt geen toegang tot deze pagina.
+                </div>
+                <div class="error-actions">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-home"></i> Terug naar dashboard
+                    </a>
+                    <a href="javascript:history.back()" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Ga terug
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Logs Monitoring Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Logs Monitoring Dashboard</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">Error Logs</h5>
+                </div>
+                <div class="card-body" id="error-stats">
+                    <h2 class="card-text">Loading...</h2>
+                    <p class="card-text">Kritieke fouten in het systeem</p>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('logs.view_log', log_file='error.log') }}" class="btn btn-sm btn-outline-danger">Bekijk details</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">Warning Logs</h5>
+                </div>
+                <div class="card-body" id="warning-stats">
+                    <h2 class="card-text">Loading...</h2>
+                    <p class="card-text">Waarschuwingen die aandacht vereisen</p>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('logs.view_log', log_file='app.log') }}" class="btn btn-sm btn-outline-warning">Bekijk details</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">Info Logs</h5>
+                </div>
+                <div class="card-body" id="info-stats">
+                    <h2 class="card-text">Loading...</h2>
+                    <p class="card-text">Algemene systeeminformatie</p>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('logs.view_log', log_file='app.log') }}" class="btn btn-sm btn-outline-info">Bekijk details</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Recente Fouten</h5>
+                </div>
+                <div class="card-body">
+                    <div id="recent-errors" class="log-container">
+                        <p>Loading recent errors...</p>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('logs.logs_analytics') }}" class="btn btn-sm btn-outline-primary">Bekijk Analyse</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">Beschikbare Logbestanden</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Bestandsnaam</th>
+                                    <th>Grootte</th>
+                                    <th>Laatst Gewijzigd</th>
+                                    <th>Acties</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log_file in log_files %}
+                                <tr>
+                                    <td>{{ log_file.name }}</td>
+                                    <td>{{ log_file.size }}</td>
+                                    <td>{{ log_file.modified }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('logs.view_log', log_file=log_file.name) }}" class="btn btn-sm btn-primary">Bekijken</a>
+                                            <a href="{{ url_for('logs.view_log', log_file=log_file.name, lines=500) }}" class="btn btn-sm btn-secondary">Bekijk 500 regels</a>
+                                            <a href="{{ url_for('logs.api_get_logs', log_file=log_file.name) }}" class="btn btn-sm btn-info">JSON</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Haal logstatistieken op
+    fetch('{{ url_for("logs.api_get_stats") }}')
+        .then(response => response.json())
+        .then(data => {
+            // Bijwerken van stats kaarten
+            document.getElementById('error-stats').innerHTML = `
+                <h2 class="card-text">${data.error_count}</h2>
+                <p class="card-text">Kritieke fouten in het systeem</p>
+            `;
+            
+            document.getElementById('warning-stats').innerHTML = `
+                <h2 class="card-text">${data.warning_count}</h2>
+                <p class="card-text">Waarschuwingen die aandacht vereisen</p>
+            `;
+            
+            document.getElementById('info-stats').innerHTML = `
+                <h2 class="card-text">${data.info_count}</h2>
+                <p class="card-text">Algemene systeeminformatie</p>
+            `;
+            
+            // Bijwerken van recente fouten
+            const recentErrorsContainer = document.getElementById('recent-errors');
+            if (data.recent_errors && data.recent_errors.length > 0) {
+                recentErrorsContainer.innerHTML = '<pre class="log-pre">' + 
+                    data.recent_errors.join('\n') + '</pre>';
+            } else {
+                recentErrorsContainer.innerHTML = '<p class="text-success">Geen recente fouten gevonden!</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading log stats:', error);
+            document.getElementById('error-stats').innerHTML = '<p class="text-danger">Fout bij het laden van statistieken</p>';
+            document.getElementById('warning-stats').innerHTML = '<p class="text-danger">Fout bij het laden van statistieken</p>';
+            document.getElementById('info-stats').innerHTML = '<p class="text-danger">Fout bij het laden van statistieken</p>';
+            document.getElementById('recent-errors').innerHTML = '<p class="text-danger">Fout bij het laden van recente fouten</p>';
+        });
+});
+</script>
+
+<style>
+.log-container {
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.log-pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 0.85rem;
+    margin: 0;
+}
+</style>
+{% endblock %}

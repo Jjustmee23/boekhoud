@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Logs Analytics{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('logs.logs_dashboard') }}">Logs Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Logs Analyse</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Fouttrend (Laatste 7 dagen)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="error-trend-chart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">Log Niveaus Verdeling</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="log-levels-chart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">Log Bestanden Grootte</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="log-size-chart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">Meest Voorkomende Fouten</h5>
+                </div>
+                <div class="card-body" id="common-errors">
+                    <p>Laden van gegevens...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Error Trend Chart
+    const errorTrendData = {
+        labels: [{% for date in error_trend.keys() %}'{{ date }}',{% endfor %}],
+        datasets: [{
+            label: 'Aantal Fouten',
+            data: [{% for count in error_trend.values() %}{{ count }},{% endfor %}],
+            backgroundColor: 'rgba(220, 53, 69, 0.2)',
+            borderColor: 'rgba(220, 53, 69, 1)',
+            borderWidth: 2,
+            pointBackgroundColor: 'rgba(220, 53, 69, 1)',
+            tension: 0.3
+        }]
+    };
+    
+    new Chart(document.getElementById('error-trend-chart'), {
+        type: 'line',
+        data: errorTrendData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Foutentrend over tijd'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+    
+    // Haal logstatistieken op
+    fetch('{{ url_for("logs.api_get_stats") }}')
+        .then(response => response.json())
+        .then(data => {
+            // Log niveaus verdeling
+            const logLevelsData = {
+                labels: ['ERROR', 'WARNING', 'INFO'],
+                datasets: [{
+                    data: [data.error_count, data.warning_count, data.info_count],
+                    backgroundColor: [
+                        'rgba(220, 53, 69, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(13, 202, 240, 0.8)',
+                    ],
+                    borderColor: [
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(13, 202, 240, 1)',
+                    ],
+                    borderWidth: 1
+                }]
+            };
+            
+            new Chart(document.getElementById('log-levels-chart'), {
+                type: 'pie',
+                data: logLevelsData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Verdeling van logniveaus'
+                        }
+                    }
+                }
+            });
+            
+            // Log bestanden grootte
+            const labels = Object.keys(data.log_sizes);
+            const sizes = labels.map(label => {
+                // Converteer human-readable formaat naar een numerieke waarde voor de grafiek
+                const sizeStr = data.log_sizes[label];
+                const numPart = parseFloat(sizeStr.split(' ')[0]);
+                const unit = sizeStr.split(' ')[1];
+                
+                // Converteer naar KB voor de grafiek
+                switch(unit) {
+                    case 'B': return numPart / 1024;
+                    case 'KB': return numPart;
+                    case 'MB': return numPart * 1024;
+                    case 'GB': return numPart * 1024 * 1024;
+                    default: return numPart;
+                }
+            });
+            
+            const logSizeData = {
+                labels: labels,
+                datasets: [{
+                    label: 'Bestandsgrootte (KB)',
+                    data: sizes,
+                    backgroundColor: 'rgba(25, 135, 84, 0.6)',
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 1
+                }]
+            };
+            
+            new Chart(document.getElementById('log-size-chart'), {
+                type: 'bar',
+                data: logSizeData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Logbestanden grootte'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Grootte (KB)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Meest voorkomende fouten
+            if (data.recent_errors && data.recent_errors.length > 0) {
+                // Verzamel en tel unieke fouten
+                const errorMap = {};
+                data.recent_errors.forEach(error => {
+                    // Probeer het foutbericht te extraheren
+                    const messagePart = error.split(' - ').slice(2).join(' - ');
+                    if (!errorMap[messagePart]) {
+                        errorMap[messagePart] = 1;
+                    } else {
+                        errorMap[messagePart]++;
+                    }
+                });
+                
+                // Sorteer op frequentie
+                const sortedErrors = Object.entries(errorMap)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5);  // Top 5
+                
+                // HTML opbouwen
+                let errorHtml = '<div class="table-responsive"><table class="table table-striped">';
+                errorHtml += '<thead><tr><th>Foutmelding</th><th>Frequentie</th></tr></thead><tbody>';
+                
+                sortedErrors.forEach(([error, count]) => {
+                    errorHtml += `<tr><td>${error}</td><td><span class="badge bg-danger">${count}</span></td></tr>`;
+                });
+                
+                errorHtml += '</tbody></table></div>';
+                document.getElementById('common-errors').innerHTML = errorHtml;
+            } else {
+                document.getElementById('common-errors').innerHTML = '<p class="text-success">Geen recente fouten gevonden!</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading log stats:', error);
+            document.getElementById('common-errors').innerHTML = '<p class="text-danger">Fout bij het laden van statistieken</p>';
+        });
+});
+</script>
+{% endblock %}
