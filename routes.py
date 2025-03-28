@@ -2409,6 +2409,25 @@ def admin():
     invoice_count = 0
     email_settings = None
     
+    # Initialize email-related variables
+    ms_graph_client_id = ''
+    ms_graph_tenant_id = ''
+    ms_graph_client_secret = ''
+    ms_graph_sender_email = ''
+    ms_graph_shared_mailbox = ''
+    ms_graph_use_shared_mailbox = False
+    smtp_server = ''
+    smtp_port = ''
+    smtp_username = ''
+    smtp_password = ''
+    email_from = ''
+    email_from_name = ''
+    default_sender_name = ''
+    reply_to = ''
+    smtp_use_ssl = True
+    smtp_use_tls = False
+    use_ms_graph = True
+    
     if current_user.is_super_admin:
         # Super admins can see all users
         users = get_users()

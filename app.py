@@ -232,5 +232,4 @@ def split_filter(value, delimiter=','):
         return []
     return value.split(delimiter)
 
-# Initialize the app after all imports
-initialize_app()
+# App initialization is handled in main.py
