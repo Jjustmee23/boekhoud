@@ -2403,6 +2403,10 @@ def admin():
     # Abonnement informatie ophalen uit de database
     subscription = None
     workspace = None
+    users = []
+    workspaces = []
+    customer_count = 0
+    invoice_count = 0
     
     if current_user.is_super_admin:
         # Super admins can see all users
@@ -2527,20 +2531,20 @@ def admin():
                            subscription=subscription,
                            format_currency=format_currency,
                            # E-mail instellingen voor template
-                           ms_graph_client_id=ms_graph_client_id,
-                           ms_graph_tenant_id=ms_graph_tenant_id,
-                           ms_graph_client_secret=ms_graph_client_secret,
-                           ms_graph_sender_email=ms_graph_sender_email,
+                           ms_graph_client_id=ms_graph_client_id if 'ms_graph_client_id' in locals() else '',
+                           ms_graph_tenant_id=ms_graph_tenant_id if 'ms_graph_tenant_id' in locals() else '',
+                           ms_graph_client_secret=ms_graph_client_secret if 'ms_graph_client_secret' in locals() else '',
+                           ms_graph_sender_email=ms_graph_sender_email if 'ms_graph_sender_email' in locals() else '',
                            # Nieuwe velden voor gedeelde mailbox
                            ms_graph_shared_mailbox=ms_graph_shared_mailbox if 'ms_graph_shared_mailbox' in locals() else '',
                            ms_graph_use_shared_mailbox=ms_graph_use_shared_mailbox if 'ms_graph_use_shared_mailbox' in locals() else False,
                            # SMTP instellingen
-                           smtp_server=smtp_server,
-                           smtp_port=smtp_port,
-                           smtp_username=smtp_username,
-                           smtp_password=smtp_password,
-                           email_from=email_from,
-                           email_from_name=email_from_name,
+                           smtp_server=smtp_server if 'smtp_server' in locals() else '',
+                           smtp_port=smtp_port if 'smtp_port' in locals() else '',
+                           smtp_username=smtp_username if 'smtp_username' in locals() else '',
+                           smtp_password=smtp_password if 'smtp_password' in locals() else '',
+                           email_from=email_from if 'email_from' in locals() else '',
+                           email_from_name=email_from_name if 'email_from_name' in locals() else '',
                            # Nieuwe velden voor e-mailinstellingen
                            default_sender_name=default_sender_name if 'default_sender_name' in locals() else '',
                            reply_to=reply_to if 'reply_to' in locals() else '',
