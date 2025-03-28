@@ -2369,11 +2369,19 @@ def bulk_upload_results():
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
-    return render_template('base.html', error='Page not found', now=datetime.now()), 404
+    logger.warning(f"404 Pagina niet gevonden: {request.path}")
+    return render_template('404.html', now=datetime.now()), 404
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    logger.warning(f"403 Toegang geweigerd: {request.path} door gebruiker {current_user.username if current_user.is_authenticated else 'onbekend'}")
+    return render_template('403.html', now=datetime.now()), 403
 
 @app.errorhandler(500)
 def internal_error(error):
-    return render_template('base.html', error='An internal error occurred', now=datetime.now()), 500
+    # Log de fout met traceback voor betere debugging
+    logger.error(f"500 Server error: {str(error)}\n{traceback.format_exc()}")
+    return render_template('500.html', now=datetime.now()), 500
 
 # Admin routes
 @app.route('/admin')

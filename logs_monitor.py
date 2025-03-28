@@ -31,7 +31,7 @@ def check_admin_access():
 def logs_dashboard():
     """Hoofdpagina voor log monitoring"""
     log_files = _get_available_log_files()
-    return render_template('logs_dashboard.html', log_files=log_files)
+    return render_template('logs_dashboard.html', log_files=log_files, now=datetime.now())
 
 @logs_bp.route('/view/<log_file>')
 @login_required
@@ -54,7 +54,8 @@ def view_log(log_file):
     return render_template('log_viewer.html', 
                            log_file=log_file, 
                            log_content=log_content,
-                           lines_count=lines_count)
+                           lines_count=lines_count,
+                           now=datetime.now())
 
 @logs_bp.route('/api/logs/<log_file>')
 @login_required
@@ -100,12 +101,44 @@ def api_get_stats():
     }
     return jsonify(stats)
 
+@logs_bp.route('/error-test')
+@login_required
+def error_test():
+    """Testpagina om verschillende errors te genereren voor log testing"""
+    error_type = request.args.get('type', 'info')
+    
+    if not current_user.is_admin and not current_user.is_super_admin:
+        logger.warning(f"Niet-admin gebruiker probeerde error-test uit te voeren: {current_user.username}")
+        abort(403)
+    
+    if error_type == 'info':
+        logger.info("Test INFO bericht gegenereerd via error-test")
+        flash("INFO bericht is gelogd", "info")
+    elif error_type == 'warning':
+        logger.warning("Test WARNING bericht gegenereerd via error-test")
+        flash("WARNING bericht is gelogd", "warning")
+    elif error_type == 'error':
+        logger.error("Test ERROR bericht gegenereerd via error-test")
+        flash("ERROR bericht is gelogd", "danger")
+    elif error_type == 'exception':
+        try:
+            # Genereer een bewuste exceptie
+            undefined_variable / 10
+        except Exception as e:
+            logger.exception(f"Test EXCEPTION gegenereerd via error-test: {str(e)}")
+            flash(f"EXCEPTION is gelogd: {str(e)}", "danger")
+    elif error_type == '500':
+        # Simuleer een 500 interne server fout
+        abort(500)
+    
+    return render_template('logs_dashboard.html', log_files=_get_available_log_files(), now=datetime.now())
+
 @logs_bp.route('/analytics')
 @login_required
 def logs_analytics():
     """Pagina voor loganalyse en visualisatie"""
     error_trend = _analyze_error_trend()
-    return render_template('logs_analytics.html', error_trend=error_trend)
+    return render_template('logs_analytics.html', error_trend=error_trend, now=datetime.now())
 
 def _get_available_log_files():
     """Verkrijg een lijst van beschikbare logbestanden"""
