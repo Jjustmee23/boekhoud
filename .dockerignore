@@ -2,7 +2,12 @@
 .git
 .gitignore
 
-# Python cache bestanden
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
@@ -23,30 +28,36 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Geüploade bestanden & gebruikersinhoud (worden gemount als volume)
-static/uploads/*
-
-# Docker bestanden
-.dockerignore
-Dockerfile
-docker-compose.yml
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
 
 # Virtual environment
 venv/
 ENV/
 
-# IDE bestanden
-.idea/
-.vscode/
-*.sublime-workspace
-*.sublime-project
+# Data en logs 
+logs/*.log
+static/uploads/*
+*.sqlite3
+*.db
 
-# Logs
-logs/
-*.log
-
-# Lokale configuratie bestanden
+# Configuratie en lokale bestanden
 .env
 .env.local
-.env.*.local
+.env.development
+.env.test
+.env.production
+*.local
+
+# Editor bestanden
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Documentatie
+*.md
+LICENSE
+docs/
