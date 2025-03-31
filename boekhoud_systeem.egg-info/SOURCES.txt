@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+setup.py
+boekhoud_systeem.egg-info/PKG-INFO
+boekhoud_systeem.egg-info/SOURCES.txt
+boekhoud_systeem.egg-info/dependency_links.txt
+boekhoud_systeem.egg-info/requires.txt
+boekhoud_systeem.egg-info/top_level.txt

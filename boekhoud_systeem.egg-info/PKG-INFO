@@ -1,0 +1,23 @@
+Metadata-Version: 2.4
+Name: boekhoud-systeem
+Version: 0.1.0
+Summary: Boekhoud Systeem - Invoicing and Accounting System
+Requires-Python: >=3.11
+Requires-Dist: email-validator>=2.2.0
+Requires-Dist: flask-login>=0.6.3
+Requires-Dist: flask>=3.1.0
+Requires-Dist: flask-sqlalchemy>=3.1.1
+Requires-Dist: gunicorn>=23.0.0
+Requires-Dist: openpyxl>=3.1.5
+Requires-Dist: pandas>=2.2.3
+Requires-Dist: psycopg2-binary>=2.9.10
+Requires-Dist: sqlalchemy>=2.0.39
+Requires-Dist: trafilatura>=2.0.0
+Requires-Dist: weasyprint>=65.0
+Requires-Dist: werkzeug>=3.1.3
+Requires-Dist: msal>=1.32.0
+Requires-Dist: pyjwt>=2.10.1
+Requires-Dist: requests>=2.32.3
+Requires-Dist: python-dotenv>=1.1.0
+Requires-Dist: mollie-api-python>=3.7.4
+Requires-Dist: setuptools>=78.1.0
