@@ -2,6 +2,44 @@
 
 Deze gids helpt je bij het oplossen van veelvoorkomende problemen met het Boekhoud Systeem.
 
+## Installatie problemen
+
+### Probleem: "Kan bestanden niet downloaden" of "Repository niet beschikbaar" 
+
+**Oplossing:**
+
+1. **Gebruik lokale bestanden:**
+   Als je al bestanden hebt gedownload, plaats ze in een map en voer het installatiescript uit vanuit die map:
+   ```bash
+   cd /pad/naar/bestanden
+   sudo ./ubuntu-setup.sh
+   ```
+
+2. **Handmatige kopiëren:**
+   Maak de installatiemap handmatig aan en kopieer de bestanden:
+   ```bash
+   sudo mkdir -p /opt/boekhoud
+   sudo cp -r /pad/naar/bestanden/* /opt/boekhoud/
+   cd /opt/boekhoud
+   ```
+
+3. **Git repository problemen:**
+   Als je een GitHub repository URL hebt opgegeven maar deze kan niet worden opgehaald:
+   ```bash
+   # Controleer of git is geïnstalleerd
+   sudo apt install -y git
+   
+   # Probeer repository handmatig te klonen
+   git clone https://github.com/gebruiker/boekhoud.git /tmp/boekhoud
+   sudo cp -r /tmp/boekhoud/* /opt/boekhoud/
+   ```
+
+4. **Internetverbinding controleren:**
+   ```bash
+   ping -c 4 github.com
+   ping -c 4 8.8.8.8
+   ```
+
 ## Applicatie is niet bereikbaar
 
 ### Probleem: Website toont "Connection refused" of laadt niet

@@ -13,6 +13,18 @@ Dit document biedt een overzicht van alle beschikbare documentatie voor het Boek
 | [one-command-install.sh](one-command-install.sh) | Script voor automatische installatie in één commando |
 | [ubuntu-setup.sh](ubuntu-setup.sh) | Script voor automatische setup op Ubuntu 22.04 |
 
+## Alternatieve Installatiemethoden
+
+Als de standaard installatiemethode niet werkt, zijn er verschillende alternatieven:
+
+1. **Handmatige installatie**: Download alle bestanden en plaats ze in de installatiemap (/opt/boekhoud).
+
+2. **Lokale bestanden gebruiken**: 
+   - Plaats de bestanden in een map op de server
+   - Voer het script uit vanuit dezelfde map: `sudo ./ubuntu-setup.sh`
+
+3. **Fallback installatie**: Het `one-command-install.sh` script kan nu ook lokale kopieën van de installatiebestanden gebruiken als deze beschikbaar zijn.
+
 ## Dagelijks Beheer
 
 | Document | Beschrijving |

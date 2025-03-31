@@ -29,6 +29,8 @@ sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 ```
 
 ## 3. Installatie via one-command script
+
+### Optie A: Installatie vanaf GitHub
 ```bash
 # Download het one-command installatiescript
 wget https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/one-command-install.sh
@@ -39,6 +41,39 @@ chmod +x one-command-install.sh
 # Voer het installatiescript uit
 sudo ./one-command-install.sh
 ```
+
+### Optie B: Installatie met lokale bestanden
+Als je het bestand al hebt gedownload en opgeslagen op je systeem:
+```bash
+# Navigeer naar de directory met de bestanden
+cd /pad/naar/bestanden
+
+# Maak het script uitvoerbaar
+chmod +x one-command-install.sh
+
+# Voer het installatiescript uit
+sudo ./one-command-install.sh
+```
+
+### Optie C: Handmatige installatie
+Als beide bovenstaande opties niet werken:
+```bash
+# Maak de installatiemap aan
+sudo mkdir -p /opt/boekhoud
+
+# Kopieer alle bestanden naar de installatiemap
+sudo cp -r /pad/naar/bestanden/* /opt/boekhoud/
+
+# Ga naar de installatiemap
+cd /opt/boekhoud
+
+# Maak scripts uitvoerbaar
+sudo find . -name "*.sh" -exec chmod +x {} \;
+
+# Configureer het systeem
+sudo ./ubuntu-setup.sh
+```
+
 Volg de instructies op het scherm en geef waar nodig input.
 
 ## 4. Nginx installeren en configureren

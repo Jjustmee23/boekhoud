@@ -51,10 +51,30 @@ fi
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-echo -e "${YELLOW}Installatiescript downloaden...${NC}"
-wget -q https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/ubuntu-setup.sh -O "${TEMP_DIR}/ubuntu-setup.sh" || {
-    echo -e "${RED}Kan installatiescript niet downloaden. Controleer de URL.${NC}"
-    exit 1
+echo -e "${YELLOW}Installatiescript voorbereiden...${NC}"
+
+# Probeer het bestand te downloaden via HTTP
+if wget -q https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/ubuntu-setup.sh -O "${TEMP_DIR}/ubuntu-setup.sh"; then
+    echo -e "${GREEN}Script succesvol gedownload.${NC}"
+else
+    echo -e "${YELLOW}Kan script niet downloaden via HTTP. Probeer lokale kopie te gebruiken...${NC}"
+    
+    # Controleer of we een lokale kopie hebben
+    if [ -f "./ubuntu-setup.sh" ]; then
+        echo -e "${GREEN}Lokale kopie gevonden, gebruiken...${NC}"
+        cp "./ubuntu-setup.sh" "${TEMP_DIR}/ubuntu-setup.sh"
+    else
+        # Als geen lokale kopie, vraag gebruiker om locatie
+        echo -e "${YELLOW}Geen lokale kopie gevonden. Geef het pad naar het bestand:${NC}"
+        read -p "Pad naar ubuntu-setup.sh: " setup_path
+        
+        if [ -f "$setup_path" ]; then
+            cp "$setup_path" "${TEMP_DIR}/ubuntu-setup.sh"
+        else
+            echo -e "${RED}Kan installatiescript niet vinden. Controleer het pad.${NC}"
+            exit 1
+        fi
+    fi
 }
 
 # Maak script uitvoerbaar

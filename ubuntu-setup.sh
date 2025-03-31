@@ -166,15 +166,50 @@ mkdir -p ${INSTALL_DIR} || {
     exit 1
 }
 
-# Installeer vanuit GitHub als een repository is opgegeven
+# Bepaal installatiemethode
+echo -e "${YELLOW}Bepalen hoe de bestanden worden geïnstalleerd...${NC}"
+
+# Optie 1: Installeer vanuit GitHub als een repository is opgegeven
 if [ -n "$GITHUB_REPO" ]; then
     echo -e "${YELLOW}Code ophalen vanuit GitHub: ${GITHUB_REPO}${NC}"
-    git clone "${GITHUB_REPO}" "${INSTALL_DIR}" || {
+    
+    # Probeer git clone, maar ga door als het faalt
+    if git clone "${GITHUB_REPO}" "${INSTALL_DIR}"; then
+        echo -e "${GREEN}Repository succesvol gekloond.${NC}"
+    else
         echo -e "${RED}Kan repository niet clonen: ${GITHUB_REPO}${NC}"
-        exit 1
+        echo -e "${YELLOW}Alternatieve installatiemethode proberen...${NC}"
+        
+        # Verwijder eventuele resten van de mislukte kloon
+        rm -rf "${INSTALL_DIR}" && mkdir -p "${INSTALL_DIR}"
+        
+        # Ga naar optie 2 of 3
+        GITHUB_REPO=""
+    fi
+fi
+
+# Optie 2: Kopieer bestanden uit huidige directory
+if [ -z "$GITHUB_REPO" ] && [ -f "./docker-compose.yml" ] && [ -f "./Dockerfile" ]; then
+    echo -e "${YELLOW}Benodigde bestanden gevonden in huidige directory.${NC}"
+    echo -e "${YELLOW}Bestanden kopiëren naar ${INSTALL_DIR}...${NC}"
+    
+    cp -r ./* "${INSTALL_DIR}/" || {
+        echo -e "${RED}Kan bestanden niet kopiëren naar ${INSTALL_DIR}${NC}"
+        echo -e "${YELLOW}Ga naar optie 3: handmatige kopiëren${NC}"
     }
-else
-    echo -e "${YELLOW}Geen GitHub repository opgegeven, handmatige installatie vereist.${NC}"
+    
+    if [ -f "${INSTALL_DIR}/docker-compose.yml" ]; then
+        echo -e "${GREEN}Bestanden succesvol gekopieerd.${NC}"
+    else
+        # Ga naar optie 3 als kopiëren faalt
+        echo -e "${RED}Kopiëren mislukt, probeer handmatig.${NC}"
+        rm -rf "${INSTALL_DIR}" && mkdir -p "${INSTALL_DIR}"
+    fi
+fi
+
+# Optie 3: Handmatige installatie (als laatste redmiddel)
+if [ -z "$GITHUB_REPO" ] && [ ! -f "${INSTALL_DIR}/docker-compose.yml" ]; then
+    echo -e "${YELLOW}Handmatige installatie vereist.${NC}"
     echo -e "${YELLOW}Kopieer alle bestanden naar: ${INSTALL_DIR}${NC}"
     
     # Wachten op bevestiging dat bestanden zijn gekopieerd
