@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installatie script voor Ubuntu 22.04 voor Facturatie & Boekhouding Systeem
+# Installatie script voor Ubuntu 22.04 voor Boekhoud Systeem
 # Dit script installeert alle benodigde software en configureert het systeem vanaf nul
 
 set -e  # Script stopt bij een fout
@@ -29,7 +29,7 @@ if ! grep -q "Ubuntu 22.04" /etc/os-release; then
 fi
 
 echo -e "${YELLOW}====================================================${NC}"
-echo -e "${YELLOW}Facturatie & Boekhouding Systeem - Ubuntu 22.04 Setup${NC}"
+echo -e "${YELLOW}Boekhoud Systeem - Ubuntu 22.04 Setup${NC}"
 echo -e "${YELLOW}====================================================${NC}"
 
 # Functie om gebruiker om bevestiging te vragen
@@ -42,8 +42,8 @@ ask_yes_no() {
 }
 
 # Vraag voor installatie locatie
-read -p "Waar wil je de applicatie installeren? [/opt/facturatie]: " INSTALL_DIR
-INSTALL_DIR=${INSTALL_DIR:-/opt/facturatie}
+read -p "Waar wil je de applicatie installeren? [/opt/boekhoud]: " INSTALL_DIR
+INSTALL_DIR=${INSTALL_DIR:-/opt/boekhoud}
 
 # Vraag voor domeinnaam
 read -p "Voer de domeinnaam in voor deze server (laat leeg voor alleen IP): " DOMAIN_NAME
@@ -238,7 +238,7 @@ else
 # Database instellingen
 DB_USER=postgres
 DB_PASSWORD=${DB_PASSWORD}
-DB_NAME=facturatie
+DB_NAME=boekhoud
 DB_HOST=db
 DB_PORT=5432
 
@@ -266,7 +266,7 @@ fi
 # Maak Nginx configuratie bestand
 if [ -n "$DOMAIN_NAME" ]; then
     # Configuratie met domeinnaam
-    cat > /etc/nginx/sites-available/facturatie << EOF
+    cat > /etc/nginx/sites-available/boekhoud << EOF
 server {
     listen 80;
     server_name ${DOMAIN_NAME};
@@ -290,7 +290,7 @@ server {
 EOF
 else
     # Configuratie zonder specifieke domeinnaam
-    cat > /etc/nginx/sites-available/facturatie << EOF
+    cat > /etc/nginx/sites-available/boekhoud << EOF
 server {
     listen 80 default_server;
     server_name _;
@@ -315,7 +315,7 @@ EOF
 fi
 
 # Activeer de Nginx configuratie
-ln -sf /etc/nginx/sites-available/facturatie /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/boekhoud /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
 # Test de Nginx configuratie

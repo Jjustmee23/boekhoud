@@ -1,5 +1,5 @@
 #!/bin/bash
-# One-command installatie script voor Facturatie & Boekhouding Systeem
+# One-command installatie script voor Boekhoud Systeem
 # Dit script downloadt en voert het ubuntu-setup.sh script uit
 
 set -e  # Script stopt bij een fout
@@ -11,7 +11,7 @@ RED='\033[0;31m'
 NC='\033[0m' # Geen kleur
 
 echo -e "${YELLOW}====================================================${NC}"
-echo -e "${YELLOW}Facturatie & Boekhouding Systeem - One-Command Install${NC}"
+echo -e "${YELLOW}Boekhoud Systeem - One-Command Install${NC}"
 echo -e "${YELLOW}====================================================${NC}"
 
 # Controleer of script als root wordt uitgevoerd
@@ -52,7 +52,7 @@ TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
 echo -e "${YELLOW}Installatiescript downloaden...${NC}"
-wget -q https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/ubuntu-setup.sh -O "${TEMP_DIR}/ubuntu-setup.sh" || {
+wget -q https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/ubuntu-setup.sh -O "${TEMP_DIR}/ubuntu-setup.sh" || {
     echo -e "${RED}Kan installatiescript niet downloaden. Controleer de URL.${NC}"
     exit 1
 }
