@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installatie script voor Facturatie & Boekhouding Systeem
+# Installatie script voor Boekhoud Systeem
 # Installeert alle benodigde software en configureert het systeem
 
 set -e  # Script stopt bij een fout
@@ -26,12 +26,12 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo -e "${YELLOW}====================================================${NC}"
-echo -e "${YELLOW}Facturatie & Boekhouding Systeem - Installatie${NC}"
+echo -e "${YELLOW}Boekhoud Systeem - Installatie${NC}"
 echo -e "${YELLOW}====================================================${NC}"
 
 # Instellingsvariabelen
-INSTALL_DIR="/opt/facturatie"
-GITHUB_REPO="https://github.com/gebruiker/facturatie-systeem.git"
+INSTALL_DIR="/opt/boekhoud"
+GITHUB_REPO="https://github.com/Jjustmee23/boekhoud.git"
 DB_PASSWORD=$(tr -dc 'A-Za-z0-9!"#$%&()*+,-./:;<=>?@[\]^_`{|}~' </dev/urandom | head -c 16)
 SESSION_SECRET=$(tr -dc 'A-Za-z0-9!"#$%&()*+,-./:;<=>?@[\]^_`{|}~' </dev/urandom | head -c 32)
 ENV_FILE="${INSTALL_DIR}/.env"
@@ -202,7 +202,7 @@ else
     echo "DB_PASSWORD=${DB_PASSWORD}" >> ${ENV_FILE}
     echo "SESSION_SECRET=${SESSION_SECRET}" >> ${ENV_FILE}
     echo "DB_USER=postgres" >> ${ENV_FILE}
-    echo "DB_NAME=facturatie" >> ${ENV_FILE}
+    echo "DB_NAME=boekhoud" >> ${ENV_FILE}
     echo "DB_HOST=db" >> ${ENV_FILE}
     echo "DB_PORT=5432" >> ${ENV_FILE}
 fi
@@ -306,7 +306,7 @@ fi
 # Cron job instellen voor database backups (optioneel)
 if ask_yes_no "Wil je automatische dagelijkse database backups instellen?"; then
     BACKUP_SCRIPT="${INSTALL_DIR}/backup-database.sh"
-    CRON_ENTRY="0 3 * * * ${BACKUP_SCRIPT} > /var/log/backup-facturatie.log 2>&1"
+    CRON_ENTRY="0 3 * * * ${BACKUP_SCRIPT} > /var/log/backup-boekhoud.log 2>&1"
     
     # Voeg cron job toe voor root gebruiker
     (crontab -l 2>/dev/null || echo "") | grep -v "${BACKUP_SCRIPT}" | { cat; echo "${CRON_ENTRY}"; } | crontab -

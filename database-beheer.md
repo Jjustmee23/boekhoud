@@ -8,7 +8,7 @@ De PostgreSQL database is geconfigureerd voor maximale gegevensintegriteit en ge
 
 ### Belangrijke componenten:
 
-1. **Benoemde volumes**: In `docker-compose.yml` gebruiken we een specifiek benoemd volume (`facturatie_postgres_data`) zodat het volume ook na het verwijderen van de containers blijft bestaan.
+1. **Benoemde volumes**: In `docker-compose.yml` gebruiken we een specifiek benoemd volume (`postgres_data`) zodat het volume ook na het verwijderen van de containers blijft bestaan.
 
 2. **WAL (Write-Ahead Logging)**: Het systeem is ingesteld met `wal_level=logical` wat uitgebreide logging mogelijk maakt en betere gegevensbescherming biedt.
 

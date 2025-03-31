@@ -22,10 +22,10 @@ ask_yes_no() {
 # Instellingen
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_SCRIPT="${SCRIPT_DIR}/backup-database.sh"
-LOGFILE="/var/log/facturatie-backup.log"
+LOGFILE="/var/log/boekhoud-backup.log"
 
 echo -e "${YELLOW}====================================================${NC}"
-echo -e "${YELLOW}Facturatie Systeem - Backup Planning${NC}"
+echo -e "${YELLOW}Boekhoud Systeem - Backup Planning${NC}"
 echo -e "${YELLOW}====================================================${NC}"
 
 # Controleer of het backup script bestaat

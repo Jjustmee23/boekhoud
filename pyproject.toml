@@ -1,7 +1,11 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "repl-nix-workspace"
+name = "boekhoud-systeem"
 version = "0.1.0"
-description = "Add your description here"
+description = "Boekhoud Systeem - Invoicing and Accounting System"
 requires-python = ">=3.11"
 dependencies = [
     "email-validator>=2.2.0",

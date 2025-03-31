@@ -13,12 +13,12 @@ services:
       - uploads_data:/app/static/uploads
       - backups_data:/app/backups
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-facturatie}
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-boekhoud}
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_NAME=${DB_NAME:-facturatie}
+      - DB_NAME=${DB_NAME:-boekhoud}
       - SESSION_SECRET=${SESSION_SECRET:-default_secret_change_this_in_production}
       - TZ=Europe/Amsterdam
     networks:
@@ -32,7 +32,7 @@ services:
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
-      - POSTGRES_DB=${DB_NAME:-facturatie}
+      - POSTGRES_DB=${DB_NAME:-boekhoud}
       - TZ=Europe/Amsterdam
     ports:
       - "5432:5432"

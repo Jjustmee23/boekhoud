@@ -1,5 +1,5 @@
 #!/bin/bash
-# Database backup script voor Facturatie & Boekhouding Systeem
+# Database backup script voor Boekhoud Systeem
 # Maakt een backup van de PostgreSQL database
 
 set -e  # Script stopt bij een fout
@@ -14,7 +14,7 @@ NC='\033[0m' # Geen kleur
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="${SCRIPT_DIR}/backups"
 DATE_FORMAT=$(date +"%Y-%m-%d_%H-%M-%S")
-BACKUP_FILE="${BACKUP_DIR}/facturatie_backup_${DATE_FORMAT}.sql.gz"
+BACKUP_FILE="${BACKUP_DIR}/boekhoud_backup_${DATE_FORMAT}.sql.gz"
 KEEP_DAYS=30  # Hoeveel dagen backups bewaren
 
 # Controleer of .env bestand bestaat
@@ -27,13 +27,13 @@ DB_HOST=${DB_HOST:-db}
 DB_PORT=${DB_PORT:-5432}
 DB_USER=${DB_USER:-postgres}
 DB_PASSWORD=${DB_PASSWORD:-postgres}
-DB_NAME=${DB_NAME:-facturatie}
+DB_NAME=${DB_NAME:-boekhoud}
 
 # Maak backup directory als deze niet bestaat
 mkdir -p "${BACKUP_DIR}"
 
 echo -e "${YELLOW}====================================================${NC}"
-echo -e "${YELLOW}Facturatie Systeem - Database Backup${NC}"
+echo -e "${YELLOW}Boekhoud Systeem - Database Backup${NC}"
 echo -e "${YELLOW}====================================================${NC}"
 echo -e "${YELLOW}Backup aanmaken in: ${BACKUP_FILE}${NC}"
 
@@ -77,7 +77,7 @@ docker_backup() {
     DB_HOST=$(docker-compose exec db printenv POSTGRES_HOST 2>/dev/null || echo "db")
     DB_PORT=$(docker-compose exec db printenv POSTGRES_PORT 2>/dev/null || echo "5432")
     DB_USER=$(docker-compose exec db printenv POSTGRES_USER 2>/dev/null || echo "postgres")
-    DB_NAME=$(docker-compose exec db printenv POSTGRES_DB 2>/dev/null || echo "facturatie")
+    DB_NAME=$(docker-compose exec db printenv POSTGRES_DB 2>/dev/null || echo "boekhoud")
     
     # Maak backup met pg_dump in de database container
     docker-compose exec db pg_dump -U ${DB_USER} ${DB_NAME} | gzip > "${BACKUP_FILE}" || {
@@ -101,7 +101,7 @@ fi
 
 # Verwijder oude backups
 echo -e "${YELLOW}Oude backups verwijderen (ouder dan ${KEEP_DAYS} dagen)...${NC}"
-find "${BACKUP_DIR}" -type f -name "facturatie_backup_*.sql.gz" -mtime +${KEEP_DAYS} -delete
+find "${BACKUP_DIR}" -type f -name "boekhoud_backup_*.sql.gz" -mtime +${KEEP_DAYS} -delete
 
 # Backup voltooid
 echo -e "${GREEN}====================================================${NC}"
@@ -111,7 +111,7 @@ echo -e "${YELLOW}Backup bestand: ${BACKUP_FILE}${NC}"
 
 # Toon backup statistieken
 BACKUP_SIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
-BACKUP_COUNT=$(find "${BACKUP_DIR}" -type f -name "facturatie_backup_*.sql.gz" | wc -l)
+BACKUP_COUNT=$(find "${BACKUP_DIR}" -type f -name "boekhoud_backup_*.sql.gz" | wc -l)
 TOTAL_SIZE=$(du -sh "${BACKUP_DIR}" | cut -f1)
 
 echo -e "${YELLOW}Backup grootte: ${BACKUP_SIZE}${NC}"

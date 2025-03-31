@@ -1,5 +1,5 @@
 #!/bin/bash
-# Database restore script voor Facturatie & Boekhouding Systeem
+# Database restore script voor Boekhoud Systeem
 # Herstelt een backup van de PostgreSQL database
 
 set -e  # Script stopt bij een fout
@@ -33,10 +33,10 @@ DB_HOST=${DB_HOST:-db}
 DB_PORT=${DB_PORT:-5432}
 DB_USER=${DB_USER:-postgres}
 DB_PASSWORD=${DB_PASSWORD:-postgres}
-DB_NAME=${DB_NAME:-facturatie}
+DB_NAME=${DB_NAME:-boekhoud}
 
 echo -e "${YELLOW}====================================================${NC}"
-echo -e "${YELLOW}Facturatie Systeem - Database Herstel${NC}"
+echo -e "${YELLOW}Boekhoud Systeem - Database Herstel${NC}"
 echo -e "${YELLOW}====================================================${NC}"
 
 # Function to check if we're in a Docker environment
@@ -114,7 +114,7 @@ docker_restore() {
     DB_HOST=$(docker-compose exec db printenv POSTGRES_HOST 2>/dev/null || echo "db")
     DB_PORT=$(docker-compose exec db printenv POSTGRES_PORT 2>/dev/null || echo "5432")
     DB_USER=$(docker-compose exec db printenv POSTGRES_USER 2>/dev/null || echo "postgres")
-    DB_NAME=$(docker-compose exec db printenv POSTGRES_DB 2>/dev/null || echo "facturatie")
+    DB_NAME=$(docker-compose exec db printenv POSTGRES_DB 2>/dev/null || echo "boekhoud")
     
     # Kopieer backup bestand naar container
     echo -e "${YELLOW}Backup bestand naar container kopiëren...${NC}"

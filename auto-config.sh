@@ -1,5 +1,5 @@
 #!/bin/bash
-# Automatische configuratie generator voor facturatie systeem
+# Automatische configuratie generator voor boekhoud systeem
 # Dit script genereert een werkende .env configuratie en zorgt voor database setup
 
 set -e  # Script stopt bij een fout
@@ -64,7 +64,7 @@ else
 # Gegenereerd op: $(date)
 
 # Database configuratie
-DATABASE_URL=postgresql://postgres:password@db:5432/facturatie
+DATABASE_URL=postgresql://postgres:password@db:5432/boekhoud
 
 # Flask secret key (willekeurig gegenereerd)
 FLASK_SECRET_KEY=
@@ -113,9 +113,9 @@ echo -e "${YELLOW}Willekeurig database wachtwoord gegenereerd.${NC}"
 
 # Update database connection string
 if grep -q "DATABASE_URL" "${TEMP_ENV}"; then
-    sed -i "s|DATABASE_URL=.*|DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@db:5432/facturatie|g" "${TEMP_ENV}"
+    sed -i "s|DATABASE_URL=.*|DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@db:5432/boekhoud|g" "${TEMP_ENV}"
 else
-    echo "DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@db:5432/facturatie" >> "${TEMP_ENV}"
+    echo "DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@db:5432/boekhoud" >> "${TEMP_ENV}"
 fi
 
 # Update Flask secret key

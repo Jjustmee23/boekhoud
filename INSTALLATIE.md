@@ -1,6 +1,6 @@
-# Facturatie & Boekhouding Systeem - Installatie Handleiding
+# Boekhoud Systeem - Installatie Handleiding
 
-Deze handleiding helpt bij het installeren en configureren van het Facturatie & Boekhouding Systeem op een schone Ubuntu 22.04 server.
+Deze handleiding helpt bij het installeren en configureren van het Boekhoud Systeem op een schone Ubuntu 22.04 server.
 
 ## Inhoudsopgave
 

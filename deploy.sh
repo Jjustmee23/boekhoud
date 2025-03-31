@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deployment script voor Facturatie & Boekhouding Systeem
+# Deployment script voor Boekhoud Systeem
 # Dit script update de applicatie vanuit Git en herstart de containers
 
 set -e  # Script stopt bij een fout
@@ -26,7 +26,7 @@ BACKUP_BEFORE_DEPLOY=true
 GIT_BRANCH="main"  # of master, afhankelijk van de repository
 
 echo -e "${YELLOW}====================================================${NC}"
-echo -e "${YELLOW}Facturatie Systeem - Deployment${NC}"
+echo -e "${YELLOW}Boekhoud Systeem - Deployment${NC}"
 echo -e "${YELLOW}====================================================${NC}"
 
 # Controleer of docker-compose beschikbaar is
