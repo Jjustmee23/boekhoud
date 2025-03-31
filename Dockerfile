@@ -77,6 +77,10 @@ RUN mkdir -p /app/static/uploads /app/logs \
 # Kopieer de applicatiecode
 COPY --chown=appuser:appuser . /app/
 
+# Maak migratie en script bestanden uitvoerbaar
+RUN chmod +x /app/run_migrations.py || echo "run_migrations.py not found, skipping"
+RUN chmod +x /app/*.sh || echo "No shell scripts found, skipping"
+
 # Verifieer dat de logmappen bestaan en toegankelijk zijn
 RUN mkdir -p /app/logs \
     && touch /app/logs/app.log /app/logs/app.json.log /app/logs/error.log \

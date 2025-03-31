@@ -1,35 +1,43 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
-# Controleer of we als root draaien (voor rechten)
-if [ "$(id -u)" = "0" ]; then
-  # Maak logbestanden aan als deze niet bestaan
-  mkdir -p /app/logs
-  touch /app/logs/app.log /app/logs/app.json.log /app/logs/error.log
+echo "Docker entrypoint script gestart"
 
-  # Zet juiste rechten op logbestanden en directories
-  chmod -R 777 /app/logs
-  chown -R appuser:appuser /app/logs
-
-  # Maak static/uploads directory als deze niet bestaat
-  mkdir -p /app/static/uploads/subscriptions
-  chmod -R 777 /app/static/uploads
-  chown -R appuser:appuser /app/static/uploads
-  
-  # Voer database migraties uit als appuser
-  echo "Voer database migraties uit..."
-  gosu appuser python /app/run_migrations.py
-  
-  # Voer het commando uit als appuser
-  echo "Rechten ingesteld, start applicatie als appuser..."
-  exec gosu appuser "$@"
-else
-  # Als we niet als root draaien, direct uitvoeren
-  echo "Start applicatie direct..."
-  
-  # Voer database migraties uit
-  echo "Voer database migraties uit..."
-  python /app/run_migrations.py
-  
-  exec "$@"
+# Als dit de web service is, wacht dan tot de database beschikbaar is en voer migraties uit
+if [ "$1" = "web" ] || [ "$1" = "gunicorn" ]; then
+    echo "Web service gedetecteerd, wachten op database..."
+    
+    # Eerste korte wachttijd om te zorgen dat de database container is opgestart
+    sleep 5
+    
+    # Controleer of database beschikbaar is
+    MAX_TRIES=30
+    CURRENT_TRY=1
+    
+    echo "Database beschikbaarheid controleren..."
+    until python -c "import sys, os, psycopg2; sys.exit(0 if psycopg2.connect(os.environ.get('DATABASE_URL')) else 1)" 2>/dev/null; do
+        echo "Wachten op database... poging ${CURRENT_TRY}/${MAX_TRIES}"
+        CURRENT_TRY=$((CURRENT_TRY + 1))
+        
+        if [ ${CURRENT_TRY} -gt ${MAX_TRIES} ]; then
+            echo "Database niet beschikbaar na ${MAX_TRIES} pogingen, opgegeven"
+            exit 1
+        fi
+        
+        sleep 2
+    done
+    
+    echo "Database is nu beschikbaar!"
+    
+    # Voer database migraties uit
+    echo "Database migraties uitvoeren..."
+    python run_migrations.py || {
+        echo "Database migratie mislukt"
+        exit 1
+    }
+    
+    echo "Database migraties succesvol, applicatie wordt gestart..."
 fi
+
+# Voer het gegeven commando uit
+exec "$@"

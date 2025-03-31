@@ -71,18 +71,45 @@ cd "$INSTALL_DIR" || {
 echo -e "${YELLOW}Scripts uitvoerbaar maken...${NC}"
 chmod +x *.sh || echo -e "${YELLOW}Geen uitvoerbare scripts gevonden of permissie geweigerd.${NC}"
 
-# Maak .env bestand
-if [ -f .env.example ]; then
+# Automatisch configuratie bestand maken
+if [ -f auto-config.sh ]; then
+    echo -e "${YELLOW}Automatische configuratie starten...${NC}"
+    chmod +x auto-config.sh
+    ./auto-config.sh --force || {
+        echo -e "${RED}Automatische configuratie mislukt.${NC}"
+        
+        # Fallback naar .env.example als dat bestaat
+        if [ -f .env.example ]; then
+            echo -e "${YELLOW}Fallback: .env bestand maken van voorbeeld...${NC}"
+            cp .env.example .env || {
+                echo -e "${RED}Kan .env bestand niet maken.${NC}"
+                exit 1
+            }
+        else
+            echo -e "${RED}Geen configuratie mogelijk. Installatie wordt afgebroken.${NC}"
+            exit 1
+        fi
+    }
+elif [ -f .env.example ]; then
     echo -e "${YELLOW}Configuratie bestand maken van voorbeeld...${NC}"
     cp .env.example .env || {
         echo -e "${RED}Kan .env bestand niet maken.${NC}"
         exit 1
     }
     
-    echo -e "${YELLOW}Je moet het .env bestand bewerken voordat je de applicatie start:${NC}"
+    # Genereer een random Flask geheim
+    FLASK_SECRET=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 64)
+    if grep -q "FLASK_SECRET_KEY" .env; then
+        sed -i "s/FLASK_SECRET_KEY=.*/FLASK_SECRET_KEY=${FLASK_SECRET}/" .env
+    else
+        echo "FLASK_SECRET_KEY=${FLASK_SECRET}" >> .env
+    fi
+    
+    echo -e "${YELLOW}Je moet het .env bestand mogelijk nog verder aanpassen:${NC}"
     echo -e "${YELLOW}${INSTALL_DIR}/.env${NC}"
 else
-    echo -e "${YELLOW}Geen .env.example gevonden. Je moet handmatig een .env bestand maken.${NC}"
+    echo -e "${RED}Geen .env.example of auto-config.sh gevonden. Je moet handmatig een .env bestand maken.${NC}"
+    exit 1
 fi
 
 # Voeg huidige gebruiker toe aan docker groep
@@ -120,9 +147,17 @@ if ! systemctl is-active --quiet nginx; then
     systemctl enable nginx
 fi
 
-# Vraag domein informatie voor NGINX configuratie
-echo -e "${YELLOW}Domein configuratie voor facturatie systeem:${NC}"
-read -p "Voer je hoofddomein in (bijv. mijnbedrijf.nl) of druk Enter om over te slaan: " DOMAIN
+# Haal domein uit .env bestand als het bestaat
+DOMAIN=""
+if [ -f .env ] && grep -q "DOMAIN_NAME" .env; then
+    DOMAIN=$(grep "DOMAIN_NAME" .env | cut -d'=' -f2)
+fi
+
+# Als domein niet gevonden is in .env, vraag het
+if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "localhost" ]; then
+    echo -e "${YELLOW}Domein configuratie voor facturatie systeem:${NC}"
+    read -p "Voer je hoofddomein in (bijv. mijnbedrijf.nl) of druk Enter om over te slaan: " DOMAIN
+fi
 
 # Als domein is opgegeven, configureer NGINX
 if [ -n "$DOMAIN" ]; then
@@ -205,8 +240,7 @@ echo -e "${GREEN}Basis installatie voltooid!${NC}"
 echo -e "${GREEN}====================================================${NC}"
 echo -e "${YELLOW}Belangrijke volgende stappen:${NC}"
 echo -e "${YELLOW}1. Log uit en log weer in (of herstart) om docker groep wijzigingen toe te passen${NC}"
-echo -e "${YELLOW}2. Bewerk het .env bestand: nano ${INSTALL_DIR}/.env${NC}"
-echo -e "${YELLOW}3. Start de applicatie: cd ${INSTALL_DIR} && docker-compose up -d${NC}"
+echo -e "${YELLOW}2. Start de applicatie: cd ${INSTALL_DIR} && docker-compose up -d${NC}"
 if [ -n "$DOMAIN" ]; then
     echo -e "${YELLOW}4. Je site is bereikbaar op: https://${DOMAIN}${NC}"
 else
