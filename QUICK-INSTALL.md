@@ -7,7 +7,7 @@ Voor een snelle installatie van het Facturatie & Boekhouding Systeem op een scho
 Open een terminal op je Ubuntu 22.04 server en kopieer deze regel:
 
 ```bash
-sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/one-command-install.sh)"
+sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/one-command-install.sh)"
 ```
 
 ## Methode 2: Stap-voor-Stap Installatie 
@@ -16,7 +16,7 @@ sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/gebruiker/facturatie
 2. Download het installatiescript:
 
 ```bash
-wget https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/ubuntu-setup.sh
+wget https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/ubuntu-setup.sh
 ```
 
 3. Maak het script uitvoerbaar:
@@ -45,19 +45,19 @@ Na succesvolle installatie:
 
 ```bash
 # Start systeem
-cd /opt/facturatie && docker-compose up -d
+cd /opt/boekhoud && docker-compose up -d
 
 # Stop systeem
-cd /opt/facturatie && docker-compose down
+cd /opt/boekhoud && docker-compose down
 
 # Bekijk logs
-cd /opt/facturatie && docker-compose logs -f
+cd /opt/boekhoud && docker-compose logs -f
 
 # Update systeem
-cd /opt/facturatie && ./deploy.sh
+cd /opt/boekhoud && ./deploy.sh
 
 # Backup database
-cd /opt/facturatie && ./backup-database.sh
+cd /opt/boekhoud && ./backup-database.sh
 ```
 
 ## Meer Informatie

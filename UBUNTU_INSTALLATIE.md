@@ -14,7 +14,7 @@ sudo apt-get upgrade -y
 ## 2. Installatiescript downloaden
 
 ```bash
-wget https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/ubuntu-setup.sh
+wget https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/ubuntu-setup.sh
 chmod +x ubuntu-setup.sh
 ```
 
@@ -25,7 +25,7 @@ sudo ./ubuntu-setup.sh
 ```
 
 Volg de vragen tijdens de installatie:
-- Installatie directory (standaard: /opt/facturatie)
+- Installatie directory (standaard: /opt/boekhoud)
 - Domeinnaam (optioneel, laat leeg voor IP-gebaseerde toegang)
 - GitHub repository URL (optioneel)
 
@@ -39,26 +39,26 @@ Volg de vragen tijdens de installatie:
 
 Start/stop containers:
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose up -d    # Start
 docker-compose down     # Stop
 ```
 
 Bekijk logs:
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose logs -f
 ```
 
 Maak een backup:
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 ./backup-database.sh
 ```
 
 Update systeem:
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 ./deploy.sh
 ```
 
@@ -68,13 +68,13 @@ Als er iets niet werkt:
 
 1. Controleer de logs:
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose logs -f
 ```
 
 2. Herstart de containers:
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose restart
 ```
 

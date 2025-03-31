@@ -28,7 +28,7 @@ Deze handleiding helpt bij het installeren en configureren van het Facturatie & 
 1. Download de installer:
 
 ```bash
-wget https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/ubuntu-setup.sh
+wget https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/ubuntu-setup.sh
 ```
 
 2. Maak het script uitvoerbaar:
@@ -44,7 +44,7 @@ sudo ./ubuntu-setup.sh
 ```
 
 4. Volg de instructies op het scherm. Je wordt gevraagd om:
-   - Installatielocatie (standaard: /opt/facturatie)
+   - Installatielocatie (standaard: /opt/boekhoud)
    - Domeinnaam (optioneel)
    - GitHub repository URL (optioneel)
 
@@ -88,22 +88,22 @@ sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 4. Maak de installatiedirectory aan:
 
 ```bash
-sudo mkdir -p /opt/facturatie
+sudo mkdir -p /opt/boekhoud
 ```
 
 5. Haal de code op:
 
 ```bash
 # Via Git
-sudo git clone https://github.com/gebruiker/facturatie-systeem.git /opt/facturatie
+sudo git clone https://github.com/Jjustmee23/boekhoud.git /opt/boekhoud
 
-# Of kopieer de bestanden handmatig naar /opt/facturatie
+# Of kopieer de bestanden handmatig naar /opt/boekhoud
 ```
 
 6. Ga naar de installatiedirectory:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 ```
 
 7. Maak het .env bestand aan:
@@ -134,7 +134,7 @@ sudo docker-compose up -d
 
 ```bash
 # Maak een Nginx configuratie bestand aan
-sudo nano /etc/nginx/sites-available/facturatie
+sudo nano /etc/nginx/sites-available/boekhoud
 
 # Voeg de volgende inhoud toe:
 server {
@@ -150,7 +150,7 @@ server {
     }
 
     location /static/ {
-        alias /opt/facturatie/static/;
+        alias /opt/boekhoud/static/;
         expires 30d;
         add_header Cache-Control "public, max-age=2592000";
     }
@@ -159,7 +159,7 @@ server {
 }
 
 # Activeer de configuratie
-sudo ln -sf /etc/nginx/sites-available/facturatie /etc/nginx/sites-enabled/
+sudo ln -sf /etc/nginx/sites-available/boekhoud /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
@@ -180,7 +180,7 @@ De belangrijkste instellingen zijn opgeslagen in het `.env` bestand in de hoofdd
 
 - `DB_USER`: Database gebruikersnaam (standaard: postgres)
 - `DB_PASSWORD`: Database wachtwoord
-- `DB_NAME`: Database naam (standaard: facturatie)
+- `DB_NAME`: Database naam (standaard: boekhoud)
 - `DB_HOST`: Database host (standaard: db)
 - `DB_PORT`: Database poort (standaard: 5432)
 - `SESSION_SECRET`: Geheime sleutel voor sessies
@@ -204,21 +204,21 @@ De Docker-omgeving is gedefinieerd in `docker-compose.yml` en bestaat uit:
 Containers starten:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose up -d
 ```
 
 Containers stoppen:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose down
 ```
 
 Web container herstarten:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose restart web
 ```
 
@@ -227,14 +227,14 @@ docker-compose restart web
 Alle logs bekijken:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose logs -f
 ```
 
 Alleen web container logs:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose logs -f web
 ```
 
@@ -243,8 +243,8 @@ docker-compose logs -f web
 Toegang tot de database shell:
 
 ```bash
-cd /opt/facturatie
-docker-compose exec db psql -U postgres facturatie
+cd /opt/boekhoud
+docker-compose exec db psql -U postgres boekhoud
 ```
 
 ## Backup & Herstel
@@ -254,7 +254,7 @@ docker-compose exec db psql -U postgres facturatie
 Handmatig een backup maken:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 ./backup-database.sh
 ```
 
@@ -265,7 +265,7 @@ De backups worden opgeslagen in de `backups` directory.
 Configureer geautomatiseerde backups:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 sudo ./schedule-backups.sh
 ```
 
@@ -276,7 +276,7 @@ Volg de instructies om dagelijkse, wekelijkse of maandelijkse backups in te stel
 Een database backup herstellen:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 ./restore-database.sh
 ```
 
@@ -287,7 +287,7 @@ Volg de instructies om de backup te selecteren en te herstellen.
 Het systeem updaten:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 ./deploy.sh
 ```
 
@@ -300,21 +300,21 @@ Dit script haalt de nieuwste code op, maakt een backup van de database, bouwt de
 1. Controleer de logs:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose logs -f
 ```
 
 2. Controleer de container status:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose ps
 ```
 
 3. Herstart de containers:
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose restart
 ```
 
@@ -323,14 +323,14 @@ docker-compose restart
 #### Database connectie fouten
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 docker-compose restart db
 ```
 
 #### Permissie problemen
 
 ```bash
-cd /opt/facturatie
+cd /opt/boekhoud
 sudo chown -R $(whoami):$(whoami) .
 ```
 
@@ -354,4 +354,4 @@ Bezoek onze ondersteuningspagina of neem contact op via support@jouwbedrijf.nl
 
 ---
 
-© 2025 Facturatie & Boekhouding Systeem
+© 2025 Boekhoud Systeem

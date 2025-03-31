@@ -23,7 +23,7 @@ Een compleet facturatie en boekhoudsysteem voor Belgische en Nederlandse bedrijv
 Voor de snelste installatie, kopieer en plak deze regel in je terminal:
 
 ```bash
-sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/one-command-install.sh)"
+sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/one-command-install.sh)"
 ```
 
 ### Stap-voor-Stap Installatie (Ubuntu 22.04)
@@ -31,7 +31,7 @@ sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/gebruiker/facturatie
 1. Download het installatiescript:
 
 ```bash
-wget https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/ubuntu-setup.sh
+wget https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/ubuntu-setup.sh
 chmod +x ubuntu-setup.sh
 ```
 
@@ -50,8 +50,8 @@ Voor gedetailleerde installatie-instructies, zie [INSTALLATIE.md](INSTALLATIE.md
 Als je al Docker en Docker Compose hebt geïnstalleerd, kun je het systeem starten met:
 
 ```bash
-git clone https://github.com/gebruiker/facturatie-systeem.git
-cd facturatie-systeem
+git clone https://github.com/Jjustmee23/boekhoud.git
+cd boekhoud
 cp .env.example .env
 # Bewerk het .env bestand met de juiste instellingen
 docker-compose up -d
