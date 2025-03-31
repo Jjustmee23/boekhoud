@@ -1,0 +1,91 @@
+1. Server voorbereiden
+# Update pakketten
+sudo apt update && sudo apt upgrade -y
+# Installeer Node.js v20.x
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+# Controleer Node.js en NPM versies
+node -v  # Moet v20.x tonen
+npm -v
+# Installeer Git
+sudo apt install git -y
+# Installeer PM2 globaal
+sudo npm install -g pm2
+2. Project klonen van jouw GitHub repository
+# Maak een map voor je applicatie
+mkdir -p /var/www/nexonsolutions
+cd /var/www/nexonsolutions
+# Clone jouw specifieke repository
+git clone https://github.com/Jjustmee23/nexonsolutions.git .
+# Installeer dependencies
+npm install
+# Build het project voor productie
+npm run build
+3. Configureer PM2 voor procesmanagement
+# Start de applicatie met PM2 
+# We gebruiken direct server/index.ts omdat we TypeScript gebruiken
+pm2 start --interpreter="node_modules/.bin/tsx" server/index.ts --name "nexon-website"
+# Configureer PM2 om bij systeem startup te starten
+pm2 startup
+# Voer het commando uit dat wordt weergegeven
+# Bewaar de huidige PM2 configuratie
+pm2 save
+4. Configureer Nginx als reverse proxy
+# Installeer Nginx
+sudo apt install nginx -y
+# Creëer een Nginx configuratiebestand
+sudo nano /etc/nginx/sites-available/nexonsolutions
+Voeg de volgende configuratie toe (vervang "jouw-domein.com" met je eigen domein of IP):
+
+server {
+    listen 80;
+    server_name jouw-domein.com www.jouw-domein.com;
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+# Activeer de site configuratie
+sudo ln -s /etc/nginx/sites-available/nexonsolutions /etc/nginx/sites-enabled/
+# Test of de Nginx configuratie correct is
+sudo nginx -t
+# Herstart Nginx
+sudo systemctl restart nginx
+5. SSL configureren (optioneel maar aanbevolen)
+# Installeer Certbot voor Let's Encrypt SSL
+sudo apt install certbot python3-certbot-nginx -y
+# Vraag een certificaat aan en configureer Nginx automatisch
+sudo certbot --nginx -d jouw-domein.com -d www.jouw-domein.com
+6. Firewall instellingen (optioneel maar aanbevolen)
+# Configureer firewall om alleen SSH, HTTP en HTTPS toe te staan
+sudo ufw allow ssh
+sudo ufw allow http
+sudo ufw allow https
+sudo ufw enable
+Updates deployen
+Wanneer je nieuwe wijzigingen wil deployen vanaf je GitHub repository:
+
+# Ga naar je project directory
+cd /var/www/nexonsolutions
+# Pull updates van je repository
+git pull
+# Installeer eventuele nieuwe dependencies
+npm install
+# Herstart de applicatie om wijzigingen door te voeren
+pm2 restart nexon-website
+Omgevingsvariabelen (indien nodig)
+Als je omgevingsvariabelen gebruikt in je project (zoals voor API-sleutels of databaseverbindingen), kun je die configureren in een .env bestand:
+
+# Maak een .env bestand aan
+nano /var/www/nexonsolutions/.env
+Voeg je omgevingsvariabelen toe (bijvoorbeeld):
+
+VITE_GOOGLE_MAPS_API_KEY=jouw_google_maps_api_sleutel
+Na het maken of wijzigen van het .env bestand, herstart je applicatie:
+
+pm2 restart nexon-website
+Is er nog iets specifieks wat je wilt weten over het deploymentproces of heb je andere vragen?
