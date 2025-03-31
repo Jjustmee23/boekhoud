@@ -34,7 +34,7 @@ apt upgrade -y || {
 
 # Installeer benodigde pakketten
 echo -e "${YELLOW}Benodigde pakketten installeren...${NC}"
-apt install -y git docker.io docker-compose python3-pip curl postgresql-client ufw || {
+apt install -y git docker.io docker-compose python3-pip curl postgresql-client ufw nginx certbot python3-certbot-nginx || {
     echo -e "${RED}Kan pakketten niet installeren. Zie foutmelding hierboven.${NC}"
     exit 1
 }
@@ -93,6 +93,112 @@ if [ "$SUDO_USER" != "root" ]; then
     echo -e "${YELLOW}Let op: Log uit en log weer in om de wijzigingen toe te passen.${NC}"
 fi
 
+# Pas maximale upload grootte aan in PHP configuratie als het bestaat
+if [ -f "/etc/php/*/fpm/php.ini" ]; then
+    echo -e "${YELLOW}PHP configuratie aanpassen voor grote bestandsuploads...${NC}"
+    for phpini in /etc/php/*/fpm/php.ini; do
+        sed -i 's/upload_max_filesize = [0-9MG]*/upload_max_filesize = 1024M/' "$phpini"
+        sed -i 's/post_max_size = [0-9MG]*/post_max_size = 1024M/' "$phpini"
+        sed -i 's/memory_limit = [0-9MG]*/memory_limit = 1024M/' "$phpini"
+        sed -i 's/max_execution_time = [0-9]*/max_execution_time = 600/' "$phpini"
+        sed -i 's/max_input_time = [0-9]*/max_input_time = 600/' "$phpini"
+    done
+    
+    # Herstart PHP-FPM als het draait
+    if systemctl is-active --quiet php*-fpm; then
+        echo -e "${YELLOW}PHP-FPM herstarten...${NC}"
+        systemctl restart php*-fpm
+    fi
+    
+    echo -e "${GREEN}PHP configuratie aangepast voor bestanden tot 1GB.${NC}"
+fi
+
+# Start NGINX voor domein configuratie
+if ! systemctl is-active --quiet nginx; then
+    echo -e "${YELLOW}NGINX starten...${NC}"
+    systemctl start nginx
+    systemctl enable nginx
+fi
+
+# Vraag domein informatie voor NGINX configuratie
+echo -e "${YELLOW}Domein configuratie voor facturatie systeem:${NC}"
+read -p "Voer je hoofddomein in (bijv. mijnbedrijf.nl) of druk Enter om over te slaan: " DOMAIN
+
+# Als domein is opgegeven, configureer NGINX
+if [ -n "$DOMAIN" ]; then
+    echo -e "${YELLOW}NGINX configureren voor domein ${DOMAIN}...${NC}"
+    
+    # Controleer of nginx-setup.sh bestaat en voer uit
+    if [ -f "${INSTALL_DIR}/nginx-setup.sh" ]; then
+        echo -e "${YELLOW}NGINX setup script uitvoeren...${NC}"
+        "${INSTALL_DIR}/nginx-setup.sh"
+    else
+        # Eenvoudige NGINX configuratie zonder script
+        echo -e "${YELLOW}NGINX setup script niet gevonden, eenvoudige configuratie maken...${NC}"
+        
+        # Maak een basis NGINX configuratie bestand
+        cat > "/etc/nginx/sites-available/${DOMAIN}" << EOF
+server {
+    listen 80;
+    server_name ${DOMAIN} www.${DOMAIN};
+    
+    # Logging
+    access_log /var/log/nginx/${DOMAIN}_access.log;
+    error_log /var/log/nginx/${DOMAIN}_error.log;
+    
+    # Max upload filesize verhoogd naar 1GB
+    client_max_body_size 1024M;
+    
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        # Lange connecties toestaan voor grote uploads
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        send_timeout 600;
+    }
+}
+EOF
+        
+        # Activeer de site
+        ln -sf "/etc/nginx/sites-available/${DOMAIN}" /etc/nginx/sites-enabled/
+        rm -f /etc/nginx/sites-enabled/default
+        
+        # Herlaad NGINX
+        systemctl reload nginx
+        
+        # Vraag om SSL certificaat
+        if command -v certbot &> /dev/null; then
+            if ask_yes_no "Wil je een SSL certificaat aanvragen voor ${DOMAIN}?"; then
+                echo -e "${YELLOW}SSL certificaat aanvragen via Let's Encrypt...${NC}"
+                
+                # Vraag om e-mailadres
+                read -p "E-mailadres voor certificaat notificaties: " EMAIL
+                
+                # Voer certbot uit
+                certbot --nginx -d "${DOMAIN}" -d "www.${DOMAIN}" --agree-tos -m "${EMAIL}" --redirect || {
+                    echo -e "${RED}SSL certificaat aanvragen mislukt. Zie foutmelding hierboven.${NC}"
+                    echo -e "${YELLOW}Je kunt dit later handmatig proberen met:${NC}"
+                    echo -e "${YELLOW}sudo certbot --nginx -d ${DOMAIN} -d www.${DOMAIN}${NC}"
+                }
+            fi
+        else
+            echo -e "${YELLOW}Certbot niet geïnstalleerd. SSL configuratie overgeslagen.${NC}"
+        fi
+    fi
+    
+    echo -e "${GREEN}NGINX configuratie voltooid voor ${DOMAIN}!${NC}"
+else
+    echo -e "${YELLOW}Domein configuratie overgeslagen.${NC}"
+    echo -e "${YELLOW}Je kunt dit later handmatig configureren met:${NC}"
+    echo -e "${YELLOW}sudo ${INSTALL_DIR}/nginx-setup.sh${NC}"
+fi
+
 # Installatie voltooid
 echo -e "${GREEN}====================================================${NC}"
 echo -e "${GREEN}Basis installatie voltooid!${NC}"
@@ -101,6 +207,11 @@ echo -e "${YELLOW}Belangrijke volgende stappen:${NC}"
 echo -e "${YELLOW}1. Log uit en log weer in (of herstart) om docker groep wijzigingen toe te passen${NC}"
 echo -e "${YELLOW}2. Bewerk het .env bestand: nano ${INSTALL_DIR}/.env${NC}"
 echo -e "${YELLOW}3. Start de applicatie: cd ${INSTALL_DIR} && docker-compose up -d${NC}"
+if [ -n "$DOMAIN" ]; then
+    echo -e "${YELLOW}4. Je site is bereikbaar op: https://${DOMAIN}${NC}"
+else
+    echo -e "${YELLOW}4. Configureer een domein met: sudo ${INSTALL_DIR}/nginx-setup.sh${NC}"
+fi
 echo
 echo -e "${YELLOW}Gebruik de volgende commando's voor beheer:${NC}"
 echo -e "${YELLOW}- docker-compose up -d       # Start de applicatie${NC}"

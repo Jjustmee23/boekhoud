@@ -39,11 +39,24 @@ De snelste manier om het systeem te installeren is met één van de volgende scr
 wget -O install.sh https://raw.githubusercontent.com/jouw-gebruikersnaam/facturatie-systeem/main/one-command-install.sh && chmod +x install.sh && sudo ./install.sh
 ```
 
+Deze installatie zal automatisch:
+1. Alle benodigde software installeren
+2. Docker en NGINX configureren
+3. Je vragen naar je domein en een SSL certificaat aanvragen
+4. Alles configureren voor grote bestandsuploads (tot 1GB)
+
 #### Interactieve installatie
 
 ```bash
 wget -O setup-ubuntu.sh https://raw.githubusercontent.com/jouw-gebruikersnaam/facturatie-systeem/main/setup-ubuntu.sh && chmod +x setup-ubuntu.sh && sudo ./setup-ubuntu.sh
 ```
+
+De interactieve installatie geeft je meer controle over het installatieproces en zal je door de volgende stappen leiden:
+1. Software installatie
+2. Repository configuratie
+3. Docker setup
+4. Optionele domein configuratie met NGINX
+5. Optionele SSL certificaat aanvraag via Let's Encrypt
 
 ### Handmatige installatie
 
@@ -232,3 +245,175 @@ sudo usermod -aG docker $USER  # Log uit en weer in na deze commando
 
 5. **Backups op externe locatie**:
    Configureer een script om backups naar een externe locatie te kopiëren (bijv. AWS S3, Google Cloud Storage).
+
+## Domein configuratie
+
+Om je applicatie beschikbaar te maken via een domeinnaam (bijv. facturatie.mijnbedrijf.nl), moet je NGINX configureren als reverse proxy en optioneel SSL certificaten aanvragen.
+
+### NGINX installeren en configureren
+
+Je kunt NGINX handmatig configureren of het meegeleverde script gebruiken:
+
+```bash
+cd /var/www/facturatie
+sudo ./nginx-setup.sh
+```
+
+Het script zal je vragen naar:
+1. Je domein (bijv. facturatie.mijnbedrijf.nl)
+2. Of je een subdomein wilt gebruiken
+3. E-mailadres voor SSL certificaat meldingen
+4. Of je een SSL certificaat wilt aanvragen
+
+### Handmatige NGINX configuratie
+
+Als je liever handmatig configureert:
+
+1. Installeer NGINX en Certbot:
+   ```bash
+   sudo apt install -y nginx certbot python3-certbot-nginx
+   ```
+
+2. Maak een NGINX configuratiebestand:
+   ```bash
+   sudo nano /etc/nginx/sites-available/facturatie.conf
+   ```
+
+3. Voeg de volgende configuratie toe (vervang DOMEIN.NL door je eigen domein):
+   ```
+   server {
+       listen 80;
+       server_name DOMEIN.NL;
+       
+       # Grote bestanden toestaan
+       client_max_body_size 1024M;
+       
+       location / {
+           proxy_pass http://localhost:5000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+           
+           # Lange verbindingen toestaan voor uploads
+           proxy_connect_timeout 600;
+           proxy_send_timeout 600;
+           proxy_read_timeout 600;
+           send_timeout 600;
+       }
+   }
+   ```
+
+4. Activeer de configuratie:
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/facturatie.conf /etc/nginx/sites-enabled/
+   sudo rm -f /etc/nginx/sites-enabled/default
+   sudo nginx -t
+   sudo systemctl reload nginx
+   ```
+
+5. SSL configureren met Certbot:
+   ```bash
+   sudo certbot --nginx -d DOMEIN.NL
+   ```
+
+### SSL certificaat vernieuwing
+
+Certificaten worden automatisch vernieuwd door een systemd timer. Je kunt dit controleren met:
+
+```bash
+sudo systemctl status certbot.timer
+```
+
+Als de timer niet actief is, kun je deze inschakelen:
+
+```bash
+sudo systemctl enable certbot.timer
+sudo systemctl start certbot.timer
+```
+
+### Testen van vernieuwing
+
+Test of certificaat vernieuwing correct werkt:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+## Grote bestandsuploads configureren
+
+Het systeem is geconfigureerd om bestandsuploads tot 1GB te ondersteunen. Deze configuratie bestaat uit meerdere lagen:
+
+### 1. NGINX configuratie
+
+NGINX is geconfigureerd om grote uploads te accepteren met de volgende instellingen:
+
+```
+client_max_body_size 1024M;
+proxy_connect_timeout 600;
+proxy_send_timeout 600;
+proxy_read_timeout 600;
+send_timeout 600;
+```
+
+Deze instellingen staan in het NGINX configuratiebestand en worden automatisch toegepast door het `nginx-setup.sh` script.
+
+### 2. Flask applicatie configuratie
+
+De Flask applicatie moet ook worden geconfigureerd om grote uploads te accepteren. Dit gebeurt in het `flask-config-uploads.py` bestand:
+
+```python
+# In je Flask app (bijvoorbeeld main.py)
+from flask_config_uploads import configure_large_uploads, configure_storage_path
+
+app = Flask(__name__)
+app = configure_large_uploads(app)  # Configureert uploads tot 1GB
+app = configure_storage_path(app, 'static/uploads')  # Bepaalt upload locatie
+```
+
+### 3. Docker configuratie
+
+De Docker container moet voldoende resources hebben voor grote uploads. In de `docker-compose.yml` zijn de volgende configuraties belangrijk:
+
+```yaml
+web:
+  environment:
+    - MAX_CONTENT_LENGTH=1073741824  # 1GB in bytes
+  volumes:
+    - uploads_data:/app/static/uploads  # Persistent volume voor uploads
+    - tmp_data:/tmp  # Tijdelijke opslag voor uploads
+  command: gunicorn --bind 0.0.0.0:5000 --timeout 600 --workers 4 --threads 2 main:app
+
+volumes:
+  uploads_data:  # Persistent volume voor uploads
+  tmp_data:      # Voor tijdelijke opslag
+```
+
+### 4. PHP configuratie (indien van toepassing)
+
+Als je PHP gebruikt, worden de volgende instellingen automatisch aangepast:
+
+```
+upload_max_filesize = 1024M
+post_max_size = 1024M
+memory_limit = 1024M
+max_execution_time = 600
+max_input_time = 600
+```
+
+### Testen van grote uploads
+
+Om te testen of grote bestandsuploads correct werken:
+
+1. Maak een groot testbestand:
+   ```bash
+   dd if=/dev/urandom of=testfile.bin bs=1M count=500
+   ```
+
+2. Upload dit bestand via je applicatie interface
+
+3. Controleer de logs voor foutmeldingen:
+   ```bash
+   docker-compose logs web
+   sudo tail -f /var/log/nginx/error.log
+   ```

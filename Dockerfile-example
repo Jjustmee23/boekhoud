@@ -1,0 +1,46 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Installeer systeem dependencies
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    build-essential \
+    libpq-dev \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Kopieer requirements.txt
+COPY requirements.txt .
+
+# Installeer Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Kopieer applicatiecode
+COPY . .
+
+# Maak upload directory
+RUN mkdir -p /app/static/uploads && \
+    chmod 777 /app/static/uploads
+
+# Maak entrypoint script uitvoerbaar
+RUN chmod +x /app/docker-entrypoint.sh
+
+# Configureer Python voor betere performance
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=UTF-8
+
+# Configureer gunicorn voor grote uploads
+ENV GUNICORN_CMD_ARGS="--timeout 600 --workers=4 --threads=2 --worker-tmp-dir /dev/shm"
+
+# Configureer grote bestandsuploads
+ENV MAX_CONTENT_LENGTH=1073741824
+ENV UPLOAD_TIMEOUT=600
+
+# Start de applicatie via het entrypoint script
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+# Standaard commando (kan worden overschreven in docker-compose.yml)
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]

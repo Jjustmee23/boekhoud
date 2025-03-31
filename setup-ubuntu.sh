@@ -44,7 +44,7 @@ apt update || {
 
 # Installeer benodigde pakketten
 echo -e "${YELLOW}Benodigde pakketten installeren...${NC}"
-apt install -y git docker.io docker-compose python3-pip curl postgresql-client ufw || {
+apt install -y git docker.io docker-compose python3-pip curl postgresql-client ufw nginx certbot python3-certbot-nginx || {
     echo -e "${RED}Kan pakketten niet installeren. Zie foutmelding hierboven.${NC}"
     exit 1
 }
@@ -118,6 +118,40 @@ else
     echo -e "${YELLOW}Docker containers niet gestart. Start later handmatig met: cd ${INSTALL_DIR} && docker-compose up -d${NC}"
 fi
 
+# Vraag of gebruiker NGINX en domein wil configureren
+if ask_yes_no "Wil je NGINX installeren en een domein configureren?"; then
+    if [ -f "${INSTALL_DIR}/nginx-setup.sh" ]; then
+        echo -e "${YELLOW}NGINX setup script gevonden, uitvoeren...${NC}"
+        "${INSTALL_DIR}/nginx-setup.sh"
+    else
+        echo -e "${YELLOW}NGINX setup script niet gevonden (nginx-setup.sh)${NC}"
+        echo -e "${YELLOW}Je kunt NGINX later handmatig configureren.${NC}"
+    fi
+else
+    echo -e "${YELLOW}NGINX en domein configuratie overgeslagen.${NC}"
+    echo -e "${YELLOW}Je kunt dit later handmatig doen met: sudo ${INSTALL_DIR}/nginx-setup.sh${NC}"
+fi
+
+# Pas maximale upload grootte aan in PHP configuratie als het bestaat
+if [ -f "/etc/php/*/fpm/php.ini" ]; then
+    echo -e "${YELLOW}PHP configuratie aanpassen voor grote bestandsuploads...${NC}"
+    for phpini in /etc/php/*/fpm/php.ini; do
+        sed -i 's/upload_max_filesize = [0-9MG]*/upload_max_filesize = 1024M/' "$phpini"
+        sed -i 's/post_max_size = [0-9MG]*/post_max_size = 1024M/' "$phpini"
+        sed -i 's/memory_limit = [0-9MG]*/memory_limit = 1024M/' "$phpini"
+        sed -i 's/max_execution_time = [0-9]*/max_execution_time = 600/' "$phpini"
+        sed -i 's/max_input_time = [0-9]*/max_input_time = 600/' "$phpini"
+    done
+    
+    # Herstart PHP-FPM als het draait
+    if systemctl is-active --quiet php*-fpm; then
+        echo -e "${YELLOW}PHP-FPM herstarten...${NC}"
+        systemctl restart php*-fpm
+    fi
+    
+    echo -e "${GREEN}PHP configuratie aangepast voor bestanden tot 1GB.${NC}"
+fi
+
 # Installatie voltooid
 echo -e "${GREEN}====================================================${NC}"
 echo -e "${GREEN}Installatie voltooid!${NC}"
@@ -128,6 +162,7 @@ echo -e "${YELLOW}- docker-compose up -d       # Start de applicatie${NC}"
 echo -e "${YELLOW}- docker-compose down        # Stop de applicatie${NC}"
 echo -e "${YELLOW}- ./deploy.sh                # Update de applicatie${NC}"
 echo -e "${YELLOW}- ./backup-database.sh       # Maak een database backup${NC}"
+echo -e "${YELLOW}- ./schedule-backups.sh      # Automatische backups instellen${NC}"
 echo -e "${YELLOW}- docker-compose logs -f web # Bekijk de logs${NC}"
 echo
 
