@@ -1,6 +1,6 @@
 # Snelle Installatie
 
-Voor een snelle installatie van het Facturatie & Boekhouding Systeem op een schone Ubuntu 22.04 server, gebruik je één van de onderstaande methoden.
+Voor een snelle installatie van het Boekhoud Systeem op een schone Ubuntu 22.04 server, gebruik je één van de onderstaande methoden.
 
 ## Methode 1: Eén-Regel Installatie
 

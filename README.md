@@ -1,4 +1,4 @@
-# Facturatie & Boekhouding Systeem
+# Boekhoud Systeem
 
 Een compleet facturatie en boekhoudsysteem voor Belgische en Nederlandse bedrijven. Deze applicatie draait op Flask en is geoptimaliseerd voor gebruik in een Docker-omgeving.
 
