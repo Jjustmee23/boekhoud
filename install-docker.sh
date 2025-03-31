@@ -128,6 +128,19 @@ mkdir -p logs
 mkdir -p static/uploads
 mkdir -p nginx/ssl
 
+# Genereer dhparam.pem bestand
+if [ ! -f nginx/ssl/dhparam.pem ]; then
+    log "DH parameters genereren voor verhoogde veiligheid..."
+    log "Dit kan enkele minuten duren..."
+    openssl dhparam -out nginx/ssl/dhparam.pem 2048 || warn "Kon geen dhparam.pem genereren"
+    
+    if [ -f nginx/ssl/dhparam.pem ]; then
+        log "DH parameters succesvol gegenereerd"
+    fi
+else
+    log "DH parameters bestaan al"
+fi
+
 # Start de containers
 log "Docker containers starten..."
 docker compose up -d || error "Kan Docker containers niet starten"

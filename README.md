@@ -112,6 +112,8 @@ docker compose up -d --build
 - **SSL certificaat werkt niet**: Controleer of je domeinnaam correct is ingesteld en of je e-mailadres geldig is.
 - **E-mail werkt niet**: Controleer je Microsoft Graph API instellingen in het `.env` bestand.
 - **Foutmeldingen bekijken**: Check de logs met `docker compose logs -f`.
+- **Problemen met nginx-proxy of acme-companion**: Controleer of de volumes en container namen correct zijn ingesteld. Herstart de containers met `docker compose restart`.
+- **Problemen met dhparam.pem**: Als je problemen hebt met het dhparam.pem bestand, kun je dit handmatig genereren met `./nginx/dhparam-generator.sh` of gebruik het commando `openssl dhparam -out nginx/ssl/dhparam.pem 2048`.
 
 ### Ondersteuning
 

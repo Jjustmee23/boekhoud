@@ -34,35 +34,43 @@ services:
   # Reverse proxy voor SSL en domein routing
   nginx-proxy:
     image: nginxproxy/nginx-proxy
+    container_name: nginx-proxy
     restart: always
     ports:
       - "80:80"
       - "443:443"
+    labels:
+      - "com.github.nginx-proxy.nginx"
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
       - ./nginx/custom.conf:/etc/nginx/conf.d/custom.conf:ro
+      - ./nginx/ssl/dhparam.pem:/etc/nginx/dhparam/dhparam.pem:ro
     networks:
       - app-network
+    environment:
+      - TRUST_DOWNSTREAM_PROXY=false
+      - DHPARAM_GENERATION=false
 
   # Service voor SSL certificaten via Let's Encrypt
   acme-companion:
     image: nginxproxy/acme-companion
+    container_name: acme-companion
     restart: always
     depends_on:
+      - nginx-proxy
+    volumes_from:
       - nginx-proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - acme:/etc/acme.sh
-      - certs:/etc/nginx/certs
-      - html:/usr/share/nginx/html
-      - vhost:/etc/nginx/vhost.d
     networks:
       - app-network
     environment:
       - DEFAULT_EMAIL=${SSL_EMAIL}
+      - NGINX_PROXY_CONTAINER=nginx-proxy
 
 networks:
   app-network:
