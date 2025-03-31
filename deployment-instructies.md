@@ -1,184 +1,234 @@
 # Deployment Instructies
 
-Dit document beschrijft hoe je de facturatie-applicatie kunt implementeren en bijwerken op je eigen privéserver.
+Deze documentatie bevat gedetailleerde instructies voor het installeren, configureren en onderhouden van het facturatie systeem. De instructies zijn geschreven voor Ubuntu 22.04 LTS servers maar kunnen ook op andere Linux-distributies werken met kleine aanpassingen.
 
-## Vereisten
+## Inhoudsopgave
 
-- Een server met Docker en Docker Compose geïnstalleerd
-- SSH-toegang tot de server
-- Git geïnstalleerd op je lokale machine
-- Basiskennis van de terminal/commandoregel
+1. [Systeemvereisten](#systeemvereisten)
+2. [Installatie](#installatie)
+   - [Automatische installatie](#automatische-installatie)
+   - [Handmatige installatie](#handmatige-installatie)
+3. [Configuratie](#configuratie)
+4. [Applicatie starten](#applicatie-starten)
+5. [Updates](#updates)
+6. [Backup en herstel](#backup-en-herstel)
+7. [Automatische backups](#automatische-backups)
+8. [Probleemoplossing](#probleemoplossing)
+9. [Beveiligingstips](#beveiligingstips)
 
-## Eerste implementatie
+## Systeemvereisten
 
-### 1. Servervoorbereiding
+- Ubuntu 22.04 LTS (aanbevolen)
+- Minimaal 2 GB RAM
+- 10 GB vrije schijfruimte
+- Internetverbinding
+- Sudo/root toegang
+- Open poorten:
+  - 80/443 (voor HTTP/HTTPS)
+  - 5000 (voor ontwikkeling)
 
-Zorg ervoor dat Docker en Docker Compose zijn geïnstalleerd op je server:
+## Installatie
+
+### Automatische installatie
+
+De snelste manier om het systeem te installeren is met één van de volgende scripts:
+
+#### One-command installatie
 
 ```bash
-# Docker installeren
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-
-# Docker Compose installeren
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+wget -O install.sh https://raw.githubusercontent.com/jouw-gebruikersnaam/facturatie-systeem/main/one-command-install.sh && chmod +x install.sh && sudo ./install.sh
 ```
 
-### 2. Applicatie klonen
-
-Kopieer de applicatie naar je server:
+#### Interactieve installatie
 
 ```bash
-# Maak een directory voor de applicatie
-mkdir -p /opt/facturatie-app
-
-# Kopieer met het deploy script
-./deploy.sh user@jouw-server.nl jouw-gebruiker /opt/facturatie-app
+wget -O setup-ubuntu.sh https://raw.githubusercontent.com/jouw-gebruikersnaam/facturatie-systeem/main/setup-ubuntu.sh && chmod +x setup-ubuntu.sh && sudo ./setup-ubuntu.sh
 ```
 
-### 3. Configuratie
+### Handmatige installatie
 
-Maak een `.env` bestand op je server in de `/opt/facturatie-app` directory:
+Voor meer controle over het installatieproces, volg deze stappen:
 
-```bash
-# SSH naar je server
-ssh user@jouw-server.nl
+1. **Benodigde software installeren**
 
-# Ga naar de app directory
-cd /opt/facturatie-app
+   ```bash
+   sudo apt update
+   sudo apt install -y git docker.io docker-compose python3-pip curl postgresql-client
+   ```
 
-# Maak het .env bestand op basis van het voorbeeld
-cp .env.example .env
+2. **Docker starten**
 
-# Bewerk het .env bestand om je instellingen aan te passen
-nano .env
+   ```bash
+   sudo systemctl start docker
+   sudo systemctl enable docker
+   ```
+
+3. **Repository klonen**
+
+   ```bash
+   sudo mkdir -p /var/www/facturatie
+   sudo git clone https://github.com/jouw-gebruikersnaam/facturatie-systeem.git /var/www/facturatie
+   ```
+
+4. **Rechten instellen**
+
+   ```bash
+   sudo chown -R $USER:$USER /var/www/facturatie
+   cd /var/www/facturatie
+   chmod +x *.sh
+   ```
+
+5. **Configuratiebestand maken**
+
+   ```bash
+   cp .env.example .env
+   nano .env  # Bewerk de configuratie naar wens
+   ```
+
+## Configuratie
+
+Het belangrijkste configuratiebestand is `.env`. De volgende variabelen zijn essentieel:
+
+- `DATABASE_URL`: Database verbinding string (postgresql://user:pass@host:port/dbname)
+- `FLASK_SECRET_KEY`: Random geheim voor Flask sessies
+- `MOLLIE_API_KEY`: API sleutel voor Mollie betalingen
+- `MICROSOFT_CLIENT_ID` en `MICROSOFT_CLIENT_SECRET`: Voor Microsoft 365 integratie
+
+Voorbeeld configuratie:
+
+```
+DATABASE_URL=postgresql://postgres:password@db:5432/facturatie
+FLASK_SECRET_KEY=your-secret-key-here
+MOLLIE_API_KEY=test_yourapikey
+MICROSOFT_CLIENT_ID=your-client-id
+MICROSOFT_CLIENT_SECRET=your-client-secret
+MICROSOFT_REDIRECT_URI=https://yourdomain.com/ms-auth-callback
 ```
 
-Vul alle benodigde omgevingsvariabelen in, zoals:
+## Applicatie starten
 
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-- `POSTGRES_DB`
-- `SESSION_SECRET` (genereer een sterke random string)
-- Email instellingen
-- Mollie API-sleutels
-
-### 4. Starten van de applicatie
-
-Start de applicatie voor de eerste keer:
+Na installatie en configuratie, start de applicatie:
 
 ```bash
-cd /opt/facturatie-app
+cd /var/www/facturatie
 docker-compose up -d
 ```
 
-De applicatie is nu toegankelijk via `http://jouw-server.nl:5000`
+De applicatie is nu beschikbaar op:
+- Ontwikkeling: http://localhost:5000
+- Productie: https://yourdomain.com (na configuratie van reverse proxy)
 
-## Updates uitvoeren
+## Updates
 
-### Gebruik het deploy script
-
-Het eenvoudigste is om het `deploy.sh` script te gebruiken om updates uit te voeren:
+Om de applicatie te updaten naar de nieuwste versie:
 
 ```bash
-# Vanaf je lokale ontwikkelomgeving
-./deploy.sh user@jouw-server.nl jouw-gebruiker /opt/facturatie-app
+cd /var/www/facturatie
+./deploy.sh
 ```
 
-Dit script zal:
-1. Een database backup maken voordat wijzigingen worden doorgevoerd
-2. De code kopiëren naar je server
-3. De containers opnieuw bouwen en opstarten
-4. Controleren op eventuele fouten in de logs
+Het deploy script zal:
+1. Een backup maken van de database
+2. De nieuwste code ophalen van de repository
+3. Docker containers herbouwen en herstarten
+4. Database migraties uitvoeren
 
-### Handmatig updaten
+## Backup en herstel
 
-Als je handmatig wilt updaten, volg dan deze stappen:
-
-1. SSH naar je server:
-   ```bash
-   ssh user@jouw-server.nl
-   ```
-
-2. Ga naar de applicatie directory:
-   ```bash
-   cd /opt/facturatie-app
-   ```
-
-3. Maak een database backup:
-   ```bash
-   docker-compose exec db pg_dump -U postgres facturatie > /tmp/backup_$(date +%Y%m%d_%H%M%S).sql
-   ```
-
-4. Pull de laatste wijzigingen (als je Git gebruikt):
-   ```bash
-   git pull origin main
-   ```
-
-5. Build en herstart de web container:
-   ```bash
-   docker-compose build web
-   docker-compose up -d --no-deps web
-   ```
-
-6. Controleer de logs op fouten:
-   ```bash
-   docker-compose logs --tail=50 web
-   ```
-
-## Database beheer
-
-### Backup maken
-
-Maak een volledige backup van de database:
+### Database backup maken
 
 ```bash
-cd /opt/facturatie-app
+cd /var/www/facturatie
 ./backup-database.sh
 ```
 
-### Backup herstellen
+Backups worden opgeslagen in de `db_backups` map met datum en tijd in de bestandsnaam.
 
-Herstel een eerdere database backup:
-
-```bash
-cd /opt/facturatie-app
-./restore-database.sh /pad/naar/backup.sql
-```
-
-## Belangrijk: De database wordt NIET verwijderd bij updates
-
-De Docker setup is zo geconfigureerd dat de database gegevens worden opgeslagen in een named volume (`facturatie_postgres_data`). Dit betekent dat de database behouden blijft, zelfs wanneer je de containers opnieuw bouwt of bijwerkt.
-
-De database wordt alleen verwijderd als je expliciet één van deze acties uitvoert:
-1. `docker-compose down -v` (verwijdert alle volumes)
-2. `docker volume rm facturatie_postgres_data` (verwijdert specifiek het database volume)
-
-## Troubleshooting
-
-### De applicatie start niet op
-
-Controleer de logs voor fouten:
+### Database herstellen
 
 ```bash
-docker-compose logs web
+cd /var/www/facturatie
+./restore-database.sh db_backups/backup-2025-03-31.sql.gz
 ```
 
-### Database connectie problemen
+## Automatische backups
 
-Controleer of de database container draait:
+Stel automatische dagelijkse, wekelijkse of maandelijkse backups in:
 
 ```bash
-docker-compose ps db
+cd /var/www/facturatie
+./schedule-backups.sh
 ```
 
-Controleer de database logs:
+Volg de interactieve prompts om de backup frequentie en retentieperiode in te stellen.
+
+## Probleemoplossing
+
+### Logs bekijken
 
 ```bash
-docker-compose logs db
+cd /var/www/facturatie
+docker-compose logs -f web
 ```
 
-## Contact
+### Algemene problemen
 
-Als je problemen ondervindt met de deployment die je niet kunt oplossen, neem dan contact op met de ontwikkelaar/beheerder van deze applicatie.
+**Probleem**: Docker containers starten niet
+**Oplossing**: Controleer de logs en zorg dat alle poorten beschikbaar zijn
+
+```bash
+docker-compose logs
+sudo lsof -i :5000  # Controleer of poort 5000 in gebruik is
+```
+
+**Probleem**: Database migratie fouten
+**Oplossing**: Probeer de migratie handmatig uit te voeren
+
+```bash
+cd /var/www/facturatie
+docker-compose exec web python run_migrations.py
+```
+
+**Probleem**: "Permission denied" fouten
+**Oplossing**: Controleer bestandsrechten en Docker permissies
+
+```bash
+sudo chown -R $USER:$USER /var/www/facturatie
+sudo usermod -aG docker $USER  # Log uit en weer in na deze commando
+```
+
+## Beveiligingstips
+
+1. **Firewall instellen**:
+
+   ```bash
+   sudo ufw allow ssh
+   sudo ufw allow http
+   sudo ufw allow https
+   sudo ufw enable
+   ```
+
+2. **Fail2ban installeren**:
+
+   ```bash
+   sudo apt install -y fail2ban
+   sudo systemctl enable fail2ban
+   sudo systemctl start fail2ban
+   ```
+
+3. **HTTPS instellen** met Let's Encrypt:
+
+   ```bash
+   sudo apt install -y certbot
+   sudo certbot certonly --standalone -d yourdomain.com
+   ```
+
+4. **Regelmatige updates**:
+
+   ```bash
+   sudo apt update
+   sudo apt upgrade -y
+   ```
+
+5. **Backups op externe locatie**:
+   Configureer een script om backups naar een externe locatie te kopiëren (bijv. AWS S3, Google Cloud Storage).

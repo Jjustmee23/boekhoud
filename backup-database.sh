@@ -1,56 +1,132 @@
 #!/bin/bash
-# Script voor het maken van een backup van de PostgreSQL database
+# Database backup script voor het facturatie systeem
 
-# Configuratie
-BACKUP_DIR="./db_backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILENAME="facturatie_backup_$DATE.sql"
-BACKUP_PATH="$BACKUP_DIR/$BACKUP_FILENAME"
-COMPRESS=true  # true om het bestand te comprimeren, false om het in plaintext te houden
+set -e  # Script stopt bij een fout
 
-# Controleer of docker-compose beschikbaar is
-if ! command -v docker-compose &> /dev/null; then
-    echo "docker-compose kon niet gevonden worden. Installeer docker-compose of gebruik de volledige pad."
-    exit 1
+# Kleuren voor output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # Geen kleur
+
+echo -e "${YELLOW}Database backup starten...${NC}"
+
+# Maak backup map als deze niet bestaat
+if [ ! -d "db_backups" ]; then
+    mkdir db_backups
+    echo -e "${YELLOW}Backup map 'db_backups' aangemaakt.${NC}"
 fi
 
-# Controleer of de backup directory bestaat, zo niet maak deze aan
-if [ ! -d "$BACKUP_DIR" ]; then
-    echo "Backup directory bestaat niet. Aanmaken: $BACKUP_DIR"
-    mkdir -p "$BACKUP_DIR"
-fi
+# Bepaal bestandsnaam met timestamp
+BACKUP_TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+BACKUP_FILE="db_backups/backup-${BACKUP_TIMESTAMP}.sql.gz"
 
-# Haal database variabelen uit .env bestand of gebruik standaardwaarden
-if [ -f ./.env ]; then
-    source ./.env
-fi
-
-DB_USER=${POSTGRES_USER:-postgres}
-DB_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-DB_NAME=${POSTGRES_DB:-facturatie}
-
-echo "Start backup van database $DB_NAME naar $BACKUP_PATH"
-
-# Maak een backup van de database met docker-compose
-docker-compose exec -T db pg_dump -U "$DB_USER" -d "$DB_NAME" > "$BACKUP_PATH"
-
-# Controleer of de backup is gemaakt
-if [ $? -eq 0 ]; then
-    echo "Database backup is succesvol aangemaakt"
-
-    # Comprimeer het bestand als dat is ingesteld
-    if [ "$COMPRESS" = true ]; then
-        echo "Comprimeren van de backup..."
-        gzip "$BACKUP_PATH"
-        BACKUP_PATH="$BACKUP_PATH.gz"
-        echo "Gecomprimeerde backup opgeslagen als: $BACKUP_PATH"
-    fi
-
-    # Toon de bestandsgrootte
-    FILESIZE=$(du -h "$BACKUP_PATH" | cut -f1)
-    echo "Bestandsgrootte: $FILESIZE"
-    echo "Backup voltooid!"
+# Bepaal of we Docker of directe connectie gebruiken
+if [ -f "docker-compose.yml" ] && command -v docker-compose &> /dev/null; then
+    echo -e "${YELLOW}Docker-compose gevonden, backup via Docker...${NC}"
+    USE_DOCKER=1
 else
-    echo "Fout bij het maken van de database backup!"
+    echo -e "${YELLOW}Geen Docker-compose gevonden of niet beschikbaar, directe backup...${NC}"
+    USE_DOCKER=0
+fi
+
+# Database backup functie voor Docker
+docker_backup() {
+    # Controleer of database container draait
+    if ! docker-compose ps | grep -q db; then
+        echo -e "${YELLOW}Database container niet gevonden of niet actief.${NC}"
+        echo -e "${YELLOW}Container starten...${NC}"
+        docker-compose up -d db || {
+            echo -e "${RED}Kan database container niet starten. Backup mislukt.${NC}"
+            exit 1
+        }
+        # Wacht tot database klaar is voor connecties
+        echo -e "${YELLOW}Wachten tot database gereed is...${NC}"
+        sleep 5
+    fi
+    
+    # Haal database verbindingsgegevens op
+    DB_HOST=$(docker-compose exec db printenv POSTGRES_HOST 2>/dev/null || echo "db")
+    DB_PORT=$(docker-compose exec db printenv POSTGRES_PORT 2>/dev/null || echo "5432")
+    DB_USER=$(docker-compose exec db printenv POSTGRES_USER 2>/dev/null || echo "postgres")
+    DB_NAME=$(docker-compose exec db printenv POSTGRES_DB 2>/dev/null || echo "facturatie")
+    
+    # Maak backup
+    echo -e "${YELLOW}Database backup maken via Docker...${NC}"
+    docker-compose exec db sh -c "PGPASSWORD=\$POSTGRES_PASSWORD pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME | gzip" > "$BACKUP_FILE" || {
+        echo -e "${RED}Database backup mislukt. Zie foutmelding hierboven.${NC}"
+        rm -f "$BACKUP_FILE"  # Verwijder gedeeltelijke backup
+        exit 1
+    }
+}
+
+# Database backup functie voor directe verbinding
+direct_backup() {
+    # Haal database verbindingsgegevens op uit .env bestand als het bestaat
+    if [ -f ".env" ]; then
+        source .env
+    fi
+    
+    # Als DATABASE_URL bestaat, gebruik die
+    if [ -n "$DATABASE_URL" ]; then
+        # Extract connectie info from DATABASE_URL
+        DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+        DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
+        DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([^\/]*\)\/.*/\1/p')
+        DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\(.*\)$/\1/p')
+    else
+        # Vraag handmatig
+        read -p "Database host [localhost]: " DB_HOST
+        DB_HOST=${DB_HOST:-localhost}
+        
+        read -p "Database poort [5432]: " DB_PORT
+        DB_PORT=${DB_PORT:-5432}
+        
+        read -p "Database gebruiker [postgres]: " DB_USER
+        DB_USER=${DB_USER:-postgres}
+        
+        read -p "Database naam [facturatie]: " DB_NAME
+        DB_NAME=${DB_NAME:-facturatie}
+        
+        read -s -p "Database wachtwoord: " DB_PASSWORD
+        echo
+    fi
+    
+    # Maak backup
+    echo -e "${YELLOW}Database backup maken...${NC}"
+    PGPASSWORD=$DB_PASSWORD pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME | gzip > "$BACKUP_FILE" || {
+        echo -e "${RED}Database backup mislukt. Zie foutmelding hierboven.${NC}"
+        rm -f "$BACKUP_FILE"  # Verwijder gedeeltelijke backup
+        exit 1
+    }
+}
+
+# Voer het juiste backup proces uit
+if [ "$USE_DOCKER" -eq 1 ]; then
+    docker_backup
+else
+    direct_backup
+fi
+
+# Controleer of backup bestand is aangemaakt en niet leeg is
+if [ -f "$BACKUP_FILE" ] && [ -s "$BACKUP_FILE" ]; then
+    FILESIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+    echo -e "${GREEN}Database backup voltooid!${NC}"
+    echo -e "${GREEN}Backup opgeslagen als: ${BACKUP_FILE} (${FILESIZE})${NC}"
+    
+    # Maak een symbolische link naar de laatste backup
+    ln -sf "$BACKUP_FILE" "db_backups/latest_backup.sql.gz"
+    echo -e "${YELLOW}Symbolische link gemaakt: db_backups/latest_backup.sql.gz -> ${BACKUP_FILE}${NC}"
+else
+    echo -e "${RED}Backup bestand ontbreekt of is leeg. Er is iets misgegaan.${NC}"
     exit 1
 fi
+
+# Toon totaal aantal backups en totale grootte
+TOTAL_BACKUPS=$(ls db_backups/*.sql.gz 2>/dev/null | wc -l)
+TOTAL_SIZE=$(du -sh db_backups | cut -f1)
+
+echo -e "${YELLOW}Totaal aantal backups: ${TOTAL_BACKUPS}${NC}"
+echo -e "${YELLOW}Totale grootte van backups: ${TOTAL_SIZE}${NC}"
+echo
+echo -e "${YELLOW}Gebruik ./restore-database.sh ${BACKUP_FILE} om deze backup te herstellen.${NC}"
