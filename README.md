@@ -1,203 +1,176 @@
-# Facturatie Systeem - Installatiehandleiding voor Ubuntu 22.04
+# Facturatie & Boekhouding Systeem
 
-Dit document bevat eenvoudige commando's om het facturatie systeem te installeren, op te starten en te updaten op een Ubuntu 22.04 server.
+Een compleet facturatie en boekhoudsysteem voor Belgische en Nederlandse bedrijven. Deze applicatie draait op Flask en is geoptimaliseerd voor gebruik in een Docker-omgeving.
 
-## Inhoudsopgave
-1. [Vereisten](#vereisten)
-2. [Initiële installatie](#initiële-installatie)
-3. [Applicatie starten](#applicatie-starten)
-4. [Applicatie updaten](#applicatie-updaten)
-5. [Database backup & herstel](#database-backup--herstel)
-6. [Problemen oplossen](#problemen-oplossen)
+## Functies
 
-## Vereisten
+- Volledige facturatie met BTW berekening voor BE/NL
+- Klanten- en leveranciersbeheer
+- Kostenplaatsregistratie
+- Rapportages en dashboards
+- Documentbeheer en bestandsbeheer
+- Meertalig (Nederlands, Engels, Frans)
+- Gebruikersbeheer met verschillende permissieniveaus
+- Workspace-functionaliteit voor meerdere bedrijven/afdelingen
+- E-mail integratie (Microsoft Graph API / SMTP / OAuth2)
+- Betaalintegratie (Mollie API)
+- Automatische backups en database beheer
 
-Zorg dat je systeem up-to-date is en installeer de benodigde software:
+## Installatie
+
+### Eén-Regel Installatie (Ubuntu 22.04)
+
+Voor de snelste installatie, kopieer en plak deze regel in je terminal:
 
 ```bash
-# Update pakkettenlijst en upgrade bestaande pakketten
-sudo apt update && sudo apt upgrade -y
-
-# Installeer vereiste pakketten
-sudo apt install -y git docker.io docker-compose python3-pip curl postgresql-client
+sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/one-command-install.sh)"
 ```
 
-Start en enable Docker:
+### Stap-voor-Stap Installatie (Ubuntu 22.04)
+
+1. Download het installatiescript:
 
 ```bash
-sudo systemctl start docker
-sudo systemctl enable docker
-
-# Voeg huidige gebruiker toe aan docker groep (vereist uitloggen en weer inloggen)
-sudo usermod -aG docker $USER
+wget https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/ubuntu-setup.sh
+chmod +x ubuntu-setup.sh
 ```
 
-> **Belangrijk**: Log uit en log weer in om de docker groep wijzigingen toe te passen.
-
-## Initiële installatie
-
-### Stap 1: Clone de repository
+2. Voer het installatiescript uit:
 
 ```bash
-# Maak een map voor de applicatie
-mkdir -p ~/facturatie
-cd ~/facturatie
-
-# Clone de repository
-git clone https://github.com/jouw-gebruikersnaam/facturatie-systeem.git .
+sudo ./ubuntu-setup.sh
 ```
 
-### Stap 2: Configureer de applicatie
+3. Volg de instructies in de terminal om de installatie te voltooien.
+
+Voor gedetailleerde installatie-instructies, zie [INSTALLATIE.md](INSTALLATIE.md) of de verkorte versie [QUICK-INSTALL.md](QUICK-INSTALL.md).
+
+### Docker Compose (Voor ervaren gebruikers)
+
+Als je al Docker en Docker Compose hebt geïnstalleerd, kun je het systeem starten met:
 
 ```bash
-# Maak een .env bestand van het voorbeeld
+git clone https://github.com/gebruiker/facturatie-systeem.git
+cd facturatie-systeem
 cp .env.example .env
+# Bewerk het .env bestand met de juiste instellingen
+docker-compose up -d
+```
 
-# Bewerk het .env bestand met je eigen instellingen
+## Configuratie
+
+De belangrijkste configuratie vindt plaats in het `.env` bestand. Kopieer `.env.example` naar `.env` en pas de instellingen aan:
+
+```bash
+cp .env.example .env
 nano .env
 ```
 
-Zorg dat je ten minste de volgende variabelen configureert:
-- `DATABASE_URL`: Connectie string voor de PostgreSQL database
-- `SESSION_SECRET`: Een willekeurige string om sessies te beveiligen
-- Overige API sleutels en instellingen
+Configureer de volgende instellingen:
 
-### Stap 3: Bouw en start de applicatie met Docker
+- Database instellingen (gebruikersnaam, wachtwoord, database naam)
+- Applicatie geheime sleutel (voor sessies)
+- E-mail instellingen (SMTP of Microsoft OAuth2)
+- Betalingsprovider instellingen (Mollie)
+- SSL/TLS instellingen (optioneel)
+- Logging en monitoring opties
+
+## Veiligheid
+
+Het systeem is voorzien van meerdere veiligheidsmaatregelen:
+
+- **SSL/TLS Encryptie**: Automatische configuratie via Let's Encrypt
+- **Database beveiliging**: Veilige wachtwoorden en beperkte toegang
+- **Backup & Herstel**: Geautomatiseerde database backups
+- **Gebruikers authenticatie**: Veilige login met wachtwoord hashing
+- **Geïsoleerde containers**: Docker containers draaien in een veilige omgeving
+- **Firewall configuratie**: Automatische instelling van UFW tijdens installatie
+- **Permissie beheer**: Gebruikersrollen met verschillende toegangsniveaus
+
+## Beheer
+
+### Start en stop
 
 ```bash
-# Maak de scripts uitvoerbaar
-chmod +x *.sh
-
-# Start de applicatie met Docker Compose
+# Start containers
 docker-compose up -d
-```
 
-De applicatie is nu beschikbaar op http://localhost:5000
-
-## Applicatie starten
-
-### Applicatie starten met Docker Compose
-
-```bash
-cd ~/facturatie
-docker-compose up -d
-```
-
-### Applicatie stoppen
-
-```bash
-cd ~/facturatie
+# Stop containers
 docker-compose down
-```
 
-## Applicatie updaten
-
-### Methode 1: Volledig update script
-
-```bash
-cd ~/facturatie
-./deploy.sh
-```
-
-Dit script haalt de laatste wijzigingen op, maakt een backup van de database en herstart de applicatie.
-
-### Methode 2: Test update script
-
-```bash
-cd ~/facturatie
-./test-deploy.sh
-```
-
-Dit script doet een update zonder de productiedatabase te beïnvloeden. Gebruik deze optie om wijzigingen te testen.
-
-### Methode 3: Handmatige update
-
-```bash
-cd ~/facturatie
-
-# Haal de laatste wijzigingen op
-git pull
-
-# Herstart containers (rebuild als nodig)
-docker-compose up -d --build
-```
-
-## Database backup & herstel
-
-### Database backup maken
-
-```bash
-cd ~/facturatie
-./backup-database.sh
-```
-
-Backups worden opgeslagen in de `db_backups` map met timestamp.
-
-### Database herstellen
-
-```bash
-cd ~/facturatie
-./restore-database.sh
-```
-
-Volg de instructies in het herstelscript om een specifieke backup te selecteren.
-
-## Problemen oplossen
-
-### Bekijk applicatie logs
-
-```bash
-# Bekijk de laatste 100 regels logs
-docker-compose logs --tail=100 web
-
-# Logs volgen (Ctrl+C om te stoppen)
-docker-compose logs -f web
-```
-
-### Controleer database verbinding
-
-```bash
-# Test database connectie vanuit container
-docker-compose exec web python -c "from app import db; print('Database verbinding OK' if db.engine.connect() else 'Fout')"
-```
-
-### Herstart de applicatie
-
-```bash
-cd ~/facturatie
+# Herstart web container
 docker-compose restart web
 ```
 
-### Run database migraties handmatig
+### Logs bekijken
 
 ```bash
-cd ~/facturatie
-docker-compose exec web python run_migrations.py
+# Alle logs
+docker-compose logs -f
+
+# Alleen web logs
+docker-compose logs -f web
 ```
 
-### Container shell toegang
+### Updates
 
 ```bash
-docker-compose exec web /bin/bash
+# Update het systeem
+./deploy.sh
 ```
 
-## Één-commando installatie (alles in één keer)
-
-Kopieer en plak het volgende om de applicatie in één keer te installeren:
+### Backups
 
 ```bash
-sudo apt update && sudo apt upgrade -y && \
-sudo apt install -y git docker.io docker-compose python3-pip curl postgresql-client && \
-sudo systemctl start docker && \
-sudo systemctl enable docker && \
-sudo usermod -aG docker $USER && \
-mkdir -p ~/facturatie && \
-cd ~/facturatie && \
-git clone https://github.com/jouw-gebruikersnaam/facturatie-systeem.git . && \
-cp .env.example .env && \
-echo "Bewerk het .env bestand voordat je doorgaat!" && \
-echo "Voer uit: nano .env" && \
-echo "Na het bewerken van .env, voer uit: chmod +x *.sh && docker-compose up -d"
+# Handmatige backup
+./backup-database.sh
+
+# Backup planning instellen
+sudo ./schedule-backups.sh
+
+# Backup herstellen
+./restore-database.sh
 ```
 
-> **Belangrijk**: Na het uitvoeren van bovenstaand commando moet je nog steeds het .env bestand bewerken en opnieuw inloggen om de docker groep wijzigingen toe te passen.
+## Documentatie
+
+- [Installatie handleiding](INSTALLATIE.md)
+- [Gebruikershandleiding](docs/GEBRUIKERS.md)
+- [Beheerdershandleiding](docs/BEHEERDERS.md)
+- [Ontwikkelaarshandleiding](docs/ONTWIKKELAARS.md)
+
+## Technische details
+
+Deze applicatie is gebouwd met:
+
+- **Backend**: Python + Flask
+- **Database**: PostgreSQL
+- **Frontend**: HTML, CSS, JavaScript (Bootstrap 5)
+- **Containerization**: Docker + Docker Compose
+- **Webserver**: Gunicorn + Nginx
+- **PDF-generatie**: WeasyPrint
+- **Email**: SMTP of Microsoft Graph API met OAuth2
+- **Authenticatie**: Flask-Login + JWT
+- **Deployment**: Geautomatiseerde scripts voor installatie, updates, en backups
+- **Logging**: Gestructureerde logging met JSON-format
+- **Beveiliging**: SSL/TLS via Certbot (Let's Encrypt)
+- **Betalingen**: Mollie API integratie
+
+## Systeemvereisten
+
+- Ubuntu 22.04 LTS (aanbevolen)
+- Docker en Docker Compose
+- 2GB RAM (minimaal)
+- 10GB vrije schijfruimte (minimaal)
+- Publieke IP of domein voor toegang via internet
+
+## Licentie
+
+Zie het [LICENTIE.md](LICENTIE.md) bestand voor details.
+
+## Contact
+
+Voor vragen of ondersteuning:
+
+- Email: support@jouwbedrijf.nl
+- Website: https://www.jouwbedrijf.nl/support

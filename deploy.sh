@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deployment script voor het facturatie systeem
+# Deployment script voor Facturatie & Boekhouding Systeem
 # Dit script update de applicatie vanuit Git en herstart de containers
 
 set -e  # Script stopt bij een fout
@@ -19,6 +19,12 @@ ask_yes_no() {
     esac
 }
 
+# Instellingen
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_SCRIPT="${SCRIPT_DIR}/backup-database.sh"
+BACKUP_BEFORE_DEPLOY=true
+GIT_BRANCH="main"  # of master, afhankelijk van de repository
+
 echo -e "${YELLOW}====================================================${NC}"
 echo -e "${YELLOW}Facturatie Systeem - Deployment${NC}"
 echo -e "${YELLOW}====================================================${NC}"
@@ -30,73 +36,71 @@ if ! command -v docker-compose &> /dev/null; then
 fi
 
 # Controleer of docker-compose.yml bestaat
-if [ ! -f "docker-compose.yml" ]; then
+if [ ! -f "${SCRIPT_DIR}/docker-compose.yml" ]; then
     echo -e "${RED}docker-compose.yml niet gevonden. Voer dit script uit vanuit de project directory.${NC}"
     exit 1
 fi
 
-# Controleer Git status
-if [ -d ".git" ]; then
-    echo -e "${YELLOW}Git repository detecteren...${NC}"
-    
-    # Controleer of er lokale wijzigingen zijn
-    if ! git diff-index --quiet HEAD --; then
-        echo -e "${YELLOW}Let op: Er zijn niet gecommitte wijzigingen in de repository.${NC}"
-        if ! ask_yes_no "Wil je doorgaan? Lokale wijzigingen kunnen verloren gaan."; then
+# Vraag gebruiker om bevestiging
+if ! ask_yes_no "Wil je de applicatie updaten en opnieuw opstarten?"; then
+    echo -e "${YELLOW}Deployment geannuleerd door gebruiker.${NC}"
+    exit 0
+fi
+
+# Ga naar de project directory
+cd "${SCRIPT_DIR}"
+
+# Maak een database backup voor de update
+if [ "$BACKUP_BEFORE_DEPLOY" = true ] && [ -f "$BACKUP_SCRIPT" ]; then
+    echo -e "${YELLOW}Database backup maken voor deployment...${NC}"
+    bash "$BACKUP_SCRIPT" || {
+        echo -e "${RED}Kan geen database backup maken. Zie foutmelding hierboven.${NC}"
+        if ! ask_yes_no "Wil je toch doorgaan zonder backup?"; then
             echo -e "${YELLOW}Deployment geannuleerd.${NC}"
-            exit 0
+            exit 1
         fi
-    fi
-    
-    # Fetch remote changes
-    echo -e "${YELLOW}Ophalen van wijzigingen vanaf remote...${NC}"
-    git fetch origin || {
-        echo -e "${RED}Kan wijzigingen niet ophalen van remote. Controleer je internetverbinding.${NC}"
-        exit 1
     }
+fi
+
+# Update de code vanuit Git
+if [ -d ".git" ]; then
+    echo -e "${YELLOW}Code updaten vanuit Git repository...${NC}"
     
-    # Controleer of we updates hebben
-    LOCAL=$(git rev-parse HEAD)
-    REMOTE=$(git rev-parse @{u})
-    
-    if [ "$LOCAL" = "$REMOTE" ]; then
-        echo -e "${GREEN}Je bent al up-to-date met de laatste versie.${NC}"
-        if ! ask_yes_no "Wil je toch doorgaan met de herstart?"; then
+    # Controleer of er local changes zijn
+    if ! git diff-index --quiet HEAD --; then
+        echo -e "${RED}Er zijn lokale wijzigingen in de code.${NC}"
+        if ! ask_yes_no "Wil je deze wijzigingen overschrijven?"; then
             echo -e "${YELLOW}Deployment geannuleerd.${NC}"
-            exit 0
+            exit 1
         fi
-    else
-        echo -e "${YELLOW}Er zijn updates beschikbaar. Wijzigingen ophalen...${NC}"
-        
-        # Maak eerst een database backup
-        if [ -f "backup-database.sh" ]; then
-            echo -e "${YELLOW}Database backup maken voor de update...${NC}"
-            ./backup-database.sh || {
-                echo -e "${RED}Database backup mislukt. Deployment wordt afgebroken.${NC}"
-                if ask_yes_no "Wil je toch doorgaan zonder backup?"; then
-                    echo -e "${YELLOW}Doorgaan zonder backup op eigen risico...${NC}"
-                else
-                    echo -e "${YELLOW}Deployment geannuleerd.${NC}"
-                    exit 1
-                fi
-            }
-        else
-            echo -e "${YELLOW}Waarschuwing: backup-database.sh niet gevonden. Geen backup gemaakt.${NC}"
-            if ! ask_yes_no "Wil je doorgaan zonder backup?"; then
-                echo -e "${YELLOW}Deployment geannuleerd.${NC}"
-                exit 0
-            fi
-        fi
-        
-        # Pull changes
-        echo -e "${YELLOW}Wijzigingen ophalen...${NC}"
-        git pull || {
-            echo -e "${RED}Kan wijzigingen niet ophalen. Los eventuele merge conflicten op.${NC}"
+        # Reset lokale wijzigingen
+        git reset --hard HEAD || {
+            echo -e "${RED}Kan lokale wijzigingen niet resetten.${NC}"
             exit 1
         }
     fi
+    
+    # Update van remote en pull de laatste wijzigingen
+    git fetch origin || {
+        echo -e "${RED}Kan niet verbinden met git remote. Controleer je internetverbinding.${NC}"
+        exit 1
+    }
+    
+    git checkout "$GIT_BRANCH" || {
+        echo -e "${RED}Kan niet overschakelen naar branch: ${GIT_BRANCH}${NC}"
+        echo -e "${YELLOW}Beschikbare branches:${NC}"
+        git branch -a
+        exit 1
+    }
+    
+    git pull origin "$GIT_BRANCH" || {
+        echo -e "${RED}Kan wijzigingen niet ophalen van branch: ${GIT_BRANCH}${NC}"
+        exit 1
+    }
+    
+    echo -e "${GREEN}Code is bijgewerkt naar de laatste versie.${NC}"
 else
-    echo -e "${YELLOW}Geen Git repository gevonden. Alleen containers herstarten.${NC}"
+    echo -e "${YELLOW}Geen Git repository gevonden. Code-update wordt overgeslagen.${NC}"
 fi
 
 # Containers stoppen en opnieuw starten

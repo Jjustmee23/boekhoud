@@ -2,134 +2,65 @@ version: '3.8'
 
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     restart: always
-    ports:
-      - "${PORT:-5000}:5000"
-    env_file:
-      - .env
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-facturatie}
-      - PYTHONDONTWRITEBYTECODE=1
-      - PYTHONUNBUFFERED=1
-      - TZ=Europe/Amsterdam
-      - MOLLIE_ENABLE_TIMEOUT=60
-      - MOLLIE_WEBHOOK_TIMEOUT=60
-    volumes:
-      - ./static/uploads:/app/static/uploads:rw
-      - ./logs:/app/logs:rw
     depends_on:
-      db:
-        condition: service_healthy
+      - db
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./:/app
+      - uploads_data:/app/static/uploads
+      - backups_data:/app/backups
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-facturatie}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-facturatie}
+      - SESSION_SECRET=${SESSION_SECRET:-default_secret_change_this_in_production}
+      - TZ=Europe/Amsterdam
     networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "20m"
-        max-file: "5"
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 512M
+      - app_network
 
   db:
     image: postgres:15-alpine
     restart: always
-    env_file:
-      - .env
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-facturatie}
-      - TZ=Europe/Amsterdam
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db_backups:/db_backups
-    command: >
-      postgres
-      -c shared_buffers=128MB
-      -c wal_level=logical
-      -c archive_mode=on
-      -c archive_command='test ! -f /db_backups/%f && cp %p /db_backups/%f'
-    networks:
-      - app-network
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-facturatie}
+      - TZ=Europe/Amsterdam
     ports:
-      - "${DB_PORT:-5432}:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "20m"
-        max-file: "5"
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 256M
+      - "5432:5432"
+    networks:
+      - app_network
+    command: postgres -c 'max_connections=200'
 
-  # Optioneel: Monitoring met Prometheus en Grafana (verwijder de comments om te activeren)
-  # prometheus:
-  #   image: prom/prometheus:latest
-  #   volumes:
-  #     - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-  #     - prometheus_data:/prometheus
-  #   command:
-  #     - '--config.file=/etc/prometheus/prometheus.yml'
-  #     - '--storage.tsdb.path=/prometheus'
-  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
-  #     - '--web.console.templates=/etc/prometheus/consoles'
-  #     - '--web.enable-lifecycle'
-  #   ports:
-  #     - "9090:9090"
-  #   networks:
-  #     - app-network
-  #   restart: always
-  
-  # grafana:
-  #   image: grafana/grafana:latest
-  #   volumes:
-  #     - grafana_data:/var/lib/grafana
-  #     - ./grafana/provisioning/:/etc/grafana/provisioning/
-  #   ports:
-  #     - "3000:3000"
-  #   networks:
-  #     - app-network
-  #   depends_on:
-  #     - prometheus
-  #   restart: always
-
-networks:
-  app-network:
-    driver: bridge
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./static:/app/static
+      - uploads_data:/app/static/uploads
+    depends_on:
+      - web
+    networks:
+      - app_network
 
 volumes:
   postgres_data:
-    driver: local
-    name: facturatie_postgres_data
-    # Gegevens worden behouden, zelfs als de volumes worden verwijderd
-    # tenzij je expliciet docker volume rm facturatie_postgres_data uitvoert
-  # prometheus_data:
-  #   driver: local
-  # grafana_data:
-  #   driver: local
+  uploads_data:
+  backups_data:
+
+networks:
+  app_network:
+    driver: bridge

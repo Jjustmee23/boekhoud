@@ -1,67 +1,68 @@
-# Snelle Installatie Handleiding (Ubuntu 22.04)
+# Snelle Installatie
 
-Deze handleiding bevat de absolute minimale stappen om het facturatie systeem te installeren op een Ubuntu 22.04 server.
+Voor een snelle installatie van het Facturatie & Boekhouding Systeem op een schone Ubuntu 22.04 server, gebruik je één van de onderstaande methoden.
 
-## Stap 1: Installatie script downloaden
+## Methode 1: Eén-Regel Installatie
 
-Kopieer en plak het volgende commando om het installatie script te downloaden:
-
-```bash
-wget -O setup-ubuntu.sh https://raw.githubusercontent.com/jouw-gebruikersnaam/facturatie-systeem/main/setup-ubuntu.sh && chmod +x setup-ubuntu.sh
-```
-
-## Stap 2: Installatie script uitvoeren
+Open een terminal op je Ubuntu 22.04 server en kopieer deze regel:
 
 ```bash
-sudo ./setup-ubuntu.sh
+sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/one-command-install.sh)"
 ```
 
-Volg de instructies van het installatie script:
-1. Bevestig de installatie
-2. Geef een installatiepad op (standaard: /var/www/facturatie)
-3. Vul de Git repository URL in
-4. Configureer het .env bestand
-5. Start de Docker containers
+## Methode 2: Stap-voor-Stap Installatie 
 
-## Stap 3: Controleer de installatie
+1. Open een terminal op je Ubuntu 22.04 server
+2. Download het installatiescript:
 
 ```bash
-cd /var/www/facturatie
-docker-compose ps
+wget https://raw.githubusercontent.com/gebruiker/facturatie-systeem/main/ubuntu-setup.sh
 ```
 
-De applicatie zou nu moeten draaien op http://localhost:5000
+3. Maak het script uitvoerbaar:
 
-## Basisbeheer commando's
-
-### Applicatie starten
 ```bash
-cd /var/www/facturatie
-docker-compose up -d
+chmod +x ubuntu-setup.sh
 ```
 
-### Applicatie stoppen
+4. Voer het script uit:
+
 ```bash
-cd /var/www/facturatie
-docker-compose down
+sudo ./ubuntu-setup.sh
 ```
 
-### Updates ophalen
+5. Volg de instructies in de terminal om de installatie te voltooien.
+
+## Na Installatie
+
+Na succesvolle installatie:
+
+- De applicatie is beschikbaar op `http://SERVER_IP` (of via https als je een domein hebt opgegeven)
+- Login met standaard admin gegevens (zie terminal output)
+- Wijzig onmiddellijk het admin wachtwoord
+
+## Basisbeheer
+
 ```bash
-cd /var/www/facturatie
-./deploy.sh
+# Start systeem
+cd /opt/facturatie && docker-compose up -d
+
+# Stop systeem
+cd /opt/facturatie && docker-compose down
+
+# Bekijk logs
+cd /opt/facturatie && docker-compose logs -f
+
+# Update systeem
+cd /opt/facturatie && ./deploy.sh
+
+# Backup database
+cd /opt/facturatie && ./backup-database.sh
 ```
 
-### Database backup maken
-```bash
-cd /var/www/facturatie
-./backup-database.sh
-```
+## Meer Informatie
 
-### Logs bekijken
-```bash
-cd /var/www/facturatie
-docker-compose logs -f web
-```
-
-Voor meer gedetailleerde instructies, raadpleeg de [volledige README.md](README.md) en [deployment-instructies.md](deployment-instructies.md).
+Voor volledige documentatie, zie de bestanden:
+- `INSTALLATIE.md` - Gedetailleerde installatie-instructies
+- `README.md` - Productoverzicht en functies
+- `UBUNTU_INSTALLATIE.md` - Ubuntu-specifieke installatie instructies

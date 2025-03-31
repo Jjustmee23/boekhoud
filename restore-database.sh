@@ -1,5 +1,6 @@
 #!/bin/bash
-# Database herstel script voor het facturatie systeem
+# Database restore script voor Facturatie & Boekhouding Systeem
+# Herstelt een backup van de PostgreSQL database
 
 set -e  # Script stopt bij een fout
 
@@ -18,60 +19,84 @@ ask_yes_no() {
     esac
 }
 
-echo -e "${YELLOW}Database Herstel Tool${NC}"
+# Instellingen
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_DIR="${SCRIPT_DIR}/backups"
 
-# Check of een backup bestand is opgegeven
-if [ -z "$1" ]; then
-    echo -e "${YELLOW}Geen backup bestand opgegeven. Beschikbare backups:${NC}"
-    
-    # Controleer of de backup map bestaat
-    if [ ! -d "db_backups" ]; then
-        echo -e "${RED}Geen db_backups map gevonden. Maak eerst een backup.${NC}"
-        exit 1
-    fi
-    
-    # Toon beschikbare backups
-    echo -e "${YELLOW}Beschikbare backups:${NC}"
-    ls -lt db_backups/*.sql.gz 2>/dev/null || echo -e "${RED}Geen backups gevonden in db_backups map.${NC}"
-    
-    # Vraag welke backup te herstellen
-    echo
-    read -p "Geef het pad naar het backup bestand: " BACKUP_FILE
-    
-    if [ -z "$BACKUP_FILE" ]; then
-        echo -e "${RED}Geen backup bestand opgegeven. Herstel geannuleerd.${NC}"
-        exit 1
-    fi
-else
-    BACKUP_FILE="$1"
+# Controleer of .env bestand bestaat
+if [ -f "${SCRIPT_DIR}/.env" ]; then
+    source "${SCRIPT_DIR}/.env"
 fi
 
-# Controleer of het backup bestand bestaat
+# Default database gegevens als niet ingesteld in .env
+DB_HOST=${DB_HOST:-db}
+DB_PORT=${DB_PORT:-5432}
+DB_USER=${DB_USER:-postgres}
+DB_PASSWORD=${DB_PASSWORD:-postgres}
+DB_NAME=${DB_NAME:-facturatie}
+
+echo -e "${YELLOW}====================================================${NC}"
+echo -e "${YELLOW}Facturatie Systeem - Database Herstel${NC}"
+echo -e "${YELLOW}====================================================${NC}"
+
+# Function to check if we're in a Docker environment
+in_docker() {
+    [ -f /.dockerenv ] || grep -q '/docker/' /proc/1/cgroup
+}
+
+# Function to check if Docker is available
+has_docker() {
+    command -v docker-compose &> /dev/null
+}
+
+# Toon beschikbare backups
+echo -e "${YELLOW}Beschikbare backups:${NC}"
+if [ -d "$BACKUP_DIR" ]; then
+    ls -lh ${BACKUP_DIR}/*.sql.gz 2>/dev/null || echo "Geen backups gevonden in ${BACKUP_DIR}"
+else
+    echo "Backup directory bestaat niet: ${BACKUP_DIR}"
+    mkdir -p "${BACKUP_DIR}"
+fi
+
+# Vraag gebruiker welke backup te gebruiken
+read -p "Geef het volledige pad van de backup die je wilt herstellen: " BACKUP_FILE
+
+# Controleer of bestand bestaat
 if [ ! -f "$BACKUP_FILE" ]; then
-    echo -e "${RED}Backup bestand niet gevonden: $BACKUP_FILE${NC}"
+    echo -e "${RED}Backup bestand niet gevonden: ${BACKUP_FILE}${NC}"
     exit 1
 fi
 
-# Waarschuwing over data verlies
-echo -e "${RED}WAARSCHUWING: Dit zal de huidige database VOLLEDIG VERVANGEN met de backup.${NC}"
-echo -e "${RED}Alle gegevens die niet in de backup zitten zullen verloren gaan!${NC}"
-
+# Bevestig de actie
+echo -e "${RED}WAARSCHUWING: Dit zal de huidige database overschrijven!${NC}"
 if ! ask_yes_no "Weet je zeker dat je door wilt gaan?"; then
-    echo -e "${YELLOW}Database herstel geannuleerd.${NC}"
+    echo -e "${YELLOW}Herstel geannuleerd.${NC}"
     exit 0
 fi
 
-# Bepaal of we Docker of directe connectie gebruiken
-if [ -f "docker-compose.yml" ] && command -v docker-compose &> /dev/null; then
-    echo -e "${YELLOW}Docker-compose gevonden, herstel via Docker...${NC}"
-    USE_DOCKER=1
-else
-    echo -e "${YELLOW}Geen Docker-compose gevonden of niet beschikbaar, directe herstel...${NC}"
-    USE_DOCKER=0
-fi
+# Functies voor verschillende restore methoden
+local_restore() {
+    echo -e "${YELLOW}Directe restore gebruiken...${NC}"
+    
+    # Controleer of het een gecomprimeerd bestand is
+    if [[ "$BACKUP_FILE" == *.gz ]]; then
+        echo -e "${YELLOW}Gecomprimeerd backup bestand gedetecteerd...${NC}"
+        gunzip -c "$BACKUP_FILE" | PGPASSWORD="$DB_PASSWORD" psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME || {
+            echo -e "${RED}Restore mislukt. Zie foutmelding hierboven.${NC}"
+            exit 1
+        }
+    else
+        echo -e "${YELLOW}Ongecomprimeerd backup bestand gedetecteerd...${NC}"
+        PGPASSWORD="$DB_PASSWORD" psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$BACKUP_FILE" || {
+            echo -e "${RED}Restore mislukt. Zie foutmelding hierboven.${NC}"
+            exit 1
+        }
+    fi
+}
 
-# Database herstel functie voor Docker
 docker_restore() {
+    echo -e "${YELLOW}Restore via Docker container gebruiken...${NC}"
+    
     # Controleer of database container draait
     if ! docker-compose ps | grep -q db; then
         echo -e "${YELLOW}Database container niet gevonden of niet actief.${NC}"
@@ -106,79 +131,35 @@ docker_restore() {
         CONTAINER_BACKUP="/tmp/backup.sql"
     fi
     
-    # Database herstellen
-    echo -e "${YELLOW}Database herstellen...${NC}"
-    docker-compose exec db sh -c "PGPASSWORD=\$POSTGRES_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f $CONTAINER_BACKUP" || {
-        echo -e "${RED}Database herstel mislukt. Zie foutmelding hierboven.${NC}"
+    # Restore in container
+    echo -e "${YELLOW}Database herstellen in container...${NC}"
+    docker-compose exec db psql -U $DB_USER -d $DB_NAME -f $CONTAINER_BACKUP || {
+        echo -e "${RED}Kan database niet herstellen. Zie foutmelding hierboven.${NC}"
         exit 1
     }
     
-    # Opruimen
-    docker-compose exec db sh -c "rm -f $CONTAINER_BACKUP"
+    # Verwijder tijdelijk bestand
+    docker-compose exec db rm -f $CONTAINER_BACKUP
 }
 
-# Database herstel functie voor directe verbinding
-direct_restore() {
-    # Haal database verbindingsgegevens op uit .env bestand als het bestaat
-    if [ -f ".env" ]; then
-        source .env
-    fi
-    
-    # Als DATABASE_URL bestaat, gebruik die
-    if [ -n "$DATABASE_URL" ]; then
-        # Extract connectie info from DATABASE_URL
-        DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
-        DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
-        DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([^\/]*\)\/.*/\1/p')
-        DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\(.*\)$/\1/p')
-    else
-        # Vraag handmatig
-        read -p "Database host [localhost]: " DB_HOST
-        DB_HOST=${DB_HOST:-localhost}
-        
-        read -p "Database poort [5432]: " DB_PORT
-        DB_PORT=${DB_PORT:-5432}
-        
-        read -p "Database gebruiker [postgres]: " DB_USER
-        DB_USER=${DB_USER:-postgres}
-        
-        read -p "Database naam [facturatie]: " DB_NAME
-        DB_NAME=${DB_NAME:-facturatie}
-        
-        read -s -p "Database wachtwoord: " DB_PASSWORD
-        echo
-    fi
-    
-    # Herstel commando voorbereiden
-    if [[ "$BACKUP_FILE" == *.gz ]]; then
-        # Gecomprimeerde backup
-        RESTORE_CMD="gunzip -c $BACKUP_FILE | PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME"
-    else
-        # Ongecomprimeerde backup
-        RESTORE_CMD="PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f $BACKUP_FILE"
-    fi
-    
-    # Database herstellen
-    echo -e "${YELLOW}Database herstellen...${NC}"
-    eval "$RESTORE_CMD" || {
-        echo -e "${RED}Database herstel mislukt. Zie foutmelding hierboven.${NC}"
-        exit 1
-    }
-}
-
-# Voer het juiste herstel proces uit
-if [ "$USE_DOCKER" -eq 1 ]; then
+# Bepaal welke restore methode te gebruiken
+if in_docker; then
+    echo -e "${YELLOW}In Docker container gedetecteerd, directe restore gebruiken...${NC}"
+    local_restore
+elif has_docker; then
+    echo -e "${YELLOW}Docker gedetecteerd, restore via Docker gebruiken...${NC}"
+    cd "${SCRIPT_DIR}"  # Zorg ervoor dat we in de juiste directory staan voor docker-compose
     docker_restore
 else
-    direct_restore
+    echo -e "${YELLOW}Geen Docker gedetecteerd, directe restore gebruiken...${NC}"
+    local_restore
 fi
 
+# Herstel voltooid
+echo -e "${GREEN}====================================================${NC}"
 echo -e "${GREEN}Database herstel voltooid!${NC}"
-
-# Als er web containers zijn, herstart deze
-if [ "$USE_DOCKER" -eq 1 ] && docker-compose ps | grep -q web; then
-    echo -e "${YELLOW}Web container herstarten om wijzigingen toe te passen...${NC}"
-    docker-compose restart web
-fi
-
-echo -e "${GREEN}Het systeem is nu hersteld naar de staat van de backup.${NC}"
+echo -e "${GREEN}====================================================${NC}"
+echo -e "${YELLOW}De database is hersteld vanuit: ${BACKUP_FILE}${NC}"
+echo
+echo -e "${YELLOW}Als je de webapplicatie gebruikt, herstart deze dan met:${NC}"
+echo -e "${YELLOW}docker-compose restart web${NC}"
