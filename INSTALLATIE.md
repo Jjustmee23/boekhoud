@@ -28,7 +28,7 @@ Deze handleiding helpt bij het installeren en configureren van het Boekhoud Syst
 1. Download de installer:
 
 ```bash
-wget https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/ubuntu-setup.sh
+git clone https://github.com/Jjustmee23/boekhoud.git
 ```
 
 2. Maak het script uitvoerbaar:
