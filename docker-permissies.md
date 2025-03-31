@@ -1,130 +1,59 @@
-# Docker permissies troubleshooting
+# Docker Permissie Fixes
 
-Als je problemen ondervindt met Docker permissies, kan deze gids je helpen om de meest voorkomende problemen op te lossen.
+## Probleem
 
-## Symptomen van permissie problemen
+Bij het opstarten van de Docker container was er een probleem waarbij de gebruiker in de container (appuser) geen schrijfrechten had voor het bestand `/app/logs/app.log`. Dit gebeurt vaak wanneer een host-directory (zoals `./logs`) als volume wordt gekoppeld, waarbij de permissies van de host-directory de permissies in de container overschrijven.
 
-- Foutmeldingen zoals: `Permission denied`
-- Foutmeldingen zoals: `Cannot connect to the Docker daemon`
-- Commando's die alleen werken met `sudo` maar niet zonder
+## Oplossing
 
-## Oplossing 1: Toevoegen aan de Docker groep
+De volgende aanpassingen zijn gedaan om het permissieprobleem op te lossen:
 
-De meest voorkomende oorzaak van permissie problemen is dat je gebruiker niet in de `docker` groep zit. Voer de volgende stappen uit:
+### 1. Dockerfile wijzigingen
 
-1. Voeg je gebruiker toe aan de docker groep:
+- Permissies van `/app/logs` en `/app/static/uploads` aangepast naar `777` (rwx voor owner, group, en others)
+- `USER appuser` commando verwijderd zodat we als root kunnen starten
+- `gosu` en `sudo` toegevoegd aan de geïnstalleerde pakketten
+- Een Docker entrypoint script toegevoegd dat:
+  - Als root draait bij het opstarten
+  - De juiste permissies instelt voor de logbestanden en directories
+  - Daarna switcht naar de appuser voor het draaien van de applicatie
 
-   ```bash
-   sudo usermod -aG docker $USER
-   ```
+### 2. docker-compose.yml wijzigingen
 
-2. Log uit en log weer in (of herstart het systeem) om de groep wijzigingen toe te passen.
+- Volumes met expliciete `rw` (read-write) permissies gedefinieerd
+- `user` instelling verwijderd om het entrypoint script te laten werken
 
-3. Controleer of je nu in de docker groep zit:
+### 3. Toegevoegde bestanden
 
-   ```bash
-   groups
-   ```
+- `docker-entrypoint.sh`: Script voor het instellen van de juiste rechten
+- `check-logs.sh`: Script voor het controleren van logdirectories en -rechten
 
-   Je zou `docker` in de lijst moeten zien.
+## Hoe het werkt
 
-## Oplossing 2: Docker daemon starten
+1. Bij het opstarten van de container, draait deze als root
+2. Het entrypoint script:
+   - Maakt de logs/ en static/uploads/ directories aan als deze nog niet bestaan
+   - Stelt de correcte permissies in (777) 
+   - Wijzigt de eigenaar naar appuser:appuser
+   - Schakelt dan over naar de appuser (via gosu) om de applicatie te starten
+3. De applicatie draait als appuser en heeft nu volledige schrijftoegang tot de gedeelde volumes
 
-Als Docker niet draait:
+## Testen
 
-```bash
-sudo systemctl start docker
-sudo systemctl enable docker
-```
-
-## Oplossing 3: Eigenaar van mappen wijzigen
-
-Als je problemen hebt met bestands- of maprechten:
-
-```bash
-# Wijzig de eigenaar van de project map naar jouw gebruiker
-sudo chown -R $USER:$USER /pad/naar/project/map
-
-# Wijzig de eigenaar van docker volumes
-sudo chown -R $USER:$USER /var/lib/docker/volumes/
-```
-
-## Oplossing 4: SELinux context aanpassen
-
-Op systemen met SELinux (zoals CentOS, Fedora, RHEL):
+Je kunt de nieuwe configuratie testen door:
 
 ```bash
-# Voor de project map
-sudo chcon -Rt svirt_sandbox_file_t /pad/naar/project/map
-
-# Voor volumes
-sudo chcon -Rt svirt_sandbox_file_t /pad/naar/volume/map
+docker-compose build
+docker-compose up -d
+docker-compose exec web ./check-logs.sh
 ```
 
-## Oplossing 5: Docker socket rechten
+Het check-logs.sh script zal aangeven of de logbestanden bestaan en of de appuser daar schrijfrechten toe heeft.
 
-Als er specifiek problemen zijn met de Docker socket:
+## Aandachtspunten
 
-```bash
-sudo chmod 666 /var/run/docker.sock
-```
-
-Let op: Dit is een tijdelijke oplossing en vermindert de beveiliging. Beter is om de gebruiker toe te voegen aan de docker groep (Oplossing 1).
-
-## Oplossing 6: Docker opnieuw installeren
-
-Als alles mislukt, kun je Docker opnieuw installeren:
-
-```bash
-# Verwijder Docker
-sudo apt purge docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-# Installeer Docker opnieuw
-sudo apt update
-sudo apt install docker.io docker-compose
-```
-
-## Containergebruiker vs hostgebruiker
-
-Een veel voorkomend probleem is het verschil tussen de gebruiker in de container (vaak `root`) en de gebruiker op het hostsysteem.
-
-Voor het delen van bestanden en mappen zijn er drie strategieën:
-
-1. **Volumes gebruiken**: Docker volumes worden beheerd door Docker en hebben minder last van permissie problemen.
-
-   ```yaml
-   volumes:
-     - mydata:/var/www/data
-   ```
-
-2. **User mapping**: Specificeer de gebruiker ID in je Dockerfile of docker-compose.yml.
-
-   ```yaml
-   services:
-     web:
-       user: "${UID}:${GID}"
-   ```
-
-   En start docker-compose met:
-
-   ```bash
-   UID=$(id -u) GID=$(id -g) docker-compose up -d
-   ```
-
-3. **Permissies in de container aanpassen**: Voeg een script toe in je container die permissies aanpast.
-
-   ```Dockerfile
-   COPY entrypoint.sh /entrypoint.sh
-   RUN chmod +x /entrypoint.sh
-   ENTRYPOINT ["/entrypoint.sh"]
-   ```
-
-   En in je entrypoint.sh:
-
-   ```bash
-   #!/bin/bash
-   # Pas rechten aan
-   chown -R www-data:www-data /var/www/html
-   # Start je applicatie
-   exec "$@"
-   ```
+- De permissie `777` is zeer ruim en mogelijk niet ideaal voor productieomgevingen
+- Als alternatief zou je kunnen overwegen om:
+  1. Een specifieke gebruikersgroep aan te maken en de container en host-gebruiker in die groep te plaatsen
+  2. setgid bits te gebruiken op de gedeelde directories
+  3. Een docker-compose plugin voor volume permissies te gebruiken
