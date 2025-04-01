@@ -94,14 +94,28 @@ cat backup.sql | docker compose exec -T postgres psql -U facturatie_user factura
 
 ### Updates Installeren
 
-Om de applicatie bij te werken:
-
-1. Zorg voor een backup van de database
-2. Pull de nieuwste code
-3. Bouw en herstart de containers
+De applicatie kan automatisch worden bijgewerkt met het update-script:
 
 ```bash
+sudo ./update-app.sh
+```
+
+Dit script zal automatisch:
+1. Een backup maken van de database en configuratie
+2. De nieuwste code ophalen van GitHub
+3. Ontbrekende afhankelijkheden controleren en installeren
+4. De applicatie herstarten
+
+Handmatig updaten kan ook met:
+
+```bash
+# Backup maken
+docker exec -t db pg_dumpall -c -U postgres > backup.sql
+
+# Code bijwerken
 git pull
+
+# Applicatie herstarten
 docker compose down
 docker compose up -d --build
 ```

@@ -82,7 +82,9 @@ Na installatie krijg je:
 5. Een beveiligde PostgreSQL database
 6. Automatische backups (via het beheerscript)
 
-## Beheer van de Applicatie
+## Beheer en Updates van de Applicatie
+
+### Dagelijks beheer
 
 Na installatie kun je de applicatie beheren met het meegeleverde beheerscript:
 
@@ -101,6 +103,22 @@ Dit script biedt de volgende opties:
 7. Database backup maken
 8. Database backup herstellen
 9. Systeem updaten
+
+### Automatische Updates
+
+Voor het volledig automatisch bijwerken van de applicatie, gebruik het update-script:
+
+```bash
+sudo /opt/boekhoudapp/update-app.sh
+```
+
+Dit script zal:
+1. Automatisch backups maken van de database en configuratie
+2. De nieuwste code ophalen
+3. Ontbrekende afhankelijkheden installeren
+4. De applicatie herstarten
+
+Het update-script behoudt al je aangepaste instellingen en gegevens en rolt automatisch terug bij problemen.
 
 ## Troubleshooting
 

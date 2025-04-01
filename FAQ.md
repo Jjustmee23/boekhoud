@@ -44,8 +44,12 @@ A: Om een database backup te herstellen:
 2. Of herstel handmatig: `cat backup.sql | docker exec -i db psql -U postgres`
 
 ### Q: Hoe update ik de applicatie naar een nieuwere versie?
-A: Om de applicatie bij te werken:
-1. Maak eerst een backup van je database en configuratie
+A: De eenvoudigste manier is het automatische update-script gebruiken:
+1. Voer uit: `sudo /opt/boekhoudapp/update-app.sh`
+2. Het script maakt automatisch backups, haalt de nieuwste code op en herstart alles
+
+Alternatief kun je manueel updaten:
+1. Maak eerst een backup van je database: `docker exec -t db pg_dumpall -c -U postgres > backup.sql`
 2. Stop alle containers: `docker compose down`
 3. Update de code via git: `git pull`
 4. Start de containers opnieuw: `docker compose up -d`
