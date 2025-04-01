@@ -16,7 +16,7 @@ Voordat je begint met de installatie, zorg ervoor dat je het volgende hebt:
 Om de applicatie in één keer te installeren, voer je het volgende commando uit op je server:
 
 ```bash
-wget -O installeer-boekhoud-app.sh https://raw.githubusercontent.com/yourusername/boekhoudapp/main/installeer-boekhoud-app.sh && chmod +x installeer-boekhoud-app.sh && sudo ./installeer-boekhoud-app.sh
+wget -O installeer-boekhoud-app.sh https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/installeer-boekhoud-app.sh && chmod +x installeer-boekhoud-app.sh && sudo ./installeer-boekhoud-app.sh
 ```
 
 Volg de instructies op het scherm om de installatie te voltooien.
@@ -32,7 +32,7 @@ Als je liever stap voor stap installeert, volg dan deze instructies:
 
 2. Download het installatiescript:
    ```bash
-   wget -O installeer-boekhoud-app.sh https://raw.githubusercontent.com/yourusername/boekhoudapp/main/installeer-boekhoud-app.sh
+   wget -O installeer-boekhoud-app.sh https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/installeer-boekhoud-app.sh
    ```
 
 3. Maak het script uitvoerbaar:

@@ -17,7 +17,7 @@ Deze handleiding beschrijft hoe je de applicatie kunt installeren op je eigen Ub
 1. **Kopieer de codebase naar je server**
 
    ```bash
-   git clone <jouw-repo-url> /path/to/app
+   git clone https://github.com/Jjustmee23/boekhoud.git /path/to/app
    cd /path/to/app
    ```
 

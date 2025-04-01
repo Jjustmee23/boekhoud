@@ -81,7 +81,7 @@ else
     
     # Clone de repository
     log "Git repository klonen naar $APP_DIR..."
-    git clone "$GIT_REPO" "$APP_DIR" || error "Kan git repository niet klonen"
+    git clone "$GIT_REPO" "$APP_DIR" || error "Kan git repository niet klonen. Als je de standaard repository wilt gebruiken, voer dan in: git clone https://github.com/Jjustmee23/boekhoud.git $APP_DIR"
     
     # Ga naar de map en maak install-docker.sh uitvoerbaar
     cd "$APP_DIR" || error "Kan niet naar $APP_DIR navigeren"

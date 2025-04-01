@@ -153,7 +153,7 @@ mkdir -p "$APP_DIR"
 cd "$APP_DIR" || error "Kan niet naar $APP_DIR navigeren"
 
 log "Applicatiebestanden downloaden..."
-git clone https://github.com/yourusername/boekhoudapp.git . || warn "Kon repository niet klonen - aangenomen dat bestanden al aanwezig zijn"
+git clone https://github.com/Jjustmee23/boekhoud.git . || warn "Kon repository niet klonen - aangenomen dat bestanden al aanwezig zijn"
 
 # Maak benodigde mappen aan
 log "Benodigde mappen aanmaken..."
