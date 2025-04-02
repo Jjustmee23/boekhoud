@@ -13,7 +13,7 @@ This directory contains scripts and configuration files for deploying the applic
 
 1. Upload the contents of this repository to your server or clone it from GitHub:
    ```
-   git clone https://github.com/your-username/your-repo.git /opt/invoicing-app
+   git clone https://github.com/Jjustmee23/boekhoud.git /opt/invoicing-app
    cd /opt/invoicing-app
    ```
 

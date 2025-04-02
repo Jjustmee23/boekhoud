@@ -46,6 +46,15 @@ echo "Creating app directory..."
 mkdir -p /opt/invoicing-app
 chown -R $USER:$USER /opt/invoicing-app
 
+# Clone the application repository
+echo "Cloning application repository..."
+if [ ! -d "/opt/invoicing-app/.git" ]; then
+    git clone https://github.com/Jjustmee23/boekhoud.git /opt/invoicing-app
+    chown -R $USER:$USER /opt/invoicing-app
+else
+    echo "Repository already exists in /opt/invoicing-app"
+fi
+
 echo "Server setup complete!"
 echo "Please run 'newgrp docker' or log out and back in to apply Docker group changes."
-echo "Next, clone your repository to /opt/invoicing-app and run deployment/deploy.sh"
+echo "Next, navigate to /opt/invoicing-app and run deployment/deploy.sh"

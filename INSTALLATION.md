@@ -48,7 +48,7 @@ sudo apt-get install git -y
 Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/your-repository.git /opt/invoicing-app
+git clone https://github.com/Jjustmee23/boekhoud.git /opt/invoicing-app
 cd /opt/invoicing-app
 ```
 
@@ -235,4 +235,4 @@ If you encounter any issues, please:
 
 1. Check the logs as described in the troubleshooting section
 2. Refer to the project documentation
-3. Create an issue on the GitHub repository
+3. Create an issue on the GitHub repository: https://github.com/Jjustmee23/boekhoud

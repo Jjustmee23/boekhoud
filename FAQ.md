@@ -183,3 +183,10 @@ sudo rm -rf /opt/invoicing-app
 sudo -u postgres psql -c "DROP DATABASE invoicing;"
 sudo -u postgres psql -c "DROP USER dbuser;"
 ```
+
+### Waar kan ik de broncode van de applicatie vinden?
+
+De broncode van de applicatie is beschikbaar op GitHub:
+[https://github.com/Jjustmee23/boekhoud](https://github.com/Jjustmee23/boekhoud)
+
+Als u problemen of vragen heeft, kunt u een issue aanmaken op GitHub of contact opnemen met de ontwikkelaar via het platform.

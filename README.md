@@ -31,8 +31,8 @@ Deze applicatie biedt een complete oplossing voor facturatie, boekhouding en adm
 
 1. **Kloon de repository**
    ```bash
-   git clone https://github.com/uw-gebruikersnaam/uw-repository.git
-   cd uw-repository
+   git clone https://github.com/Jjustmee23/boekhoud.git
+   cd boekhoud
    ```
 
 2. **Maak een virtuele Python-omgeving aan**
@@ -225,4 +225,4 @@ Voor ondersteuning bij installatie of gebruik:
 
 - Raadpleeg de [FAQ.md](FAQ.md) voor veelgestelde vragen
 - Controleer de [INSTALLATION.md](INSTALLATION.md) voor gedetailleerde instructies
-- Neem contact op met de ontwikkelaar via e-mail: [uw e-mailadres]
+- Neem contact op met de ontwikkelaar via GitHub: [https://github.com/Jjustmee23](https://github.com/Jjustmee23)

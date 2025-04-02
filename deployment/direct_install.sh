@@ -58,10 +58,8 @@ mkdir -p $APP_DIR || error "Failed to create application directory"
 # Clone repository if not already done
 if [ ! -d "$APP_DIR/.git" ]; then
     log "Cloning repository..."
-    # This would be your actual repository
-    # git clone https://github.com/yourusername/your-repo.git $APP_DIR
-    # For now, we'll assume the current directory is the repository
-    cp -r . $APP_DIR || error "Failed to copy application files"
+    # Clone from the GitHub repository
+    git clone https://github.com/Jjustmee23/boekhoud.git $APP_DIR || error "Failed to clone repository"
 fi
 
 # Set up Python virtual environment
