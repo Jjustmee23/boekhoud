@@ -1,0 +1,264 @@
+/usr/bin/xauth:  file /root/.Xauthority does not exist
+root@boekhoud:~# chmod +x deployment/setup.sh
+chmod: cannot access 'deployment/setup.sh': No such file or directory
+root@boekhoud:~# git clone https://github.com/Jjustmee23/boekhoud.git
+cd boekhoud
+Cloning into 'boekhoud'...
+Username for 'https://github.com': Jjustmee23
+Password for 'https://Jjustmee23@github.com':
+remote: Enumerating objects: 1616, done.
+remote: Counting objects: 100% (1616/1616), done.
+remote: Compressing objects: 100% (577/577), done.
+remote: Total 1616 (delta 1204), reused 1437 (delta 1026), pack-reused 0 (from 0)
+Receiving objects: 100% (1616/1616), 3.16 MiB | 26.30 MiB/s, done.
+Resolving deltas: 100% (1204/1204), done.
+root@boekhoud:~/boekhoud# chmod +x deployment/setup.sh
+root@boekhoud:~/boekhoud# sudo ./deployment/setup.sh
+Updating system packages...
+Hit:1 http://archive.ubuntu.com/ubuntu jammy InRelease
+Get:2 http://security.ubuntu.com/ubuntu jammy-security InRelease [129 kB]
+Get:3 http://archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]
+Get:4 http://archive.ubuntu.com/ubuntu jammy-backports InRelease [127 kB]
+Fetched 384 kB in 1s (536 kB/s)
+Reading package lists... Done
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Calculating upgrade... Done
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Installing dependencies...
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+lsb-release is already the newest version (11.1.0ubuntu4).
+lsb-release set to manually installed.
+ca-certificates is already the newest version (20240203~22.04.1).
+ca-certificates set to manually installed.
+curl is already the newest version (7.81.0-1ubuntu1.20).
+curl set to manually installed.
+git is already the newest version (1:2.34.1-1ubuntu1.12).
+git set to manually installed.
+gnupg is already the newest version (2.2.27-3ubuntu2.1).
+gnupg set to manually installed.
+ufw is already the newest version (0.36.1-4ubuntu0.1).
+ufw set to manually installed.
+The following NEW packages will be installed:
+  apt-transport-https
+0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
+Need to get 1510 B of archives.
+After this operation, 170 kB of additional disk space will be used.
+Get:1 http://archive.ubuntu.com/ubuntu jammy-updates/universe amd64 apt-transport-https all 2.4.13 [1510 B]
+Fetched 1510 B in 0s (9551 B/s)
+Selecting previously unselected package apt-transport-https.
+(Reading database ... 94089 files and directories currently installed.)
+Preparing to unpack .../apt-transport-https_2.4.13_all.deb ...
+Unpacking apt-transport-https (2.4.13) ...
+Setting up apt-transport-https (2.4.13) ...
+Scanning processes...
+Scanning linux images...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+Installing Docker...
+# Executing docker install script, commit: 4c94a56999e10efcf48c5b8e3f6afea464f9108e
++ sh -c apt-get -qq update >/dev/null
++ sh -c DEBIAN_FRONTEND=noninteractive apt-get -y -qq install ca-certificates curl >/dev/null
++ sh -c install -m 0755 -d /etc/apt/keyrings
++ sh -c curl -fsSL "https://download.docker.com/linux/ubuntu/gpg" -o /etc/apt/keyrings/docker.asc
++ sh -c chmod a+r /etc/apt/keyrings/docker.asc
++ sh -c echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu jammy stable" > /etc/apt/sources.list.d/docker.list
++ sh -c apt-get -qq update >/dev/null
+cp .env.example .env
++ sh -c DEBIAN_FRONTEND=noninteractive apt-get -y -qq install docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-ce-rootless-extras docker-buildx-plugin >/dev/null
++ sh -c docker version
+Client: Docker Engine - Community
+ Version:           28.0.4
+ API version:       1.48
+ Go version:        go1.23.7
+ Git commit:        b8034c0
+ Built:             Tue Mar 25 15:07:11 2025
+ OS/Arch:           linux/amd64
+ Context:           default
+
+Server: Docker Engine - Community
+ Engine:
+  Version:          28.0.4
+  API version:      1.48 (minimum version 1.24)
+  Go version:       go1.23.7
+  Git commit:       6430e49
+  Built:            Tue Mar 25 15:07:11 2025
+  OS/Arch:          linux/amd64
+  Experimental:     false
+ containerd:
+  Version:          1.7.27
+  GitCommit:        05044ec0a9a75232cad458027ca83437aae3f4da
+ runc:
+  Version:          1.2.5
+  GitCommit:        v1.2.5-0-g59923ef
+ docker-init:
+  Version:          0.19.0
+  GitCommit:        de40ad0
+
+================================================================================
+
+To run Docker as a non-privileged user, consider setting up the
+Docker daemon in rootless mode for your user:
+
+    dockerd-rootless-setuptool.sh install
+
+Visit https://docs.docker.com/go/rootless/ to learn about rootless mode.
+
+
+To run the Docker daemon as a fully privileged service, but granting non-root
+users access, refer to https://docs.docker.com/go/daemon-access/
+
+WARNING: Access to the remote API on a privileged Docker daemon is equivalent
+         to root access on the host. Refer to the 'Docker daemon attack surface'
+         documentation for details: https://docs.docker.com/go/attack-surface/
+
+================================================================================
+
+Synchronizing state of docker.service with SysV service script with /lib/systemd/systemd-sysv-install.
+Executing: /lib/systemd/systemd-sysv-install enable docker
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+docker-compose-plugin is already the newest version (2.34.0-1~ubuntu.22.04~jammy).
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Docker installed successfully!
+Configuring firewall...
+Rules updated
+Rules updated (v6)
+Rules updated
+Rules updated (v6)
+Rules updated
+Rules updated (v6)
+Firewall is active and enabled on system startup
+Creating app directory...
+Cloning application repository...
+Cloning into '/opt/invoicing-app'...
+Username for 'https://github.com': Jjustmee23
+Password for 'https://Jjustmee23@github.com':
+remote: Enumerating objects: 1616, done.
+remote: Counting objects: 100% (1616/1616), done.
+remote: Compressing objects: 100% (577/577), done.
+remote: Total 1616 (delta 1204), reused 1437 (delta 1026), pack-reused 0 (from 0)
+Receiving objects: 100% (1616/1616), 3.16 MiB | 31.11 MiB/s, done.
+Resolving deltas: 100% (1204/1204), done.
+Server setup complete!
+Please run 'newgrp docker' or log out and back in to apply Docker group changes.
+Next, navigate to /opt/invoicing-app and run deployment/deploy.sh
+root@boekhoud:~/boekhoud# cp .env.example .env
+root@boekhoud:~/boekhoud# nano .env
+root@boekhoud:~/boekhoud# chmod +x deployment/deploy.sh
+root@boekhoud:~/boekhoud# ./deployment/deploy.sh
+SSL certificates not found in nginx/ssl/
+Do you want to set up Let's Encrypt certificates? (y/n): y
+Enter your domain name (e.g., example.com): boekhoud.midaweb.be
+Hit:1 https://download.docker.com/linux/ubuntu jammy InRelease
+Hit:2 http://archive.ubuntu.com/ubuntu jammy InRelease
+Hit:3 http://security.ubuntu.com/ubuntu jammy-security InRelease
+Hit:4 http://archive.ubuntu.com/ubuntu jammy-updates InRelease
+Hit:5 http://archive.ubuntu.com/ubuntu jammy-backports InRelease
+Reading package lists... Done
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+  python3-acme python3-certbot python3-configargparse python3-icu python3-josepy python3-parsedatetime python3-requests-toolbelt python3-rfc3339 python3-zope.component python3-zope.event python3-zope.hookable
+Suggested packages:
+  python-certbot-doc python3-certbot-apache python3-certbot-nginx python-acme-doc
+The following NEW packages will be installed:
+  certbot python3-acme python3-certbot python3-configargparse python3-icu python3-josepy python3-parsedatetime python3-requests-toolbelt python3-rfc3339 python3-zope.component python3-zope.event
+  python3-zope.hookable
+0 upgraded, 12 newly installed, 0 to remove and 0 not upgraded.
+Need to get 958 kB of archives.
+After this operation, 4915 kB of additional disk space will be used.
+Get:1 http://archive.ubuntu.com/ubuntu jammy/universe amd64 python3-josepy all 1.10.0-1 [22.0 kB]
+Get:2 http://archive.ubuntu.com/ubuntu jammy/main amd64 python3-requests-toolbelt all 0.9.1-1 [38.0 kB]
+Get:3 http://archive.ubuntu.com/ubuntu jammy/main amd64 python3-rfc3339 all 1.1-3 [7110 B]
+Get:4 http://archive.ubuntu.com/ubuntu jammy-updates/universe amd64 python3-acme all 1.21.0-1ubuntu0.1 [36.4 kB]
+Get:5 http://archive.ubuntu.com/ubuntu jammy/universe amd64 python3-configargparse all 1.5.3-1 [26.9 kB]
+Get:6 http://archive.ubuntu.com/ubuntu jammy/universe amd64 python3-parsedatetime all 2.6-2 [32.9 kB]
+Get:7 http://archive.ubuntu.com/ubuntu jammy/universe amd64 python3-zope.hookable amd64 5.1.0-1build1 [11.6 kB]
+Get:8 http://archive.ubuntu.com/ubuntu jammy/universe amd64 python3-zope.event all 4.4-3 [8180 B]
+Get:9 http://archive.ubuntu.com/ubuntu jammy/universe amd64 python3-zope.component all 4.3.0-3 [38.3 kB]
+Get:10 http://archive.ubuntu.com/ubuntu jammy/universe amd64 python3-certbot all 1.21.0-1build1 [175 kB]
+Get:11 http://archive.ubuntu.com/ubuntu jammy/main amd64 python3-icu amd64 2.8.1-0ubuntu2 [540 kB]
+Get:12 http://archive.ubuntu.com/ubuntu jammy/universe amd64 certbot all 1.21.0-1build1 [21.3 kB]
+Fetched 958 kB in 0s (13.4 MB/s)
+Preconfiguring packages ...
+Selecting previously unselected package python3-josepy.
+(Reading database ... 94359 files and directories currently installed.)
+Preparing to unpack .../00-python3-josepy_1.10.0-1_all.deb ...
+Unpacking python3-josepy (1.10.0-1) ...
+Selecting previously unselected package python3-requests-toolbelt.
+Preparing to unpack .../01-python3-requests-toolbelt_0.9.1-1_all.deb ...
+Unpacking python3-requests-toolbelt (0.9.1-1) ...
+Selecting previously unselected package python3-rfc3339.
+Preparing to unpack .../02-python3-rfc3339_1.1-3_all.deb ...
+Unpacking python3-rfc3339 (1.1-3) ...
+Selecting previously unselected package python3-acme.
+Preparing to unpack .../03-python3-acme_1.21.0-1ubuntu0.1_all.deb ...
+Unpacking python3-acme (1.21.0-1ubuntu0.1) ...
+Selecting previously unselected package python3-configargparse.
+Preparing to unpack .../04-python3-configargparse_1.5.3-1_all.deb ...
+Unpacking python3-configargparse (1.5.3-1) ...
+Selecting previously unselected package python3-parsedatetime.
+Preparing to unpack .../05-python3-parsedatetime_2.6-2_all.deb ...
+Unpacking python3-parsedatetime (2.6-2) ...
+Selecting previously unselected package python3-zope.hookable.
+Preparing to unpack .../06-python3-zope.hookable_5.1.0-1build1_amd64.deb ...
+Unpacking python3-zope.hookable (5.1.0-1build1) ...
+Selecting previously unselected package python3-zope.event.
+Preparing to unpack .../07-python3-zope.event_4.4-3_all.deb ...
+Unpacking python3-zope.event (4.4-3) ...
+Selecting previously unselected package python3-zope.component.
+Preparing to unpack .../08-python3-zope.component_4.3.0-3_all.deb ...
+Unpacking python3-zope.component (4.3.0-3) ...
+Selecting previously unselected package python3-certbot.
+Preparing to unpack .../09-python3-certbot_1.21.0-1build1_all.deb ...
+Unpacking python3-certbot (1.21.0-1build1) ...
+Selecting previously unselected package python3-icu.
+Preparing to unpack .../10-python3-icu_2.8.1-0ubuntu2_amd64.deb ...
+Unpacking python3-icu (2.8.1-0ubuntu2) ...
+Selecting previously unselected package certbot.
+Preparing to unpack .../11-certbot_1.21.0-1build1_all.deb ...
+Unpacking certbot (1.21.0-1build1) ...
+Setting up python3-configargparse (1.5.3-1) ...
+Setting up python3-requests-toolbelt (0.9.1-1) ...
+Setting up python3-parsedatetime (2.6-2) ...
+Setting up python3-icu (2.8.1-0ubuntu2) ...
+Setting up python3-zope.event (4.4-3) ...
+Setting up python3-zope.hookable (5.1.0-1build1) ...
+Setting up python3-josepy (1.10.0-1) ...
+Setting up python3-rfc3339 (1.1-3) ...
+Setting up python3-zope.component (4.3.0-3) ...
+Setting up python3-acme (1.21.0-1ubuntu0.1) ...
+Setting up python3-certbot (1.21.0-1build1) ...
+Setting up certbot (1.21.0-1build1) ...
+Created symlink /etc/systemd/system/timers.target.wants/certbot.timer → /lib/systemd/system/certbot.timer.
+Processing triggers for man-db (2.10.2-1) ...
+Scanning processes...
+Scanning linux images...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+./deployment/deploy.sh: line 30: docker-compose: command not found
+root@boekhoud:~/boekhoud# chmod +x deployment/backup.sh deployment/update.sh deployment/system_update.sh
+(crontab -l 2>/dev/null; echo "0 2 * * * /opt/invoicing-app/deployment/backup.sh") | crontab -
+root@boekhoud:~/boekhoud#
