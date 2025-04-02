@@ -2,133 +2,59 @@
 
 Een uitgebreide webapplicatie voor facturatie en administratie, gebouwd met Flask en optimaal voor Benelux bedrijven.
 
-## Docker Installatie Handleiding
+## Beschrijving
 
-Deze handleiding beschrijft hoe je de applicatie kunt installeren op je eigen Ubuntu 22.04 server met Docker, inclusief domeinconfirugatie en SSL.
+Deze applicatie biedt een complete oplossing voor facturatie, boekhouding en administratie voor bedrijven in België en Nederland. Het systeem is ontwikkeld met Flask en heeft een PostgreSQL database voor gegevensopslag.
+
+### Functionaliteiten
+
+- Facturatie en offertes
+- Klantenbeheer
+- Werkruimtes voor verschillende bedrijven
+- E-mail integratie via Microsoft Graph API
+- Betalingsverwerking via Mollie
+- Abonnementen en licentiebeheer
+- Rapportage en analyses
+- BTW-berekeningen voor de Benelux
+- Meertalige ondersteuning
+- Gebruikersbeheer met verschillende rechten
+
+## Installatie en Configuratie
 
 ### Vereisten
 
-- Ubuntu 22.04 server
-- Een domeinnaam die naar je server IP wijst
-- Basiskennis van Linux en Docker
+- Python 3.11 of hoger
+- PostgreSQL database
+- De benodigde Python-packages zijn opgenomen in requirements.txt
 
-### Installatiestappen
+### Configuratie
 
-1. **Kopieer de codebase naar je server**
+1. **Database instellingen**
 
-   ```bash
-   git clone https://github.com/Jjustmee23/boekhoud.git /path/to/app
-   cd /path/to/app
-   ```
+   Zorg ervoor dat de PostgreSQL database is geconfigureerd en stel de juiste verbindingsgegevens in via de `DATABASE_URL` omgevingsvariabele.
 
-2. **Maak het installatiescript uitvoerbaar**
+2. **E-mail configuratie**
 
-   ```bash
-   chmod +x install-docker.sh
-   ```
+   Voor e-mailfunctionaliteit kan Microsoft Graph API worden gebruikt, configureer de volgende variabelen:
+   - MS_GRAPH_CLIENT_ID
+   - MS_GRAPH_CLIENT_SECRET
+   - MS_GRAPH_TENANT_ID
+   - MS_GRAPH_SENDER_EMAIL
 
-3. **Voer het installatiescript uit**
+3. **Betalingen (Mollie)**
 
-   ```bash
-   sudo ./install-docker.sh
-   ```
+   Voor betalingsverwerking, stel de Mollie API-sleutel in:
+   - MOLLIE_API_KEY
 
-   Beantwoord de vragen over je domeinnaam en e-mailadres.
-
-4. **Configureer de applicatie**
-
-   Bewerk het `.env` bestand om je API sleutels in te stellen:
-   
-   ```bash
-   nano .env
-   ```
-   
-   Voeg toe of bewerk:
-   - Microsoft Graph API instellingen (voor e-mail)
-   - Mollie API sleutel (voor betalingen)
-
-5. **Herstart de applicatie na configuratie**
-
-   ```bash
-   docker compose restart
-   ```
-
-6. **Controleer of alles werkt**
-
-   Open je browser en ga naar https://jouw-domein.nl
-
-### Docker Commando's
-
-Hier zijn enkele nuttige commando's voor het beheren van je installatie:
+### Applicatie Starten
 
 ```bash
 # Start de applicatie
-docker compose up -d
-
-# Stop de applicatie
-docker compose down
-
-# Bekijk logs
-docker compose logs -f
-
-# Bekijk status van containers
-docker compose ps
-
-# Herstart de applicatie (na wijzigingen in .env)
-docker compose restart
+python main.py
 ```
 
-### Database Backups Maken
+De webapplicatie is standaard beschikbaar op `http://localhost:5000`
 
-Je kunt als volgt een backup maken van de PostgreSQL database:
-
-```bash
-docker compose exec postgres pg_dump -U facturatie_user facturatie > backup.sql
-```
-
-Terugzetten van een backup:
-
-```bash
-cat backup.sql | docker compose exec -T postgres psql -U facturatie_user facturatie
-```
-
-### Updates Installeren
-
-De applicatie kan automatisch worden bijgewerkt met het update-script:
-
-```bash
-sudo ./update-app.sh
-```
-
-Dit script zal automatisch:
-1. Een backup maken van de database en configuratie
-2. De nieuwste code ophalen van GitHub
-3. Ontbrekende afhankelijkheden controleren en installeren
-4. De applicatie herstarten
-
-Handmatig updaten kan ook met:
-
-```bash
-# Backup maken
-docker exec -t db pg_dumpall -c -U postgres > backup.sql
-
-# Code bijwerken
-git pull
-
-# Applicatie herstarten
-docker compose down
-docker compose up -d --build
-```
-
-### Troubleshooting
-
-- **Applicatie is niet bereikbaar**: Controleer of je domein correct naar het IP van je server wijst en of poorten 80 en 443 open staan in je firewall.
-- **SSL certificaat werkt niet**: Controleer of je domeinnaam correct is ingesteld en of je e-mailadres geldig is.
-- **E-mail werkt niet**: Controleer je Microsoft Graph API instellingen in het `.env` bestand.
-- **Foutmeldingen bekijken**: Check de logs met `docker compose logs -f`.
-- **Problemen met nginx-proxy of acme-companion**: Controleer of de volumes en container namen correct zijn ingesteld. Herstart de containers met `docker compose restart`.
-- **Problemen met dhparam.pem**: Als je problemen hebt met het dhparam.pem bestand, kun je dit handmatig genereren met `./nginx/dhparam-generator.sh` of gebruik het commando `openssl dhparam -out nginx/ssl/dhparam.pem 2048`.
-
-### Ondersteuning
+## Ondersteuning
 
 Voor ondersteuning, neem contact op via e-mail op [jouw-email].
