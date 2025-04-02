@@ -1,7 +1,6 @@
 #!/bin/bash
-# Automatisch update script voor de boekhoudapplicatie
-# Dit script update de applicatie, maakt een backup, installeert ontbrekende afhankelijkheden
-# en herstart de applicatie indien nodig
+# Automatisch update script voor Boekhoud Applicatie
+# Dit script werkt de applicatie bij, maakt backups en herstart alles
 
 # Kleuren voor output
 GREEN='\033[0;32m'
@@ -40,7 +39,7 @@ if [ "$EUID" -ne 0 ]; then
     error "Dit script moet als root worden uitgevoerd. Gebruik 'sudo ./update-app.sh'"
 fi
 
-# Bepaal het pad waar de applicatie is geïnstalleerd
+# Bepaal applicatiemap
 APP_DIR=$(pwd)
 if [ ! -f "$APP_DIR/docker-compose.yml" ] && [ ! -f "$APP_DIR/compose.yaml" ]; then
     # Probeer standaard locaties
@@ -58,13 +57,13 @@ fi
 
 cd "$APP_DIR" || error "Kan niet naar de applicatiemap navigeren: $APP_DIR"
 
-# Start het update proces
-header "BOEKHOUDAPPLICATIE AUTOMATISCHE UPDATE"
-log "Het update proces wordt gestart in map: $APP_DIR"
+# Start het updateproces
+header "APPLICATIE AUTOMATISCHE UPDATE"
+log "Update proces wordt gestart in map: $APP_DIR"
 log "Dit script zal:"
 log "1. Een backup maken van de database en configuratie"
 log "2. De nieuwste code ophalen"
-log "3. Ontbrekende afhankelijkheden installeren"
+log "3. Ontbrekende afhankelijkheden controleren en installeren"
 log "4. De applicatie herstarten"
 echo ""
 read -p "Wil je doorgaan met de update? (j/n): " CONTINUE
@@ -74,85 +73,85 @@ if [[ ! "$CONTINUE" =~ ^[Jj]$ ]]; then
 fi
 
 # Controleer of Docker draait
-header "CONTROLE VEREISTEN"
+header "VEREISTEN CONTROLEREN"
 if ! systemctl is-active --quiet docker; then
     log "Docker service is niet actief. Service wordt gestart..."
     systemctl start docker
     systemctl enable docker
 fi
 
-# Maak een backup van de database
+# Maak database backup
 header "STAP 1: BACKUP MAKEN"
 log "Database backup wordt gemaakt..."
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_DIR="$APP_DIR/backups"
 mkdir -p "$BACKUP_DIR"
 
-# Maak een backup van de database
+# Backup database
 DB_BACKUP_FILE="$BACKUP_DIR/db_backup_$TIMESTAMP.sql"
 log "Database backup wordt gemaakt naar: $DB_BACKUP_FILE"
-if docker exec -t $(docker ps -q --filter "name=db") pg_dumpall -c -U postgres > "$DB_BACKUP_FILE" 2>/dev/null; then
+if docker exec -t $(docker ps -q --filter "name=postgres") pg_dumpall -c -U postgres > "$DB_BACKUP_FILE" 2>/dev/null; then
     log "Database backup succesvol gemaakt"
 else
-    warn "Kon geen volledige database backup maken, proberen met individuele database dump..."
-    # Probeer een individuele database dump
-    if docker exec -t $(docker ps -q --filter "name=db") pg_dump -U postgres -d boekhouding > "$DB_BACKUP_FILE" 2>/dev/null; then
+    warn "Kon geen volledige database backup maken, probeer met individuele database dump..."
+    # Probeer individuele database dump
+    if docker exec -t $(docker ps -q --filter "name=postgres") pg_dump -U postgres -d boekhouding > "$DB_BACKUP_FILE" 2>/dev/null; then
         log "Database backup succesvol gemaakt met pg_dump"
     else
-        warn "Kon geen database backup maken via Docker. Mogelijk is de container niet actief."
+        warn "Kon geen database backup maken via Docker. Container is mogelijk niet actief."
         # Als Docker containers niet draaien, sla deze stap over
     fi
 fi
 
 # Backup .env bestand
 if [ -f "$APP_DIR/.env" ]; then
-    log ".env bestand wordt gebackupt..."
+    log "Backup maken van .env bestand..."
     cp "$APP_DIR/.env" "$BACKUP_DIR/.env.backup_$TIMESTAMP"
     log ".env backup succesvol gemaakt"
 fi
 
-# Backup eventuele aangepaste bestanden
-log "Aanpassingen worden gebackupt..."
+# Backup custom bestanden
+log "Backup maken van custom bestanden..."
 if command -v git &> /dev/null && [ -d "$APP_DIR/.git" ]; then
     # Gebruik git stash voor lokale wijzigingen
-    cd "$APP_DIR" || error "Kan niet naar de applicatiemap navigeren"
+    cd "$APP_DIR" || error "Kan niet naar applicatiemap navigeren"
     if ! git diff --quiet; then
-        log "Lokale aanpassingen gevonden, deze worden opgeslagen met git stash..."
+        log "Lokale wijzigingen gevonden, worden opgeslagen met git stash..."
         git stash save "Automatische backup voor update op $(date)"
-        log "Aanpassingen opgeslagen in git stash"
+        log "Wijzigingen opgeslagen in git stash"
     else
-        log "Geen lokale aanpassingen gevonden in git"
+        log "Geen lokale wijzigingen gevonden in git"
     fi
 else
-    # Als git niet beschikbaar is, maak een tarball van belangrijke mappen
-    log "Git niet beschikbaar, belangrijke mappen worden gebackupt..."
+    # Als git niet beschikbaar is, maak tarball van belangrijke mappen
+    log "Git niet beschikbaar, backup maken van belangrijke mappen..."
     tar -czf "$BACKUP_DIR/custom_files_$TIMESTAMP.tar.gz" templates static 2>/dev/null
-    log "Belangrijke mappen gebackupt naar $BACKUP_DIR/custom_files_$TIMESTAMP.tar.gz"
+    log "Belangrijke mappen geback-upt naar $BACKUP_DIR/custom_files_$TIMESTAMP.tar.gz"
 fi
 
 # Update de code
-header "STAP 2: CODE BIJWERKEN"
+header "STAP 2: CODE UPDATEN"
 if command -v git &> /dev/null && [ -d "$APP_DIR/.git" ]; then
     log "Git repository wordt bijgewerkt..."
-    cd "$APP_DIR" || error "Kan niet naar de applicatiemap navigeren"
+    cd "$APP_DIR" || error "Kan niet naar applicatiemap navigeren"
     
     # Controleer huidige branch
     BRANCH=$(git rev-parse --abbrev-ref HEAD)
     log "Huidige branch: $BRANCH"
     
-    # Update de code
-    log "Code wordt bijgewerkt vanaf oorsprong (origin)..."
+    # Update code
+    log "Code wordt bijgewerkt vanaf origin..."
     if git pull origin "$BRANCH"; then
         log "Code succesvol bijgewerkt"
     else
-        warn "Er waren problemen bij het bijwerken van de code. Proberen te herstellen..."
+        warn "Er waren problemen bij het updaten van de code. Probeer te herstellen..."
         # Probeer eventuele problemen op te lossen
         git reset --hard origin/"$BRANCH"
-        log "Code hersteld naar laatste versie op de server"
+        log "Code hersteld naar laatste versie op server"
     fi
 else
-    warn "Git niet beschikbaar of geen git repository gevonden"
-    log "Handmatige update is vereist. Download de nieuwste code van GitHub en kopieer deze naar $APP_DIR"
+    warn "Git niet beschikbaar of git repository niet gevonden"
+    log "Handmatige update vereist. Download de nieuwste code van GitHub en kopieer naar $APP_DIR"
     read -p "Wil je de applicatie downloaden van GitHub? (j/n): " DOWNLOAD_GITHUB
     if [[ "$DOWNLOAD_GITHUB" =~ ^[Jj]$ ]]; then
         log "Code wordt gedownload van GitHub..."
@@ -171,13 +170,13 @@ else
                 cp -r "$APP_DIR/static/uploads" "$TMP_DIR/static/"
             fi
             
-            # Kopieer de nieuwe code, maar behoud .env en uploads
+            # Kopieer de nieuwe code maar behoud .env en uploads
             rm -rf "$TMP_DIR/.git" # Verwijder .git map om conflicten te voorkomen
             rsync -av --exclude='.env' --exclude='static/uploads' "$TMP_DIR/" "$APP_DIR/"
             rm -rf "$TMP_DIR"
             log "Code succesvol bijgewerkt"
         else
-            error "Kon de code niet downloaden van GitHub"
+            error "Kon code niet downloaden van GitHub"
         fi
     else
         log "Code update overgeslagen"
@@ -200,10 +199,10 @@ if [ -d "$APP_DIR/nginx" ]; then
     
     # Controleer of dhparam.pem bestaat
     if [ ! -f "$APP_DIR/nginx/ssl/dhparam.pem" ]; then
-        log "DH-parameters ontbreken, worden gegenereerd..."
+        log "DH parameters ontbreken, worden gegenereerd..."
         mkdir -p "$APP_DIR/nginx/ssl"
         openssl dhparam -out "$APP_DIR/nginx/ssl/dhparam.pem" 2048
-        log "DH-parameters succesvol gegenereerd"
+        log "DH parameters succesvol gegenereerd"
     fi
     
     # Maak dhparam-generator.sh uitvoerbaar
@@ -212,23 +211,21 @@ if [ -d "$APP_DIR/nginx" ]; then
     fi
 fi
 
-# Controleer of beheerscripts en troubleshooting scripts aanwezig zijn
+# Controleer of beheer- en troubleshoot-scripts bestaan
 log "Beheerscripts worden gecontroleerd..."
 if [ ! -f "$APP_DIR/beheer.sh" ]; then
-    log "Beheerscript ontbreekt, wordt gecreëerd..."
-    # Hier zou je het beheerscript kunnen genereren
-    log "Zie update-logs voor details"
+    log "Beheerschript ontbreekt, wordt gemaakt in een toekomstige update"
+    log "Zie update logs voor details"
 fi
 
 if [ ! -f "$APP_DIR/troubleshoot-domain.sh" ]; then
-    log "Troubleshoot-script ontbreekt, wordt gecreëerd..."
-    # Hier zou je het troubleshoot-script kunnen genereren
-    log "Zie update-logs voor details"
+    log "Troubleshoot script ontbreekt, wordt gemaakt in een toekomstige update"
+    log "Zie update logs voor details"
 fi
 
 # Maak alle scripts uitvoerbaar
 find "$APP_DIR" -name "*.sh" -exec chmod +x {} \;
-log "Alle scriptbestanden zijn nu uitvoerbaar"
+log "Alle script bestanden zijn nu uitvoerbaar"
 
 # Herstart de applicatie
 header "STAP 4: APPLICATIE HERSTARTEN"
@@ -238,36 +235,87 @@ if [ -f "$APP_DIR/docker-compose.yml" ]; then
     docker compose up -d
     log "Applicatie succesvol herstart"
     
-    # Toon de status van de containers
-    log "Status van de containers:"
+    # Toon container status
+    log "Container status:"
     docker compose ps
 else
     warn "docker-compose.yml niet gevonden, applicatie kan niet worden herstart"
 fi
 
-# Controleer domeinconfiguratie
+# Controleer domein configuratie
 if [ -f "$APP_DIR/.env" ]; then
     DOMAIN=$(grep DOMAIN "$APP_DIR/.env" | cut -d '=' -f2)
     if [ -n "$DOMAIN" ]; then
-        log "Geconfigureerd domein: $DOMAIN"
+        log "Geconfigureerde domein: $DOMAIN"
         log "De applicatie zou nu bereikbaar moeten zijn op: https://$DOMAIN"
     fi
 fi
 
-# Afsluitend bericht
+# Fix werkruimte zichtbaarheid in beheerdersdashboard
+header "WERKRUIMTE ZICHTBAARHEID FIXEN"
+log "Werkruimten zichtbaarheid in beheerdersdashboard wordt gerepareerd..."
+
+# Maak een tijdelijk SQL-bestand
+cat > fix_workspaces.sql << 'EOF'
+-- SQL fix voor het werkruimteprobleem
+-- Dit voegt ontbrekende relaties toe tussen admins en werkruimten
+
+-- Debug info
+SELECT 'Controleren van werkruimten:' as info;
+SELECT id, name FROM workspaces;
+
+SELECT 'Controleren van admin gebruikers:' as info;
+SELECT id, email FROM users WHERE is_admin = TRUE;
+
+SELECT 'Controleren van werkruimte toewijzingen:' as info;
+SELECT * FROM workspace_users;
+
+-- Fix: Voeg alle admins toe aan alle werkruimten als ze nog niet zijn toegewezen
+SELECT 'Toevoegen van ontbrekende admin-werkruimte relaties:' as info;
+
+INSERT INTO workspace_users (user_id, workspace_id, role, created_at, updated_at)
+SELECT u.id, w.id, 'admin', NOW(), NOW()
+FROM users u, workspaces w
+WHERE u.is_admin = TRUE
+AND NOT EXISTS (
+    SELECT 1 FROM workspace_users wu 
+    WHERE wu.user_id = u.id AND wu.workspace_id = w.id
+);
+
+-- Verifieer de resultaten
+SELECT 'Verifieer de resultaten:' as info;
+SELECT wu.user_id, u.email, wu.workspace_id, w.name, wu.role 
+FROM workspace_users wu
+JOIN users u ON wu.user_id = u.id
+JOIN workspaces w ON wu.workspace_id = w.id
+WHERE u.is_admin = TRUE;
+EOF
+
+# Kopieer het SQL-bestand naar de database container
+DB_CONTAINER=$(docker ps -q --filter "name=postgres")
+if [ -n "$DB_CONTAINER" ]; then
+    log "SQL-fix wordt toegepast..."
+    docker cp fix_workspaces.sql $DB_CONTAINER:/tmp/
+    docker exec -i $DB_CONTAINER psql -U postgres -d boekhouding -f /tmp/fix_workspaces.sql > fix_results.log 2>&1
+    log "Werkruimte fix complete."
+else
+    warn "Database container niet actief, werkruimte fix overgeslagen"
+fi
+
+# Slotbericht
 header "UPDATE VOLTOOID"
-log "De boekhoudapplicatie is succesvol bijgewerkt en herstart."
+log "De applicatie is succesvol bijgewerkt en herstart."
 log "Backup bestanden zijn opgeslagen in: $BACKUP_DIR"
 log ""
 log "Als je problemen ondervindt, kun je de volgende commando's gebruiken:"
-log "- Bekijk logs: docker compose logs -f"
-log "- Voer troubleshooting uit: $APP_DIR/troubleshoot-domain.sh"
-log "- Beheer de applicatie: $APP_DIR/beheer.sh"
+log "- Logs bekijken: docker compose logs -f"
+log "- Troubleshooting uitvoeren: $APP_DIR/troubleshoot-domain.sh"
+log "- Applicatie beheren: $APP_DIR/beheer.sh"
 log ""
 log "Als je problemen niet kunt oplossen, kun je de backup herstellen met:"
 log "1. Stop de applicatie: docker compose down"
-log "2. Herstel de database: cat $DB_BACKUP_FILE | docker exec -i db psql -U postgres"
-log "3. Herstel de .env: cp $BACKUP_DIR/.env.backup_$TIMESTAMP $APP_DIR/.env"
+log "2. Herstel de database: cat $DB_BACKUP_FILE | docker exec -i postgres psql -U postgres"
+log "3. Herstel .env: cp $BACKUP_DIR/.env.backup_$TIMESTAMP $APP_DIR/.env"
 log "4. Start de applicatie: docker compose up -d"
 
 # Einde script
