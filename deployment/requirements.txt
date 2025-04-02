@@ -1,0 +1,17 @@
+email-validator
+flask
+flask-login
+flask-sqlalchemy
+gunicorn
+mollie-api-python
+msal
+openpyxl
+pandas
+psycopg2-binary
+pyjwt
+python-dotenv
+requests
+sqlalchemy
+trafilatura
+weasyprint
+werkzeug

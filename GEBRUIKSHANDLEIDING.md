@@ -1,110 +1,255 @@
-# Gebruikshandleiding Facturatie Applicatie
+# Gebruikshandleiding voor Installatie op een Privé Server
 
-Deze handleiding helpt je bij het opzetten en gebruik van de facturatie applicatie nadat deze is geïnstalleerd op je server.
+Deze handleiding helpt u bij het opzetten van deze op Flask gebaseerde factureringsapplicatie op uw privé Ubuntu 22.04 server met Docker, PostgreSQL en SSL-ondersteuning.
 
-## 1. Eerste inloggen
+## Vereisten
 
-Na de installatie met Docker kun je inloggen op de applicatie via je domein:
+Voordat u begint, zorg ervoor dat u beschikt over:
 
-- **URL**: https://jouw-domein.nl
-- **Standaard gebruikersnaam**: admin
-- **Standaard wachtwoord**: admin123
+1. Een schone Ubuntu 22.04 server met root-toegang
+2. Een domeinnaam die naar het IP-adres van uw server verwijst
+3. Basiskennis van de Linux-commandoregel
 
-**Belangrijk**: Wijzig direct na je eerste inloggen het wachtwoord via het profiel menu!
+## Stap 1: Initiële Serverinstallatie
 
-## 2. Systeeminstellingen configureren
+Maak verbinding met uw server via SSH:
 
-Voordat je de applicatie kunt gebruiken, moet je enkele basisinstellingen configureren:
+```bash
+ssh root@uw-server-ip
+```
 
-1. Ga naar **Admin > Instellingen**
-2. Configureer:
-   - Bedrijfsgegevens (naam, adres, BTW-nummer)
-   - E-mail instellingen
-   - Betalingsopties (Mollie)
-   - Standaard BTW-tarieven
+Update het systeem:
 
-## 3. Workspaces aanmaken
+```bash
+apt-get update && apt-get upgrade -y
+```
 
-De applicatie werkt met workspaces (werkruimtes) voor verschillende klantomgevingen:
+Maak een niet-root gebruiker aan met sudo-rechten (optioneel maar aanbevolen):
 
-1. Ga naar **Admin > Workspaces**
-2. Klik op **Nieuwe Workspace**
-3. Vul de gegevens in:
-   - Naam
-   - Beschrijving
-   - Klantgegevens
-   - Gebruikers met toegang
+```bash
+adduser uwgebruikersnaam
+usermod -aG sudo uwgebruikersnaam
+```
 
-## 4. Gebruikers toevoegen
+Schakel over naar de nieuwe gebruiker:
 
-Je kunt meerdere gebruikers toegang geven tot de applicatie:
+```bash
+su - uwgebruikersnaam
+```
 
-1. Ga naar **Admin > Gebruikers**
-2. Klik op **Nieuwe Gebruiker**
-3. Vul de gebruikersgegevens in
-4. Ken rollen en permissions toe
-5. Selecteer de workspaces waartoe de gebruiker toegang heeft
+## Stap 2: Repository Klonen
 
-## 5. Klanten beheren
+Installeer Git als het nog niet geïnstalleerd is:
 
-Per workspace kun je klanten beheren:
+```bash
+sudo apt-get install git -y
+```
 
-1. Selecteer de workspace
-2. Ga naar **Klanten**
-3. Klik op **Nieuwe Klant** om een klant toe te voegen
-4. Vul alle benodigde informatie in:
-   - Bedrijfsgegevens
-   - Contactpersonen
-   - BTW-nummer
-   - Facturatie-instellingen
+Kloon de repository:
 
-## 6. Facturen aanmaken en versturen
+```bash
+git clone https://github.com/uw-gebruikersnaam/uw-repository.git /opt/invoicing-app
+cd /opt/invoicing-app
+```
 
-Je kunt facturen aanmaken, bewerken en versturen:
+## Stap 3: Voer het Installatiescript Uit
 
-1. Ga naar **Facturen**
-2. Klik op **Nieuwe Factuur**
-3. Selecteer de klant
-4. Voeg factuurregels toe
-5. Stel factuurdatum en vervaldatum in
-6. Bewaar de factuur
-7. Verstuur de factuur via e-mail met de "Versturen" knop
+Maak het setup-script uitvoerbaar en voer het uit:
 
-## 7. Betalingen bijhouden
+```bash
+chmod +x deployment/setup.sh
+sudo ./deployment/setup.sh
+```
 
-Betalingen worden automatisch bijgewerkt als je Mollie gebruikt:
+Dit script zal:
+- Uw systeem updaten
+- Docker en Docker Compose installeren
+- De firewall (UFW) configureren
+- Noodzakelijke directories aanmaken
 
-1. Ga naar **Facturen**
-2. Bekijk de status van betalingen
-3. Handmatige betalingen kun je registreren via de factuurdetailpagina
+Log uit en log opnieuw in, of voer uit:
 
-## 8. Rapportages genereren
+```bash
+newgrp docker
+```
 
-De applicatie biedt verschillende rapportages:
+## Stap 4: Configureer Omgevingsvariabelen
 
-1. Ga naar **Rapportages**
-2. Kies het type rapport:
-   - Omzetoverzicht
-   - BTW-aangifte
-   - Debiteuren
-   - Winstgevendheid
+Maak uw omgevingsbestand aan:
 
-## 9. Logs bekijken
+```bash
+cp .env.example .env
+```
 
-Als beheerder kun je systeemlogboeken bekijken:
+Bewerk het bestand om uw specifieke instellingen toe te voegen:
 
-1. Ga naar **Admin > Logboeken**
-2. Bekijk de verschillende logbestanden
-3. Gebruik filters om specifieke events te vinden
+```bash
+nano .env
+```
 
-## 10. Backup en restore
+Configureer minimaal:
+- Database-inloggegevens
+- Session secret
+- E-mailinstellingen als u e-mailfunctionaliteit gebruikt
+- Domeinnaam
 
-Regelmatige backups zijn belangrijk:
+Voorbeeld:
+```
+# Database Configuratie
+POSTGRES_USER=uw_db_gebruiker
+POSTGRES_PASSWORD=uw_veilige_wachtwoord
+POSTGRES_DB=invoicing
+DATABASE_URL=postgresql://uw_db_gebruiker:uw_veilige_wachtwoord@db:5432/invoicing
 
-1. Gebruik de commando's in README.md om database backups te maken
-2. Sla ook uploadbestanden op die in de static/uploads map staan
-3. Test regelmatig of je backups kunnen worden teruggezet
+# Flask Configuratie
+SESSION_SECRET=uw_zeer_veilige_willekeurige_string
+FLASK_ENV=production
+
+# Domein Instellingen
+DOMAIN_NAME=uwdomein.nl
+```
+
+## Stap 5: De Applicatie Implementeren
+
+Maak het deployment-script uitvoerbaar:
+
+```bash
+chmod +x deployment/deploy.sh
+```
+
+Voer het deployment-script uit:
+
+```bash
+./deployment/deploy.sh
+```
+
+Tijdens de implementatie wordt u gevraagd of u SSL-certificaten wilt instellen met Let's Encrypt. Als u ja kiest:
+
+1. Voer uw domeinnaam in wanneer daarom wordt gevraagd
+2. Het script zal automatisch:
+   - Let's Encrypt-certificaten instellen
+   - Nginx configureren met SSL
+   - Automatische vernieuwing voor certificaten instellen
+
+Als u al SSL-certificaten heeft, plaats ze in:
+- `nginx/ssl/fullchain.pem`
+- `nginx/ssl/privkey.pem`
+
+## Stap 6: Automatische Updates en Back-ups Instellen
+
+Maak de scripts uitvoerbaar:
+
+```bash
+chmod +x deployment/backup.sh
+chmod +x deployment/update.sh
+chmod +x deployment/system_update.sh
+```
+
+Stel regelmatige database back-ups in (dagelijks om 2 uur 's nachts):
+
+```bash
+(crontab -l 2>/dev/null; echo "0 2 * * * /opt/invoicing-app/deployment/backup.sh") | crontab -
+```
+
+Stel regelmatige systeemupdates in (wekelijks op zondag om 3 uur 's nachts):
+
+```bash
+sudo bash -c '(crontab -l 2>/dev/null; echo "0 3 * * 0 /opt/invoicing-app/deployment/system_update.sh") | crontab -'
+```
+
+## Stap 7: Updaten vanaf GitHub
+
+Wanneer u wilt updaten vanaf GitHub zonder gegevens te verliezen:
+
+```bash
+cd /opt/invoicing-app
+./deployment/update.sh
+```
+
+Dit zal:
+1. Een database back-up maken
+2. De laatste wijzigingen van GitHub ophalen
+3. De applicatie indien nodig herbouwen
+4. De services herstarten
+
+## Directe Installatie (Zonder Docker)
+
+Als u de voorkeur geeft aan een directe installatie zonder Docker:
+
+```bash
+chmod +x deployment/direct_install.sh
+sudo ./deployment/direct_install.sh
+```
+
+Dit script zal:
+1. Alle benodigde pakketten installeren
+2. Een PostgreSQL-database instellen
+3. Een Python virtual environment aanmaken
+4. De applicatie configureren
+5. Nginx instellen
+6. Een systemd-service aanmaken
+
+## Probleemoplossing
+
+### Applicatielogs Controleren
+
+```bash
+cd /opt/invoicing-app
+docker-compose logs -f
+```
+
+### Containerstatus Controleren
+
+```bash
+docker-compose ps
+```
+
+### Databaseverbinding Controleren
+
+```bash
+docker-compose exec db psql -U uw_db_gebruiker -d invoicing
+```
+
+### De Applicatie Opnieuw Starten
+
+```bash
+docker-compose down
+docker-compose up -d
+```
+
+### Nginx-logs Bekijken
+
+```bash
+docker-compose logs nginx
+```
+
+### SSL-certificaatstatus Controleren
+
+```bash
+certbot certificates
+```
+
+## Veiligheidsaanbevelingen
+
+1. **Houd uw server up-to-date**: Regelmatige updates zijn cruciaal voor veiligheid.
+2. **Beveilig database-wachtwoorden**: Gebruik sterke, unieke wachtwoorden.
+3. **Beperk SSH-toegang**: Overweeg alleen op sleutel gebaseerde authenticatie te gebruiken.
+4. **Regelmatige back-ups**: Test af en toe uw back-up herstelproces.
+5. **Firewall-configuratie**: Open alleen poorten die noodzakelijk zijn.
+6. **Monitoring**: Overweeg monitoring voor uw server in te stellen.
+
+## Geavanceerde Configuratie
+
+Voor meer geavanceerde configuratieopties, bekijk de volgende bestanden:
+
+- `docker-compose.yml`: Pas container-instellingen aan.
+- `nginx/conf.d/app.conf`: Pas Nginx-instellingen aan.
+- `Dockerfile`: Wijzig het containeropbouwproces.
 
 ## Ondersteuning
 
-Voor verdere ondersteuning, raadpleeg de documentatie of neem contact op met de ontwikkelaar.
+Als u problemen ondervindt, kunt u:
+
+1. De logs controleren zoals beschreven in het probleemoplossinggedeelte
+2. De projectdocumentatie raadplegen
+3. Een issue aanmaken op de GitHub-repository

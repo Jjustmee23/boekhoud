@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - FLASK_ENV=${FLASK_ENV:-production}
+      # Pass through all environment variables to the container
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - ./static/uploads:/app/static/uploads
+    networks:
+      - app-network
+
+  db:
+    image: postgres:14-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-dbuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-dbpassword}
+      - POSTGRES_DB=${POSTGRES_DB:-invoicing}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dbuser} -d ${POSTGRES_DB:-invoicing}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/www:/var/www/html
+    depends_on:
+      - web
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

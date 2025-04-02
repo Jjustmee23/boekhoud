@@ -1,72 +1,185 @@
-# Veelgestelde Vragen (FAQ)
+# Frequently Asked Questions (FAQ)
 
-## Gebruikersbeheer
+## Deployment Questions
 
-### Q: Hoe wijzig ik het admin wachtwoord?
-A: Je kunt het admin wachtwoord wijzigen door in te loggen in de applicatie, naar het admin gedeelte te gaan en daar je wachtwoord te wijzigen. Als je het admin wachtwoord bent vergeten, kun je het resetten door een wijziging in de database te maken.
+### What's the difference between Docker and direct installation?
 
-### Q: Hoe voeg ik extra gebruikers toe aan het systeem?
-A: Er zijn twee manieren om gebruikers toe te voegen:
-1. Als admin, log in en ga naar het gebruikersbeheer om nieuwe gebruikers toe te voegen.
-2. Schakel registratie in door ENABLE_REGISTRATION=True in te stellen in je .env bestand.
+**Docker Installation:**
+- Easier to set up and manage
+- Consistent environment across different servers
+- Isolated from the host system
+- Easier to update and rollback
+- Better for scaling
 
-## Database Beheer
+**Direct Installation:**
+- Potentially better performance
+- Lower resource usage
+- Simpler to debug
+- More control over the system
+- Might be preferable for single-server setups
 
-### Q: Hoe maak ik een backup van mijn gegevens?
-A: Je kunt een backup maken van de PostgreSQL database met de volgende stappen:
-1. Gebruik het `pg_dump` commando om een database dump te maken.
-2. Maak regelmatig backups om gegevensverlies te voorkomen.
+Choose Docker if you want simplicity and isolation. Choose direct installation if you prefer control and are comfortable managing system dependencies.
 
-### Q: Hoe herstel ik een backup?
-A: Om een database backup te herstellen:
-1. Gebruik het `psql` commando om de backup in te laden in de database.
-2. Zorg ervoor dat de applicatie is gestopt voordat je een hersteloperatie uitvoert.
+### Which ports need to be open on my firewall?
 
-## E-mail Configuratie
+- Port 80 (HTTP)
+- Port 443 (HTTPS)
+- Port 22 (SSH) for server administration
 
-### Q: Hoe kan ik e-mails configureren met Microsoft 365 / Office 365?
-A: Om e-mails te configureren met Microsoft 365:
-1. Maak een `.env` bestand aan in de hoofdmap van de applicatie.
-2. Vul de volgende velden in:
+All other services (PostgreSQL, Flask application) are only accessible locally.
+
+### How do I renew SSL certificates?
+
+**For Docker installation:**
+SSL certificates from Let's Encrypt are automatically renewed through a cron job. No manual action is required.
+
+**For direct installation:**
+Certbot sets up automatic renewal via a systemd timer. You can manually renew with:
+```bash
+sudo certbot renew
+```
+
+### How can I troubleshoot database connection issues?
+
+1. Check if PostgreSQL is running:
+   ```bash
+   # Docker setup
+   docker-compose ps db
+   
+   # Direct installation
+   systemctl status postgresql
    ```
-   MS_GRAPH_CLIENT_ID=jouw_client_id
-   MS_GRAPH_CLIENT_SECRET=jouw_client_secret
-   MS_GRAPH_TENANT_ID=jouw_tenant_id
-   MS_GRAPH_SENDER_EMAIL=jouw_email@domein.nl
+
+2. Verify database connection settings in your `.env` file:
    ```
-3. Herstart de applicatie om de wijzigingen toe te passen.
+   # For Docker setup
+   DATABASE_URL=postgresql://dbuser:dbpassword@db:5432/invoicing
+   
+   # For direct installation
+   DATABASE_URL=postgresql://dbuser:dbpassword@localhost:5432/invoicing
+   ```
 
-## Aanpassingen en Uitbreidingen
+3. Test database connection:
+   ```bash
+   # Docker setup
+   docker-compose exec db psql -U dbuser -d invoicing -c "SELECT 1"
+   
+   # Direct installation
+   sudo -u postgres psql -d invoicing -c "SELECT 1"
+   ```
 
-### Q: Hoe kan ik de layout of het uiterlijk van de applicatie aanpassen?
-A: Om het uiterlijk aan te passen:
-1. De templates staan in de map templates/
-2. CSS-bestanden staan in static/css/
-3. Pas deze bestanden aan volgens je wensen
-4. Herstart de applicatie om de wijzigingen toe te passen
+### How do I monitor server resources?
 
-## Prestaties en Probleemoplossing
+You can install monitoring tools such as:
 
-### Q: De applicatie is traag, hoe kan ik de prestaties verbeteren?
-A: Om de prestaties te verbeteren:
-1. Zorg voor voldoende resources op je server (RAM, CPU)
-2. Optimaliseer de database met regelmatige onderhoudstaken
-3. Controleer de logs op veelvoorkomende fouten
-4. Schakel debug mode uit in het .env bestand als je in productie bent
-5. Zorg voor adequate database indexen
+```bash
+# Install basic monitoring tools
+sudo apt-get install htop iotop
 
-### Q: Hoe kan ik logging bekijken en problemen diagnosticeren?
-A: De applicatielogs kun je vinden in de map 'logs/' in de applicatiemap. Er zijn verschillende logbestanden beschikbaar:
-1. app.log - Algemene applicatie logs
-2. error.log - Foutmeldingen
-3. app.json.log - Gedetailleerde logs in JSON-formaat
+# For more advanced monitoring, consider installing:
+# - Netdata: https://learn.netdata.cloud/docs/agent/packaging/installer
+# - Prometheus with Grafana
+# - Munin
+```
 
-## Beveiliging
+### How can I update the application without losing data?
 
-### Q: Hoe kan ik de beveiliging verbeteren?
-A: Om de beveiliging verder te verbeteren:
-1. Schakel registratie uit na het aanmaken van alle benodigde accounts: `ENABLE_REGISTRATION=False` in .env
-2. Wijzig regelmatig wachtwoorden
-3. Zorg voor up-to-date software en afhankelijkheden
-4. Maak regelmatig backups
-5. Gebruik HTTPS wanneer de applicatie publiek toegankelijk is
+**For Docker installation:**
+```bash
+cd /opt/invoicing-app
+./deployment/update.sh
+```
+
+**For direct installation:**
+```bash
+cd /opt/invoicing-app
+git pull
+systemctl restart invoicing
+```
+
+### How do I back up my data?
+
+**For Docker installation:**
+```bash
+cd /opt/invoicing-app
+./deployment/backup.sh
+```
+
+**For direct installation:**
+```bash
+cd /opt/invoicing-app
+./deployment/direct_backup.sh
+```
+
+Backups are stored in the `/opt/invoicing-app/backups` directory.
+
+### How can I restore from a backup?
+
+**To restore a database backup:**
+
+For Docker:
+```bash
+# First, uncompress the backup file if it's compressed
+gunzip backup_file.sql.gz
+
+# Then restore
+cat backup_file.sql | docker-compose exec -T db psql -U dbuser -d invoicing
+```
+
+For direct installation:
+```bash
+# First, uncompress the backup file if it's compressed
+gunzip backup_file.sql.gz
+
+# Then restore
+sudo -u postgres psql invoicing < backup_file.sql
+```
+
+### How do I add another domain name to my installation?
+
+Edit the Nginx configuration to add the additional domain:
+
+**For Docker installation:**
+1. Edit `nginx/conf.d/app.conf` to add the new domain to the `server_name` directive
+2. Run `docker-compose restart nginx`
+
+**For direct installation:**
+1. Edit `/etc/nginx/sites-available/invoicing` to add the new domain
+2. Run `sudo nginx -t` to check the configuration
+3. Run `sudo systemctl restart nginx`
+
+### How can I scale my application for higher traffic?
+
+**For Docker installation:**
+- Increase the number of workers in the Dockerfile:
+  ```
+  CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "8", ...]
+  ```
+- Consider adding a load balancer (e.g., HAProxy, Traefik) in front of multiple application instances
+
+**For direct installation:**
+- Increase the worker count in `/etc/systemd/system/invoicing.service`:
+  ```
+  ExecStart=/opt/invoicing-app/venv/bin/gunicorn --workers 8 --bind 127.0.0.1:5000 main:app
+  ```
+- Add a second server and set up load balancing
+
+### How do I uninstall the application?
+
+**For Docker installation:**
+```bash
+cd /opt/invoicing-app
+docker-compose down -v  # This will delete all containers and volumes
+rm -rf /opt/invoicing-app
+```
+
+**For direct installation:**
+```bash
+sudo systemctl stop invoicing
+sudo systemctl disable invoicing
+sudo rm /etc/systemd/system/invoicing.service
+sudo systemctl daemon-reload
+sudo rm -rf /opt/invoicing-app
+sudo -u postgres psql -c "DROP DATABASE invoicing;"
+sudo -u postgres psql -c "DROP USER dbuser;"
+```
