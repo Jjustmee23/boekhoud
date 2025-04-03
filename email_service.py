@@ -92,22 +92,25 @@ class MSGraphProvider(EmailProvider):
             self.default_sender_name = settings.default_sender_name
             
     def _load_from_system_settings(self, app):
-        """Laad instellingen uit systeem instellingen of omgevingsvariabelen"""
+        """Laad instellingen uit omgevingsvariabelen en als fallback uit systeem instellingen"""
         from models import EmailSettings
         
-        with app.app_context():
-            try:
-                # Systeem-instellingen ophalen (workspace_id=None)
-                system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
-                if system_settings and system_settings.use_ms_graph:
-                    self._load_from_settings(system_settings)
-                else:
-                    # Gebruik omgevingsvariabelen als fallback
-                    self._load_from_environment()
-            except Exception as e:
-                self.logger.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
-                # Gebruik omgevingsvariabelen als fallback
-                self._load_from_environment()
+        # Eerst proberen uit omgevingsvariabelen te laden
+        self._load_from_environment()
+        
+        # Als er waarden ontbreken, dan proberen uit de database te laden
+        if not self.is_configured():
+            self.logger.info("Niet alle instellingen gevonden in omgevingsvariabelen, probeer instellingen uit database")
+            with app.app_context():
+                try:
+                    # Systeem-instellingen ophalen (workspace_id=None)
+                    system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+                    if system_settings and system_settings.use_ms_graph:
+                        self._load_from_settings(system_settings)
+                except Exception as e:
+                    self.logger.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
+        else:
+            self.logger.info("MS Graph instellingen succesvol geladen uit omgevingsvariabelen")
     
     def _load_from_environment(self):
         """Laad instellingen uit omgevingsvariabelen"""
@@ -454,22 +457,25 @@ class SMTPProvider(EmailProvider):
             self.use_tls = settings.smtp_use_tls
             
     def _load_from_system_settings(self, app):
-        """Laad instellingen uit systeem instellingen of omgevingsvariabelen"""
+        """Laad instellingen uit omgevingsvariabelen en als fallback uit systeem instellingen"""
         from models import EmailSettings
         
-        with app.app_context():
-            try:
-                # Systeem-instellingen ophalen (workspace_id=None)
-                system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
-                if system_settings and not system_settings.use_ms_graph:
-                    self._load_from_settings(system_settings)
-                else:
-                    # Gebruik omgevingsvariabelen als fallback
-                    self._load_from_environment()
-            except Exception as e:
-                self.logger.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
-                # Gebruik omgevingsvariabelen als fallback
-                self._load_from_environment()
+        # Eerst proberen uit omgevingsvariabelen te laden
+        self._load_from_environment()
+        
+        # Als er waarden ontbreken, dan proberen uit de database te laden
+        if not self.is_configured():
+            self.logger.info("Niet alle SMTP instellingen gevonden in omgevingsvariabelen, probeer instellingen uit database")
+            with app.app_context():
+                try:
+                    # Systeem-instellingen ophalen (workspace_id=None)
+                    system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
+                    if system_settings and not system_settings.use_ms_graph:
+                        self._load_from_settings(system_settings)
+                except Exception as e:
+                    self.logger.error(f"Fout bij ophalen van systeem-instellingen: {str(e)}")
+        else:
+            self.logger.info("SMTP instellingen succesvol geladen uit omgevingsvariabelen")
     
     def _load_from_environment(self):
         """Laad instellingen uit omgevingsvariabelen"""

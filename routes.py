@@ -286,6 +286,44 @@ def profile():
     # GET request - show profile form
     return render_template('profile.html', now=datetime.now())
 
+# Hulpfunctie voor het bijwerken van het .env bestand
+def _update_env_file(env_vars):
+    """
+    Update het .env bestand met de opgegeven omgevingsvariabelen.
+    
+    Args:
+        env_vars: Dictionary met omgevingsvariabelen en hun waarden
+    """
+    env_path = '.env'
+    
+    try:
+        # Lees het huidige .env bestand
+        with open(env_path, 'r') as file:
+            lines = file.readlines()
+        
+        # Update bestaande variabelen of voeg nieuwe toe
+        updated_vars = set()
+        for i, line in enumerate(lines):
+            if line.strip() and not line.strip().startswith('#'):
+                for var_name, var_value in env_vars.items():
+                    if line.startswith(f"{var_name}="):
+                        lines[i] = f"{var_name}={var_value}\n"
+                        updated_vars.add(var_name)
+        
+        # Voeg ontbrekende variabelen toe
+        for var_name, var_value in env_vars.items():
+            if var_name not in updated_vars:
+                lines.append(f"{var_name}={var_value}\n")
+        
+        # Schrijf de bijgewerkte inhoud terug naar het .env bestand
+        with open(env_path, 'w') as file:
+            file.writelines(lines)
+            
+        return True
+    except Exception as e:
+        logging.error(f"Fout bij het bijwerken van .env bestand: {str(e)}")
+        return False
+
 @app.route('/return-to-super-admin', methods=['POST'])
 @login_required
 def return_to_super_admin():
@@ -3527,11 +3565,23 @@ def update_ms_graph_settings():
         # Sla de wijzigingen op in de database
         db.session.commit()
         
-        # Voor compatibiliteit, update ook de omgevingsvariabelen
+        # Update omgevingsvariabelen (belangrijk voor huidige sessie)
         os.environ['MS_GRAPH_CLIENT_ID'] = client_id
         os.environ['MS_GRAPH_TENANT_ID'] = tenant_id
         os.environ['MS_GRAPH_CLIENT_SECRET'] = client_secret
         os.environ['MS_GRAPH_SENDER_EMAIL'] = sender_email
+
+        # Update ook het .env bestand voor persistentie na herstart
+        try:
+            _update_env_file({
+                'MS_GRAPH_CLIENT_ID': client_id,
+                'MS_GRAPH_CLIENT_SECRET': client_secret,
+                'MS_GRAPH_TENANT_ID': tenant_id,
+                'MS_GRAPH_SENDER_EMAIL': sender_email
+            })
+            logging.info("MS Graph instellingen bijgewerkt in .env bestand")
+        except Exception as e:
+            logging.warning(f"Kon .env bestand niet bijwerken: {str(e)}")
         
         # Bevestigingsmelding
         flash('Microsoft Graph API instellingen zijn bijgewerkt en beveiligd opgeslagen', 'success')
@@ -3605,11 +3655,23 @@ def update_ms_oauth_settings():
         # Sla de wijzigingen op in de database
         db.session.commit()
         
-        # Voor compatibiliteit, update ook de omgevingsvariabelen
+        # Update omgevingsvariabelen (belangrijk voor huidige sessie)
         os.environ['MS_GRAPH_CLIENT_ID'] = client_id
         os.environ['MS_GRAPH_TENANT_ID'] = tenant_id
         os.environ['MS_GRAPH_CLIENT_SECRET'] = client_secret
         os.environ['MS_GRAPH_SENDER_EMAIL'] = sender_email
+        
+        # Update ook het .env bestand voor persistentie na herstart
+        try:
+            _update_env_file({
+                'MS_GRAPH_CLIENT_ID': client_id,
+                'MS_GRAPH_CLIENT_SECRET': client_secret,
+                'MS_GRAPH_TENANT_ID': tenant_id,
+                'MS_GRAPH_SENDER_EMAIL': sender_email
+            })
+            logging.info("MS OAuth instellingen bijgewerkt in .env bestand")
+        except Exception as e:
+            logging.warning(f"Kon .env bestand niet bijwerken: {str(e)}")
         
         # Test de OAuth configuratie
         from microsoft_365_oauth import Microsoft365OAuth
@@ -3683,7 +3745,7 @@ def update_smtp_settings():
             # Sla de wijzigingen op in de database
             db.session.commit()
         
-        # Voor compatibiliteit, update ook de omgevingsvariabelen
+        # Update omgevingsvariabelen (belangrijk voor huidige sessie)
         if smtp_server:
             os.environ['SMTP_SERVER'] = smtp_server
         if smtp_port:
@@ -3696,6 +3758,27 @@ def update_smtp_settings():
             os.environ['EMAIL_FROM'] = email_from
         if email_from_name:
             os.environ['EMAIL_FROM_NAME'] = email_from_name
+        
+        # Update ook het .env bestand voor persistentie na herstart
+        try:
+            env_vars = {}
+            if smtp_server:
+                env_vars['SMTP_SERVER'] = smtp_server
+            if smtp_port:
+                env_vars['SMTP_PORT'] = smtp_port
+            if smtp_username:
+                env_vars['SMTP_USERNAME'] = smtp_username
+            if smtp_password:
+                env_vars['SMTP_PASSWORD'] = smtp_password
+            if email_from:
+                env_vars['EMAIL_FROM'] = email_from
+            if email_from_name:
+                env_vars['EMAIL_FROM_NAME'] = email_from_name
+            
+            _update_env_file(env_vars)
+            logging.info("SMTP instellingen bijgewerkt in .env bestand")
+        except Exception as e:
+            logging.warning(f"Kon .env bestand niet bijwerken: {str(e)}")
         
         # Bevestigingsmelding
         flash('SMTP instellingen zijn bijgewerkt en beveiligd opgeslagen', 'success')
