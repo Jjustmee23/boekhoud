@@ -2474,9 +2474,8 @@ def admin():
         customer_count = 0
         invoice_count = 0
         
-    # Deze code is nu overbodig omdat we eerder al reguliere admins doorverwijzen naar workspace_admin
-    # Dit codeblok is nu gereserveerd voor super admins met een workspace_id
-    if current_user.is_super_admin and current_user.workspace_id:
+    # Deze code is voor alle super admins, ongeacht of ze een workspace_id hebben
+    if current_user.is_super_admin:
         # Vul ze in met gegevens uit system_settings als die beschikbaar is
         if system_settings:
             # Gebruik instellingen uit database
