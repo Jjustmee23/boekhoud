@@ -145,22 +145,37 @@ class MSGraphProvider(EmailProvider):
                 client_credential=self.client_secret
             )
         
+        # Controleer of alle benodigde velden zijn ingevuld
+        if not self.client_id or not self.client_secret or not self.tenant_id:
+            self.logger.error(f"Missende MS Graph instellingen: client_id={'aanwezig' if self.client_id else 'ontbreekt'}, "
+                          f"client_secret={'aanwezig' if self.client_secret else 'ontbreekt'}, "
+                          f"tenant_id={'aanwezig' if self.tenant_id else 'ontbreekt'}")
+            return None
+        
         # Token voor client credentials flow aanvragen
         scopes = ["https://graph.microsoft.com/.default"]
         
         try:
+            # Log meer details voor debugging
+            self.logger.info(f"Verkrijgen van token voor tenant_id: {self.tenant_id}, client_id: {self.client_id[:5]}...")
+            
             # Client credentials flow gebruiken (app-only authenticatie)
             result = self._client_app.acquire_token_for_client(scopes=scopes)
             
             if "access_token" in result:
-                self.logger.info("Microsoft Graph API toegangstoken succesvol verkregen")
+                token_part = result["access_token"][:10] if result["access_token"] else "leeg"
+                self.logger.info(f"Microsoft Graph API toegangstoken succesvol verkregen: {token_part}...")
                 return result["access_token"]
             else:
                 self.logger.error(f"Fout bij verkrijgen token: {result.get('error')}")
                 self.logger.error(f"Error beschrijving: {result.get('error_description')}")
+                if 'error_codes' in result:
+                    self.logger.error(f"Error codes: {result.get('error_codes')}")
                 return None
         except Exception as e:
             self.logger.error(f"Exception bij het verkrijgen van token: {str(e)}")
+            import traceback
+            self.logger.error(f"Stacktrace: {traceback.format_exc()}")
             return None
         
     def send(self, recipient, subject, body_html, cc=None, attachments=None):
@@ -189,6 +204,11 @@ class MSGraphProvider(EmailProvider):
         # Bepaal het juiste adres voor verzending (hoofdgebruiker of gedeelde mailbox)
         # Voor gedeelde mailboxen hebben we Mail.Send en Mail.Send.Shared permissies nodig
         send_from_address = self.sender_email
+        
+        if not send_from_address:
+            self.logger.error("Geen afzender e-mailadres ingesteld")
+            return False
+            
         self.logger.info(f"Verzenden vanaf: {send_from_address}")
         
         # E-mail bericht opbouwen
@@ -249,7 +269,7 @@ class MSGraphProvider(EmailProvider):
         try:
             # POST aanvraag naar Microsoft Graph API
             self.logger.info(f"Versturen naar endpoint: {endpoint}")
-            response = requests.post(endpoint, headers=headers, json=email_payload)
+            response = requests.post(endpoint, headers=headers, json=email_payload, verify=True)
             
             if response.status_code == 202:  # 202 Accepted betekent succes
                 self.logger.info(f"E-mail succesvol verzonden naar {recipient} via Microsoft Graph API")
@@ -257,9 +277,40 @@ class MSGraphProvider(EmailProvider):
             else:
                 self.logger.error(f"Fout bij versturen e-mail: {response.status_code}")
                 self.logger.error(f"Response: {response.text}")
+                
+                # Controleer op specifieke foutcodes en geef duidelijkere foutmeldingen
+                try:
+                    error_data = response.json() if response.text else {}
+                    error_code = error_data.get('error', {}).get('code', '')
+                    error_message = error_data.get('error', {}).get('message', '')
+                    
+                    self.logger.error(f"Microsoft Graph foutcode: {error_code}")
+                    self.logger.error(f"Microsoft Graph foutmelding: {error_message}")
+                    
+                    # Controleer op veelvoorkomende fouten en log extra details
+                    if error_code == 'AuthenticationError':
+                        self.logger.error(f"Authenticatiefout: controleer client ID, tenant ID en client secret")
+                    elif error_code == 'MailboxNotEnabledForRESTAPI':
+                        self.logger.error(f"Mailbox niet ingeschakeld voor Microsoft Graph API")
+                    elif error_code == 'InvalidRecipients':
+                        self.logger.error(f"Ongeldige ontvanger(s): {recipient}")
+                except:
+                    # Geen JSON response of andere fout bij verwerken
+                    pass
+                
                 return False
+        except requests.exceptions.SSLError as ssl_err:
+            self.logger.error(f"SSL fout bij het versturen van e-mail: {str(ssl_err)}")
+            self.logger.error("Dit kan worden veroorzaakt door ontbrekende of ongeldige SSL-certificaten")
+            return False
+        except requests.exceptions.ConnectionError as conn_err:
+            self.logger.error(f"Verbindingsfout bij het versturen van e-mail: {str(conn_err)}")
+            self.logger.error("Controleer de netwerkverbinding en firewalls")
+            return False
         except Exception as e:
             self.logger.error(f"Exception bij het versturen van e-mail: {str(e)}")
+            import traceback
+            self.logger.error(f"Stacktrace: {traceback.format_exc()}")
             return False
     
     def _build_email_message(self, recipient, subject, body_html, cc=None):
