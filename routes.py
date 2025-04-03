@@ -2452,6 +2452,15 @@ def admin():
         customer_count = Customer.query.count()
         invoice_count = Invoice.query.count()
         
+        # Voor super_admin gebruikers, zorg dat we altijd de workspace variabele vullen
+        # Dit is nodig om de werkruimte-gebaseerde secties in de template weer te geven
+        if current_user.workspace_id:
+            # Gebruik de eigen werkruimte van de super admin als deze er één heeft
+            workspace = Workspace.query.get(current_user.workspace_id)
+        elif workspaces:
+            # Anders gebruik de eerste beschikbare werkruimte
+            workspace = workspaces[0]
+        
         # Haal huidige e-mailinstellingen op uit de database of fallback naar omgevingsvariabelen
         system_settings = EmailSettings.query.filter_by(workspace_id=None).first()
     else:
