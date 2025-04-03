@@ -475,27 +475,61 @@ class EmailSettings(db.Model):
         """
         Versleutel een geheim voor opslag.
         
-        Deze implementatie slaat nu het geheim direct op zonder versleuteling om problemen
-        met de authenticatie te voorkomen.
+        Deze implementatie gebruikt base64 encoding om ervoor te zorgen dat speciale tekens
+        correct worden opgeslagen.
         """
         if not secret:
             return None
         
-        # Retourneer het geheim ongewijzigd
-        return secret
+        try:
+            import base64
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            # Converteer naar bytes en dan naar base64
+            secret_bytes = secret.encode('utf-8')
+            base64_secret = base64.b64encode(secret_bytes).decode('utf-8')
+            
+            # Voeg een prefix toe zodat we weten dat het een base64-gecodeerd geheim is
+            encoded_secret = f"b64:{base64_secret}"
+            logger.info(f"Secret succesvol gecodeerd met base64")
+            
+            return encoded_secret
+        except Exception as e:
+            logger.error(f"Fout bij het coderen van secret: {str(e)}")
+            # Als er een fout optreedt, sla het geheim dan ongecodeerd op
+            return secret
     
     @staticmethod
     def decrypt_secret(encrypted_secret):
         """
         Ontsleutel een opgeslagen geheim.
         
-        Omdat we het geheim direct opslaan, retourneren we het ongewijzigd.
+        Deze implementatie detecteert of het geheim base64-gecodeerd is en decodeert het indien nodig.
         """
         if not encrypted_secret:
             return None
             
-        # Retourneer het geheim ongewijzigd
-        return encrypted_secret
+        try:
+            import base64
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            # Controleer of het een base64-gecodeerd geheim is
+            if encrypted_secret.startswith("b64:"):
+                # Verwijder het prefix en decodeer
+                base64_part = encrypted_secret[4:]  # Verwijder "b64:"
+                decoded_bytes = base64.b64decode(base64_part)
+                decoded_secret = decoded_bytes.decode('utf-8')
+                logger.info(f"Secret succesvol gedecodeerd van base64")
+                return decoded_secret
+            else:
+                # Als het niet base64-gecodeerd is, retourneer ongewijzigd
+                return encrypted_secret
+        except Exception as e:
+            logger.error(f"Fout bij het decoderen van secret: {str(e)}")
+            # Bij fouten, retourneer het originele geheim
+            return encrypted_secret
     
     def to_dict(self):
         return {
