@@ -1,0 +1,20 @@
+[DOM] Found 2 elements with non-unique id #default_sender_name: (More info: https://www.chromium.org/developers/design-documents/create-amazing-password-forms) <input type=​"text" class=​"form-control" id=​"default_sender_name" name=​"default_sender_name" value placeholder=​"MidaWeb">​ <input type=​"text" class=​"form-control" id=​"default_sender_name" name=​"default_sender_name" value placeholder=​"MidaWeb">​
+admin:1  [DOM] Found 2 elements with non-unique id #reply_to: (More info: https://www.chromium.org/developers/design-documents/create-amazing-password-forms) <input type=​"email" class=​"form-control" id=​"reply_to" name=​"reply_to" value placeholder=​"Optioneel">​ <input type=​"email" class=​"form-control" id=​"reply_to" name=​"reply_to" value placeholder=​"Optioneel">​
+admin:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://www.chromium.org/developers/design-documents/create-amazing-password-forms) <input type=​"password" class=​"form-control" id=​"password" name=​"password" required>​
+admin:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://www.chromium.org/developers/design-documents/create-amazing-password-forms) <input type=​"password" class=​"form-control" id=​"ms_graph_client_secret" name=​"ms_graph_client_secret" value required>​
+admin:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://www.chromium.org/developers/design-documents/create-amazing-password-forms) <input type=​"password" class=​"form-control" id=​"smtp_password" name=​"smtp_password" value>​
+/favicon.ico:1 
+            
+            
+            Failed to load resource: the server responded with a status of 404 (NOT FOUND)
+
+                
+          
+          
+          
+         Microsoft Edge is moving towards a new experience that allows users to choose to browse without third-party cookies.
+[NEW] Explain Console errors by using Copilot in Edge: click
+         
+         to explain an error. 
+        Learn more
+        Don't show again
