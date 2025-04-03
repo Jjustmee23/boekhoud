@@ -264,7 +264,8 @@ ensure_configuration() {
 # 11. Setup de applicatie: repo klonen, docker-compose.yml genereren
 # ------------------------------------------------------------------------------
 setup_application() {
-    read -p "Geef de GitHub repository URL (bv. https://github.com/jouwnaam/repository.git): " GITHUB_REPO
+    GITHUB_REPO="https://github.com/Jjustmee23/boekhoud.git"
+    echo ">> GitHub repository is ingesteld op $GITHUB_REPO"
     read -p "Geef de naam van de PostgreSQL-database: " DB_NAME
     DB_NAME=${DB_NAME:-invoicing}
 

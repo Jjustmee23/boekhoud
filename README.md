@@ -2,6 +2,10 @@
 
 Een uitgebreid facturatie- en boekhoudoplossing op basis van Flask, speciaal gemaakt voor Belgische en Nederlandse bedrijven. Het biedt geavanceerde servermanagement, flexibiliteit in deployment en regio-specifieke financiële tools.
 
+## GitHub Repository
+
+Deze applicatie is beschikbaar op GitHub: [https://github.com/Jjustmee23/boekhoud](https://github.com/Jjustmee23/boekhoud)
+
 ## Kern Technologieën
 
 - Flask web framework

@@ -28,9 +28,9 @@ Download de installatiescripts:
 ```bash
 mkdir -p /tmp/installer
 cd /tmp/installer
-curl -O https://raw.githubusercontent.com/jouw-repository/jouw-branch/setup_flask_app.sh
-curl -O https://raw.githubusercontent.com/jouw-repository/jouw-branch/update.sh
-curl -O https://raw.githubusercontent.com/jouw-repository/jouw-branch/backup.sh
+curl -O https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/deployment/scripts/setup_flask_app.sh
+curl -O https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/deployment/scripts/update.sh
+curl -O https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/deployment/scripts/backup.sh
 chmod +x setup_flask_app.sh update.sh backup.sh
 ```
 
@@ -68,9 +68,9 @@ Download de installatiescripts:
 ```bash
 mkdir -p /tmp/installer
 cd /tmp/installer
-curl -O https://raw.githubusercontent.com/jouw-repository/jouw-branch/direct_install.sh
-curl -O https://raw.githubusercontent.com/jouw-repository/jouw-branch/update.sh
-curl -O https://raw.githubusercontent.com/jouw-repository/jouw-branch/backup.sh
+curl -O https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/deployment/scripts/direct_install.sh
+curl -O https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/deployment/scripts/update.sh
+curl -O https://raw.githubusercontent.com/Jjustmee23/boekhoud/main/deployment/scripts/backup.sh
 chmod +x direct_install.sh update.sh backup.sh
 ```
 

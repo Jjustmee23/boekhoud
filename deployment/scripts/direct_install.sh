@@ -64,7 +64,8 @@ setup_database() {
 # 4. Clone repository en setup virtuele omgeving
 # ------------------------------------------------------------------------------
 setup_application() {
-    read -p "Geef de GitHub repository URL (bv. https://github.com/jouwnaam/repository.git): " GITHUB_REPO
+    GITHUB_REPO="https://github.com/Jjustmee23/boekhoud.git"
+    echo ">> GitHub repository is ingesteld op $GITHUB_REPO"
     
     # Kloon of update
     if [ ! -d "$PROJECT_DIR" ]; then
