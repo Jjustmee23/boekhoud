@@ -68,10 +68,18 @@ def login():
         
         # Regular login flow for when workspaces exist
         if workspaces_exist:
+            # log alle loginpogingen
+            app.logger.info(f"Login poging voor gebruiker: {username}, werkruimte: {workspace_name}, werkruimte ID: {workspace_id}")
+            
             # Controleer eerst of dit een admin-login is, die kan zonder werkruimte inloggen
             super_admin = User.query.filter_by(username=username, is_super_admin=True).first()
-            if super_admin and super_admin.check_password(password):
-                user = super_admin
+            if super_admin:
+                app.logger.info(f"Super admin {username} gevonden, controleer wachtwoord")
+                if super_admin.check_password(password):
+                    app.logger.info(f"Wachtwoord correct voor super admin {username}")
+                    user = super_admin
+                else:
+                    app.logger.info(f"Wachtwoord incorrect voor super admin {username}")
             else:
                 # Voor normale gebruikers is werkruimte wel verplicht
                 if not username or not password or (not workspace_name and not workspace_id):
@@ -80,15 +88,18 @@ def login():
                 
                 # Als werkruimtenaam wordt gebruikt, zoek de bijbehorende workspace_id
                 if workspace_name and not workspace_id:
-                    workspace = Workspace.query.filter_by(name=workspace_name).first()
+                    workspace = Workspace.query.filter_by(name=workspace_name.strip()).first()
                     if workspace:
                         workspace_id = workspace.id
+                        app.logger.info(f"Werkruimte gevonden: {workspace_name} met id {workspace_id}")
                     else:
+                        app.logger.info(f"Werkruimte niet gevonden: {workspace_name}")
                         flash(f'Werkruimte "{workspace_name}" niet gevonden', 'danger')
                         return render_template('login.html', workspaces=workspaces, no_workspaces=not workspaces_exist, now=datetime.now())
                 
                 # Find user by username in the selected workspace
                 user = User.query.filter_by(username=username, workspace_id=workspace_id).first()
+                app.logger.info(f"Gebruiker zoeken in werkruimte {workspace_id}: {'gevonden' if user else 'niet gevonden'}")
         
         # Check if user exists and password is correct
         if user and user.check_password(password):
@@ -2447,7 +2458,9 @@ def admin():
         # Initialiseer system_settings als None voor andere gebruikers
         system_settings = None
         users = []  # Initialiseer users als lege lijst voor andere gebruikers
-        workspaces = []
+        # Voor niet-superadmins hoeven we geen werkruimtes op te halen
+        # Belangrijk: behoud de werkruimtes die in een eerdere stap zijn opgehaald
+        # workspaces = []  # Dit overschrijft workspaces-lijst, dus commentaren we dit uit
         customer_count = 0
         invoice_count = 0
         
@@ -3914,7 +3927,13 @@ def load_user_language():
     
     # Voor super admins, laad de lijst met werkruimtes voor de dropdown in de navigatiebalk
     if current_user.is_authenticated and current_user.is_super_admin:
-        g.workspaces = Workspace.query.all()
+        try:
+            workspaces = Workspace.query.all()
+            app.logger.info(f"Werkruimtes opgehaald: {len(workspaces)} gevonden")
+            g.workspaces = workspaces
+        except Exception as e:
+            app.logger.error(f"Fout bij ophalen werkruimtes: {e}")
+            g.workspaces = []
     else:
         g.workspaces = []
 
@@ -3935,6 +3954,56 @@ def set_language(language_code):
     referrer = request.referrer or url_for('dashboard')
     return redirect(referrer)
 
+
+# Test routes voor debugging
+@app.route('/test/workspaces')
+def test_workspaces():
+    """Test route om werkruimtes weer te geven voor debugging"""
+    try:
+        workspaces = Workspace.query.all()
+        result = [{'id': w.id, 'name': w.name} for w in workspaces]
+        app.logger.info(f"Test workspaces: {len(workspaces)} gevonden")
+        return jsonify({
+            'success': True,
+            'workspaces': result,
+            'count': len(result)
+        })
+    except Exception as e:
+        app.logger.error(f"Fout bij test_workspaces: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/test/users')
+def test_users():
+    """Test route om gebruikers en hun werkruimtes te tonen"""
+    try:
+        users = User.query.all()
+        result = []
+        for user in users:
+            workspace_name = user.workspace.name if user.workspace else "Geen werkruimte"
+            result.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_admin': user.is_admin,
+                'is_super_admin': user.is_super_admin,
+                'workspace_id': user.workspace_id,
+                'workspace_name': workspace_name
+            })
+        app.logger.info(f"Test users: {len(users)} gevonden")
+        return jsonify({
+            'success': True,
+            'users': result,
+            'count': len(result)
+        })
+    except Exception as e:
+        app.logger.error(f"Fout bij test_users: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
 
 # Error handling en monitoring routes
 @app.route('/admin/error-test')
