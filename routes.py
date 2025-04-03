@@ -2516,13 +2516,23 @@ def admin():
             # Standaard provider selectie
             use_ms_graph = True  # Default naar MS Graph als er geen instellingen zijn
     else:
-        # Regular admins can only see users in their workspace
-        users = User.query.filter_by(workspace_id=current_user.workspace_id).all()
-        # Only their workspace
-        workspaces = [current_user.workspace] if current_user.workspace else []
-        # Get counts for their workspace only
-        customer_count = Customer.query.filter_by(workspace_id=current_user.workspace_id).count()
-        invoice_count = Invoice.query.filter_by(workspace_id=current_user.workspace_id).count()
+        # Controleren of dit een super_admin is met een workspace_id (speciale situatie)
+        if current_user.is_super_admin:
+            # Super admin blijft toegang houden tot alle werkruimtes, ook al heeft deze een workspace_id
+            users = get_users()
+            # Get all workspaces for super admin
+            workspaces = Workspace.query.all()
+            # Get counts across all workspaces
+            customer_count = Customer.query.count()
+            invoice_count = Invoice.query.count()
+        else:
+            # Regular admins can only see users in their workspace
+            users = User.query.filter_by(workspace_id=current_user.workspace_id).all()
+            # Only their workspace
+            workspaces = [current_user.workspace] if current_user.workspace else []
+            # Get counts for their workspace only
+            customer_count = Customer.query.filter_by(workspace_id=current_user.workspace_id).count()
+            invoice_count = Invoice.query.filter_by(workspace_id=current_user.workspace_id).count()
         
         # Voor normale admins geen e-mailinstellingen
         ms_graph_client_id = ms_graph_tenant_id = ms_graph_client_secret = ms_graph_sender_email = ''
