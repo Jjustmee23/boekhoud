@@ -8,6 +8,8 @@ from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, send_file, jsonify, session, abort, g
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
+from email_service import EmailService, EmailServiceHelper
+from email_service_oauth import EmailServiceOAuth, EmailServiceOAuthHelper
 
 # Logger voor deze module
 logger = logging.getLogger(__name__)
@@ -22,7 +24,6 @@ from utils import (
     save_uploaded_file, allowed_file, permission_required, check_permission
 )
 from file_processor import FileProcessor
-from email_service import EmailService, EmailServiceHelper
 from token_helper import token_helper
 
 # Authentication routes
@@ -3438,6 +3439,7 @@ def send_test_email(provider):
     """
     
     # Force the appropriate provider based on the route parameter for the standard email service
+    from email_service_oauth import EmailServiceOAuth
     if provider == 'msgraph' and not isinstance(email_service, EmailServiceOAuth):
         email_settings.use_ms_graph = True
     elif provider == 'smtp' and not isinstance(email_service, EmailServiceOAuth):
