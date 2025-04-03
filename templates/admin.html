@@ -331,6 +331,111 @@
     </div>
     
     {% if current_user.is_super_admin %}
+    <!-- Werkruimtebeheer -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Werkruimtebeheer</h2>
+            <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#createWorkspaceModal">
+                <i class="fas fa-plus me-1"></i> Nieuwe werkruimte
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Naam</th>
+                            <th>Omschrijving</th>
+                            <th>Domein</th>
+                            <th>Aangemaakt op</th>
+                            <th>Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for workspace in workspaces %}
+                        <tr>
+                            <td>{{ workspace.id }}</td>
+                            <td>{{ workspace.name }}</td>
+                            <td>{{ workspace.description }}</td>
+                            <td>{{ workspace.domain }}</td>
+                            <td>{{ workspace.created_at.strftime('%d-%m-%Y %H:%M') if workspace.created_at else 'Onbekend' }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('edit_workspace', workspace_id=workspace.id) }}" class="btn btn-sm btn-outline-primary" title="Werkruimte bewerken">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('access_workspace', workspace_id=workspace.id) }}" class="btn btn-sm btn-outline-success" title="Open werkruimte als beheerder">
+                                        <i class="fas fa-sign-in-alt"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteWorkspaceModal-{{ workspace.id }}" title="Werkruimte verwijderen">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Delete Workspace Modal -->
+                                <div class="modal fade" id="deleteWorkspaceModal-{{ workspace.id }}" tabindex="-1" aria-labelledby="deleteWorkspaceModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteWorkspaceModalLabel">Werkruimte verwijderen</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Weet je zeker dat je de werkruimte <strong>{{ workspace.name }}</strong> wilt verwijderen?</p>
+                                                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Deze actie kan niet ongedaan worden gemaakt en zal alle gebruikers, klanten en facturen binnen deze werkruimte verwijderen.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                                                <form action="{{ url_for('delete_workspace', workspace_id=workspace.id) }}" method="POST" class="d-inline">
+                                                    <button type="submit" class="btn btn-danger">Verwijderen</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Workspace Modal -->
+    <div class="modal fade" id="createWorkspaceModal" tabindex="-1" aria-labelledby="createWorkspaceModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createWorkspaceModalLabel">Nieuwe werkruimte aanmaken</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ url_for('create_workspace') }}" method="POST" id="createWorkspaceForm">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Naam werkruimte</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Omschrijving</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="domain" class="form-label">Domein (optioneel)</label>
+                            <input type="text" class="form-control" id="domain" name="domain">
+                            <small class="text-muted">Voer het domein in als deze werkruimte specifiek voor één domein is.</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                    <button type="submit" form="createWorkspaceForm" class="btn btn-primary">Aanmaken</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Abonnementen en Mollie Configuratie -->
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
