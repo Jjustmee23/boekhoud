@@ -1,98 +1,135 @@
 #!/bin/bash
-# Update script voor de Flask facturatie-applicatie
-# Uitvoeren vanaf de applicatiemap
+# update.sh - Script voor het updaten van de Flask applicatie
+# Geschikt voor zowel Docker als directe installaties
 
-set -e  # Stop bij fouten
+set -e
 
-APP_DIR="/opt/invoice-app"
-BACKUP_DIR="${APP_DIR}/backups"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+# Project locatie
+PROJECT_DIR="/opt/invoice-app"
+cd "$PROJECT_DIR"
 
-# Controleer of we in de applicatiemap zijn
-if [ ! -d "${APP_DIR}" ]; then
-    echo "Fout: Applicatiemap ${APP_DIR} niet gevonden."
-    echo "Zorg ervoor dat je dit script uitvoert op de server waar de applicatie draait."
-    exit 1
-fi
+# Tijdstempel voor backups
+timestamp=$(date +%Y%m%d_%H%M%S)
+backup_dir="$PROJECT_DIR/backups"
+mkdir -p "$backup_dir"
 
-# Controleer of Git geïnstalleerd is
-if ! [ -x "$(command -v git)" ]; then
-    echo "Fout: Git is niet geïnstalleerd. Voer eerst setup_flask_app.sh uit."
-    exit 1
-fi
+echo "=== Flask Applicatie Update Script ==="
+echo "Dit script werkt je applicatie bij naar de meest recente versie."
 
-# Controleer of we in een git repository zijn
-cd "${APP_DIR}"
-if [ ! -d ".git" ]; then
-    echo "Fout: ${APP_DIR} is geen Git repository."
-    exit 1
-fi
-
-# Haal huidige branch op
-current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "detached")
-echo "Huidige branch: ${current_branch}"
-
-# Maak een backup van de database voor de zekerheid
-echo "=== Database backup maken voor update ==="
-echo "Tijdstempel: ${TIMESTAMP}"
-
-mkdir -p "${BACKUP_DIR}"
-
-# Database backup
-echo ">> Database backup maken..."
-if [ -f "${APP_DIR}/docker-compose.yml" ]; then
+# Controleer of we Docker of directe installatie gebruiken
+if command -v docker &> /dev/null && [ -f "$PROJECT_DIR/docker-compose.yml" ]; then
     # Docker installatie
-    docker compose exec -T db pg_dump -U postgres invoicing > "${BACKUP_DIR}/pre_update_db_backup_${TIMESTAMP}.sql"
-else
-    # Directe installatie
-    echo "Geen docker-compose.yml gevonden, directe PostgreSQL-backup uitvoeren..."
-    sudo -u postgres pg_dump invoicing > "${BACKUP_DIR}/pre_update_db_backup_${TIMESTAMP}.sql"
-fi
-
-# Haal de laatste wijzigingen op van de remote repository
-echo ">> Git pull uitvoeren om laatste wijzigingen op te halen..."
-git pull
-
-# Controleer of requirements.txt is gewijzigd
-if [ -f "requirements.txt" ] && [ -f "requirements.txt.old" ]; then
-    if ! cmp --silent "requirements.txt" "requirements.txt.old"; then
-        echo ">> Requirements zijn gewijzigd. Docker image wordt opnieuw gebouwd..."
-        # Bewaar de huidige requirements voor toekomstige vergelijking
-        cp requirements.txt requirements.txt.old
-        
-        if [ -f "${APP_DIR}/docker-compose.yml" ]; then
-            # Docker installatie
-            docker compose build web
-        else
-            # Directe installatie
-            pip install -r requirements.txt
-        fi
-    else
-        echo ">> Geen wijzigingen in requirements.txt gedetecteerd."
+    echo "=== Docker installatie gedetecteerd ==="
+    
+    echo ">> Database backup maken..."
+    docker compose exec -T db pg_dump -U postgres -d invoicing > "$backup_dir/db_backup_$timestamp.sql"
+    echo ">> Database backup gemaakt: $backup_dir/db_backup_$timestamp.sql"
+    
+    # Optioneel: Comprimeren van de backup
+    gzip "$backup_dir/db_backup_$timestamp.sql"
+    echo ">> Backup gecomprimeerd: $backup_dir/db_backup_$timestamp.sql.gz"
+    
+    echo ">> Git pull uitvoeren..."
+    # Oplossen van mogelijk conflicterende bestanden
+    git config --global user.email "server@example.com"
+    git config --global user.name "Server Update"
+    
+    # Zoek naar ongetrackte bestanden die conflicteren met updates
+    conflicting_files=$(git ls-files --others --exclude-standard | xargs -I{} git checkout --conflict=diff -- {} 2>&1 | grep "error: The following untracked working tree files would be overwritten by checkout" -A100 | grep -v "error:" | grep -v "Please" | tr -d '\t' | xargs)
+    
+    if [ ! -z "$conflicting_files" ]; then
+        echo ">> Conflicterende bestanden gevonden. Backup maken en verwijderen..."
+        mkdir -p "$PROJECT_DIR/backup_files_$timestamp"
+        for file in $conflicting_files; do
+            if [ -f "$file" ]; then
+                echo "Backup maken van $file"
+                cp "$file" "$PROJECT_DIR/backup_files_$timestamp/"
+                rm "$file"
+            fi
+        done
     fi
-else
-    echo ">> Eerste keer dat we requirements controleren of requirements.txt.old bestaat niet."
-    # Bewaar de huidige requirements voor toekomstige vergelijking
-    cp requirements.txt requirements.txt.old
-fi
-
-# Herstart de applicatie
-echo ">> Applicatie herstarten..."
-if [ -f "${APP_DIR}/docker-compose.yml" ]; then
-    # Docker installatie
+    
+    # Nu de git pull uitvoeren
+    git pull || {
+        echo ">> Git pull mislukt. Proberen met stash..."
+        git stash
+        git pull
+        git stash pop || echo ">> Stash kon niet worden toegepast, maar update gaat door."
+    }
+    
+    echo ">> Containers opnieuw bouwen en starten..."
     docker compose down
-    docker compose up -d
+    docker compose up -d --build
+    
+    echo ">> Wachten tot de containers volledig zijn opgestart..."
+    sleep 10
+    
+    echo ">> Update voltooid!"
+    
 else
     # Directe installatie
-    if [ -f "/etc/systemd/system/flask-app.service" ]; then
-        sudo systemctl restart flask-app
+    echo "=== Directe installatie gedetecteerd ==="
+    
+    echo ">> Database backup maken..."
+    if [ -f /etc/postgresql/*/main/pg_hba.conf ]; then
+        sudo -u postgres pg_dump invoicing > "$backup_dir/db_backup_$timestamp.sql"
+        echo ">> Database backup gemaakt: $backup_dir/db_backup_$timestamp.sql"
+        
+        # Optioneel: Comprimeren van de backup
+        gzip "$backup_dir/db_backup_$timestamp.sql"
+        echo ">> Backup gecomprimeerd: $backup_dir/db_backup_$timestamp.sql.gz"
     else
-        echo "Waarschuwing: Kon de service niet herstarten, geen systemd service gevonden."
+        echo ">> PostgreSQL niet gevonden. Database backup overgeslagen."
+    fi
+    
+    echo ">> Git pull uitvoeren..."
+    # Oplossen van mogelijk conflicterende bestanden
+    git config --global user.email "server@example.com"
+    git config --global user.name "Server Update"
+    
+    # Zoek naar ongetrackte bestanden die conflicteren met updates
+    conflicting_files=$(git ls-files --others --exclude-standard | xargs -I{} git checkout --conflict=diff -- {} 2>&1 | grep "error: The following untracked working tree files would be overwritten by checkout" -A100 | grep -v "error:" | grep -v "Please" | tr -d '\t' | xargs)
+    
+    if [ ! -z "$conflicting_files" ]; then
+        echo ">> Conflicterende bestanden gevonden. Backup maken en verwijderen..."
+        mkdir -p "$PROJECT_DIR/backup_files_$timestamp"
+        for file in $conflicting_files; do
+            if [ -f "$file" ]; then
+                echo "Backup maken van $file"
+                cp "$file" "$PROJECT_DIR/backup_files_$timestamp/"
+                rm "$file"
+            fi
+        done
+    fi
+    
+    # Nu de git pull uitvoeren
+    git pull || {
+        echo ">> Git pull mislukt. Proberen met stash..."
+        git stash
+        git pull
+        git stash pop || echo ">> Stash kon niet worden toegepast, maar update gaat door."
+    }
+    
+    echo ">> Virtuele omgeving bijwerken..."
+    VENV_DIR="/opt/invoice-app-venv"
+    if [ -d "$VENV_DIR" ]; then
+        source "$VENV_DIR/bin/activate"
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        
+        echo ">> Applicatie herstarten..."
+        sudo systemctl restart flask-app
+        
+        echo ">> Update voltooid!"
+    else
+        echo ">> Virtuele omgeving niet gevonden op $VENV_DIR."
+        echo ">> Update deels voltooid, maar de applicatie is mogelijk niet bijgewerkt."
     fi
 fi
 
-echo "=== Update voltooid ==="
-echo "De applicatie is bijgewerkt naar de laatste versie en herstart."
-echo "Database backup voor deze update: ${BACKUP_DIR}/pre_update_db_backup_${TIMESTAMP}.sql"
-echo ""
-echo "Controleer de applicatie om te verifiëren dat alles correct werkt."
+# Opruimen van oude backups (> 30 dagen)
+echo ">> Oude backups opruimen..."
+find "$backup_dir" -name "db_backup_*.sql.gz" -mtime +30 -delete
+
+echo "=== Update Proces Voltooid ==="
+echo "Controleer of de applicatie correct werkt door in te loggen."

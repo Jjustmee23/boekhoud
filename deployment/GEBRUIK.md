@@ -167,3 +167,29 @@ Als je problemen ondervindt, controleer dan:
    - Docker: `docker compose -f /opt/invoice-app/docker-compose.yml exec db psql -U postgres -c "SELECT version();"`
    - Direct: `sudo -u postgres psql -c "SELECT version();"`
 4. Firewall status: `sudo ufw status`
+
+### Oplossen van Git Conflicten
+
+Als je een foutmelding krijgt zoals:
+
+```
+error: The following untracked working tree files would be overwritten by merge:
+        requirements.txt
+Please move or remove them before you merge.
+Aborting
+```
+
+Dan kun je het speciale fix_conflicts.sh script gebruiken:
+
+```bash
+cd /opt/invoice-app
+sudo ./fix_conflicts.sh
+```
+
+Dit script zal:
+1. Een backup maken van de database
+2. Conflicterende bestanden identificeren en veilig opslaan
+3. De git pull uitvoeren
+4. De applicatie opnieuw starten
+
+De script maakt een backup van alle ongetrackte bestanden voordat het ze verwijdert, zodat je geen gegevens verliest. Deze backups worden opgeslagen in een map met de naam `backup_files_YYYYMMDD_HHMMSS` in de applicatiemap.

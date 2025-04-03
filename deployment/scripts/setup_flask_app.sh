@@ -282,7 +282,39 @@ setup_application() {
     else
         echo ">> Repo bestaat al in $PROJECT_DIR, we doen git pull..."
         cd "$PROJECT_DIR"
-        git pull
+        
+        # Git configureren
+        git config --global user.email "server@example.com"
+        git config --global user.name "Server Update"
+        
+        # Controleren op conflicterende bestanden
+        echo ">> Controleren op conflicterende bestanden..."
+        untracked_files=$(git ls-files --others --exclude-standard)
+        
+        if [ ! -z "$untracked_files" ]; then
+            echo ">> Niet-getrackte bestanden gevonden. Backup maken en verwijderen..."
+            timestamp=$(date +%Y%m%d_%H%M%S)
+            backup_dir="$PROJECT_DIR/backup_files_$timestamp"
+            mkdir -p "$backup_dir"
+            
+            echo "$untracked_files" | while read -r file; do
+                if [ -f "$file" ]; then
+                    echo "Backup maken van $file"
+                    cp "$file" "$backup_dir/"
+                    rm "$file"
+                fi
+            done
+            
+            echo ">> Conflicterende bestanden zijn opgeslagen in: $backup_dir/"
+        fi
+        
+        # Git pull uitvoeren
+        git pull || {
+            echo ">> Git pull mislukt. Proberen met stash..."
+            git stash
+            git pull
+            git stash pop || echo ">> Stash kon niet worden toegepast, maar installatie gaat door."
+        }
     fi
 
     replace_replit_links
@@ -440,12 +472,49 @@ update_application() {
     docker compose exec -T db pg_dump -U postgres -d invoicing > "$backup_dir/db_backup_$timestamp.sql"
     echo ">> Database backup gemaakt: $backup_dir/db_backup_$timestamp.sql"
     
+    # Optioneel: Comprimeren van de backup
+    gzip "$backup_dir/db_backup_$timestamp.sql"
+    echo ">> Backup gecomprimeerd: $backup_dir/db_backup_$timestamp.sql.gz"
+    
     echo ">> Git pull uitvoeren..."
-    git pull
+    # Oplossen van mogelijk conflicterende bestanden
+    git config --global user.email "server@example.com"
+    git config --global user.name "Server Update"
+    
+    # Zoek naar ongetrackte bestanden die conflicteren met updates
+    echo ">> Controleren op conflicterende bestanden..."
+    untracked_files=$(git ls-files --others --exclude-standard)
+    
+    if [ ! -z "$untracked_files" ]; then
+        echo ">> Niet-getrackte bestanden gevonden. Backup maken en verwijderen..."
+        backup_files_dir="$PROJECT_DIR/backup_files_$timestamp"
+        mkdir -p "$backup_files_dir"
+        
+        echo "$untracked_files" | while read -r file; do
+            if [ -f "$file" ]; then
+                echo "Backup maken van $file"
+                cp "$file" "$backup_files_dir/"
+                rm "$file"
+            fi
+        done
+        
+        echo ">> Conflicterende bestanden zijn opgeslagen in: $backup_files_dir/"
+    fi
+    
+    # Nu de git pull uitvoeren
+    git pull || {
+        echo ">> Git pull mislukt. Proberen met stash..."
+        git stash
+        git pull
+        git stash pop || echo ">> Stash kon niet worden toegepast, maar update gaat door."
+    }
 
     echo ">> Containers opnieuw bouwen en starten..."
     docker compose down
     docker compose up -d --build
+    
+    echo ">> Wachten tot de containers volledig zijn opgestart..."
+    sleep 10
 
     echo ">> Update voltooid!"
 }

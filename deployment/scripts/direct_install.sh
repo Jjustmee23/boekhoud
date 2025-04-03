@@ -74,7 +74,39 @@ setup_application() {
     else
         echo ">> Repo bestaat al in $PROJECT_DIR, we doen git pull..."
         cd "$PROJECT_DIR"
-        git pull
+        
+        # Git configureren
+        git config --global user.email "server@example.com"
+        git config --global user.name "Server Update"
+        
+        # Controleren op conflicterende bestanden
+        echo ">> Controleren op conflicterende bestanden..."
+        untracked_files=$(git ls-files --others --exclude-standard)
+        
+        if [ ! -z "$untracked_files" ]; then
+            echo ">> Niet-getrackte bestanden gevonden. Backup maken en verwijderen..."
+            timestamp=$(date +%Y%m%d_%H%M%S)
+            backup_dir="$PROJECT_DIR/backup_files_$timestamp"
+            mkdir -p "$backup_dir"
+            
+            echo "$untracked_files" | while read -r file; do
+                if [ -f "$file" ]; then
+                    echo "Backup maken van $file"
+                    cp "$file" "$backup_dir/"
+                    rm "$file"
+                fi
+            done
+            
+            echo ">> Conflicterende bestanden zijn opgeslagen in: $backup_dir/"
+        fi
+        
+        # Git pull uitvoeren
+        git pull || {
+            echo ">> Git pull mislukt. Proberen met stash..."
+            git stash
+            git pull
+            git stash pop || echo ">> Stash kon niet worden toegepast, maar installatie gaat door."
+        }
     fi
     
     # Maak virtuele omgeving
