@@ -125,6 +125,11 @@ def load_user(user_id):
     from models import User
     return User.query.get(int(user_id))
 
+# Context processor toevoegen om huidige jaar beschikbaar te maken in alle templates
+@app.context_processor
+def inject_year():
+    return {'current_year': datetime.now().year}
+
 def init_sample_data():
     """Function to add sample data to the database if none exists"""
     # Import here to avoid circular imports
