@@ -1,0 +1,853 @@
+{% extends "base.html" %}
+
+{% block title %}Backup Beheer{% endblock %}
+
+{% block styles %}
+<style>
+    .backup-card {
+        margin-bottom: 20px;
+    }
+    .plan-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    .backup-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .plan-card {
+        height: 100%;
+        transition: transform 0.3s;
+    }
+    .plan-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .plan-card .card-header {
+        font-weight: bold;
+    }
+    .plan-features {
+        list-style-type: none;
+        padding-left: 0;
+    }
+    .plan-features li {
+        padding: 5px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .plan-features li:last-child {
+        border-bottom: none;
+    }
+    .current-plan {
+        border: 2px solid #28a745;
+    }
+    .backup-info {
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+    }
+    .table-scroll {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4"><i class="fas fa-save"></i> Backup Beheer</h1>
+    
+    {% if current_user.is_super_admin %}
+    <div class="alert alert-info">
+        <strong><i class="fas fa-info-circle"></i> Super Admin:</strong> U beheert backups voor alle werkruimtes in het systeem.
+    </div>
+    {% endif %}
+    
+    <ul class="nav nav-tabs mb-4" id="workspaceTabs" role="tablist">
+        {% for workspace in workspaces %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ workspace.id }}" 
+                data-bs-toggle="tab" data-bs-target="#workspace-{{ workspace.id }}" 
+                type="button" role="tab" aria-selected="{% if loop.first %}true{% else %}false{% endif %}">
+                {{ workspace.name }}
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+    
+    <div class="tab-content" id="workspaceTabsContent">
+        {% for workspace in workspaces %}
+        {% set workspace_data = workspace_backups[workspace.id] %}
+        {% set backup_settings = workspace_data.backup_settings %}
+        {% set plan_limits = workspace_data.plan_limits %}
+        {% set plan_description = workspace_data.plan_description %}
+        
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="workspace-{{ workspace.id }}" role="tabpanel">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card backup-card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-cog"></i> Backup Instellingen</h5>
+                            <span class="plan-badge badge bg-warning">{{ plan_description.name }}</span>
+                        </div>
+                        <div class="card-body">
+                            <form id="settings-form-{{ workspace.id }}">
+                                <input type="hidden" name="workspace_id" value="{{ workspace.id }}">
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="backup_enabled-{{ workspace.id }}" 
+                                           name="backup_enabled" {% if backup_settings.backup_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="backup_enabled-{{ workspace.id }}">
+                                        Backups ingeschakeld
+                                    </label>
+                                </div>
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="include_uploads-{{ workspace.id }}" 
+                                           name="include_uploads" {% if backup_settings.include_uploads %}checked{% endif %}
+                                           {% if not plan_limits.include_uploads %}disabled{% endif %}>
+                                    <label class="form-check-label" for="include_uploads-{{ workspace.id }}">
+                                        Inclusief uploads en bestanden
+                                        {% if not plan_limits.include_uploads %}
+                                        <small class="text-muted d-block">Upgrade uw plan om uploads mee te backuppen</small>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="auto_backup-{{ workspace.id }}" 
+                                           name="auto_backup_enabled" {% if backup_settings.auto_backup_enabled %}checked{% endif %}
+                                           {% if not plan_limits.auto_backup %}disabled{% endif %}>
+                                    <label class="form-check-label" for="auto_backup-{{ workspace.id }}">
+                                        Automatische backups
+                                        {% if not plan_limits.auto_backup %}
+                                        <small class="text-muted d-block">Upgrade uw plan voor automatische backups</small>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                                
+                                <div class="mb-3" id="auto-settings-{{ workspace.id }}" {% if not backup_settings.auto_backup_enabled %}style="display:none"{% endif %}>
+                                    <label class="form-label">Backup interval:</label>
+                                    <select class="form-select mb-2" name="auto_backup_interval">
+                                        <option value="daily" {% if backup_settings.auto_backup_interval == 'daily' %}selected{% endif %}>Dagelijks</option>
+                                        <option value="weekly" {% if backup_settings.auto_backup_interval == 'weekly' %}selected{% endif %}>Wekelijks</option>
+                                        <option value="monthly" {% if backup_settings.auto_backup_interval == 'monthly' %}selected{% endif %}>Maandelijks</option>
+                                    </select>
+                                    
+                                    <label class="form-label">Tijdstip (24-uurs formaat):</label>
+                                    <input type="time" class="form-control mb-2" name="auto_backup_time" 
+                                           value="{{ backup_settings.auto_backup_time }}">
+                                    
+                                    <div class="day-select" style="{% if backup_settings.auto_backup_interval not in ['weekly', 'monthly'] %}display:none{% endif %}">
+                                        <label class="form-label">Dag:</label>
+                                        <select class="form-select" name="auto_backup_day">
+                                            {% if backup_settings.auto_backup_interval == 'weekly' %}
+                                                {% for day in range(1, 8) %}
+                                                <option value="{{ day }}" {% if backup_settings.auto_backup_day == day %}selected{% endif %}>
+                                                    {% if day == 1 %}Maandag
+                                                    {% elif day == 2 %}Dinsdag
+                                                    {% elif day == 3 %}Woensdag
+                                                    {% elif day == 4 %}Donderdag
+                                                    {% elif day == 5 %}Vrijdag
+                                                    {% elif day == 6 %}Zaterdag
+                                                    {% elif day == 7 %}Zondag
+                                                    {% endif %}
+                                                </option>
+                                                {% endfor %}
+                                            {% else %}
+                                                {% for day in range(1, 32) %}
+                                                <option value="{{ day }}" {% if backup_settings.auto_backup_day == day %}selected{% endif %}>
+                                                    {{ day }}
+                                                </option>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Bewaren (dagen):</label>
+                                    <input type="number" class="form-control" name="retention_days" 
+                                           value="{{ backup_settings.retention_days }}" min="1" max="{{ plan_limits.retention_days }}">
+                                    <small class="text-muted">Maximum: {{ plan_limits.retention_days }} dagen met uw plan</small>
+                                </div>
+                                
+                                <button type="button" class="btn btn-primary save-settings" data-workspace-id="{{ workspace.id }}">
+                                    <i class="fas fa-save"></i> Instellingen Opslaan
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card backup-card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-database"></i> Backup Beheer</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="backup-info">
+                                <strong>Huidige plan:</strong> {{ plan_description.name }}<br>
+                                <strong>Max backups:</strong> {{ plan_limits.max_backups }}<br>
+                                <strong>Bestaande backups:</strong> {{ workspace_data.backups|length }}<br>
+                                <strong>Laatste backup:</strong> 
+                                {% if backup_settings.last_backup_date %}
+                                    {{ backup_settings.last_backup_date.strftime('%d-%m-%Y %H:%M') }}
+                                {% else %}
+                                    Nog geen backups gemaakt
+                                {% endif %}
+                            </div>
+                            
+                            <form id="create-backup-{{ workspace.id }}">
+                                <input type="hidden" name="workspace_id" value="{{ workspace.id }}">
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Backup naam (optioneel):</label>
+                                    <input type="text" class="form-control" name="backup_name" placeholder="bijv. Voor-migratie">
+                                </div>
+                                
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="include-uploads-{{ workspace.id }}" 
+                                           name="include_uploads" {% if plan_limits.include_uploads %}checked{% endif %}
+                                           {% if not plan_limits.include_uploads %}disabled{% endif %}>
+                                    <label class="form-check-label" for="include-uploads-{{ workspace.id }}">
+                                        Inclusief uploads en bestanden
+                                    </label>
+                                </div>
+                                
+                                <button type="button" class="btn btn-success create-backup" data-workspace-id="{{ workspace.id }}"
+                                        {% if workspace_data.backups|length >= plan_limits.max_backups %}disabled{% endif %}>
+                                    <i class="fas fa-plus-circle"></i> Nieuwe Backup Maken
+                                </button>
+                                
+                                {% if workspace_data.backups|length >= plan_limits.max_backups %}
+                                <div class="mt-2 text-danger">
+                                    <small>Maximum aantal backups bereikt ({{ plan_limits.max_backups }}). Verwijder oude backups of upgrade uw plan.</small>
+                                </div>
+                                {% endif %}
+                            </form>
+                            
+                            <hr>
+                            
+                            <h5>Backup Geschiedenis</h5>
+                            <div class="backup-list">
+                                {% if workspace_data.backups %}
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Datum</th>
+                                            <th>Grootte</th>
+                                            <th>Acties</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for backup in workspace_data.backups %}
+                                        <tr>
+                                            <td>{{ backup.created_at.strftime('%d-%m-%Y %H:%M') }}</td>
+                                            <td>{{ (backup.size / 1024 / 1024)|round(2) }} MB</td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{{ url_for('download_backup', filename=backup.filename) }}" 
+                                                       class="btn btn-outline-primary" title="Download">
+                                                        <i class="fas fa-download"></i>
+                                                    </a>
+                                                    <button type="button" class="btn btn-outline-success restore-backup" 
+                                                            data-filename="{{ backup.filename }}" data-workspace-id="{{ workspace.id }}"
+                                                            title="Herstellen">
+                                                        <i class="fas fa-undo"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-danger delete-backup" 
+                                                            data-filename="{{ backup.filename }}" data-workspace-id="{{ workspace.id }}"
+                                                            title="Verwijderen">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <div class="alert alert-info">
+                                    Er zijn nog geen backups gemaakt voor deze werkruimte.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card backup-card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-crown"></i> Backup Abonnement</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="current-plan-info mb-3">
+                                <h5>Huidig plan: {{ plan_description.name }}</h5>
+                                <p>{{ plan_description.description }}</p>
+                                
+                                <div class="row">
+                                    <div class="col-6">
+                                        <strong>Startdatum:</strong><br>
+                                        {{ backup_settings.plan_start_date.strftime('%d-%m-%Y') if backup_settings.plan_start_date else 'N/A' }}
+                                    </div>
+                                    <div class="col-6">
+                                        <strong>Einddatum:</strong><br>
+                                        {{ backup_settings.plan_end_date.strftime('%d-%m-%Y') if backup_settings.plan_end_date else 'Geen' }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h5>Upgrade uw abonnement</h5>
+                            
+                            <div class="row mt-3">
+                                {% for plan in subscription_plans %}
+                                {% set plan_data = plan_details[plan] %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card plan-card {% if plan == backup_settings.plan %}current-plan{% endif %}">
+                                        <div class="card-header {% if plan == 'free' %}bg-light{% elif plan == 'basic' %}bg-info text-white{% elif plan == 'premium' %}bg-primary text-white{% elif plan == 'enterprise' %}bg-dark text-white{% endif %}">
+                                            {{ plan_data.name }}
+                                        </div>
+                                        <div class="card-body">
+                                            <h5 class="card-title">{{ format_currency(plan_data.price_monthly) }} /maand</h5>
+                                            <p class="card-text small">{{ plan_data.description }}</p>
+                                            
+                                            <ul class="plan-features">
+                                                {% for feature in plan_data.features %}
+                                                <li><i class="fas fa-check text-success"></i> {{ feature }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                            
+                                            <button type="button" class="btn btn-sm {% if plan == backup_settings.plan %}btn-success disabled{% else %}btn-outline-primary{% endif %} select-plan"
+                                                    data-plan="{{ plan }}" data-workspace-id="{{ workspace.id }}">
+                                                {% if plan == backup_settings.plan %}
+                                                <i class="fas fa-check"></i> Huidig Plan
+                                                {% else %}
+                                                Selecteer
+                                                {% endif %}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Backup Jobs -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="fas fa-history"></i> Recente Backup Taken</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-scroll">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Bestandsnaam</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Gestart</th>
+                                            <th>Voltooid</th>
+                                            <th>Resultaat</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for job in workspace_data.backup_jobs %}
+                                        <tr>
+                                            <td>{{ job.id }}</td>
+                                            <td>{{ job.filename }}</td>
+                                            <td>
+                                                {% if job.backup_type == 'full' %}
+                                                <span class="badge bg-primary">Volledig</span>
+                                                {% elif job.backup_type == 'database' %}
+                                                <span class="badge bg-info">Database</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">{{ job.backup_type }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if job.status == 'completed' %}
+                                                <span class="badge bg-success">Voltooid</span>
+                                                {% elif job.status == 'failed' %}
+                                                <span class="badge bg-danger">Mislukt</span>
+                                                {% elif job.status == 'running' %}
+                                                <span class="badge bg-warning">Bezig</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">{{ job.status }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ job.start_time.strftime('%d-%m-%Y %H:%M:%S') if job.start_time else 'N/A' }}</td>
+                                            <td>{{ job.end_time.strftime('%d-%m-%Y %H:%M:%S') if job.end_time else 'N/A' }}</td>
+                                            <td>
+                                                {% if job.status == 'failed' and job.error_details %}
+                                                <button type="button" class="btn btn-sm btn-outline-danger view-error" 
+                                                        data-error="{{ job.error_details }}">
+                                                    Bekijk Fout
+                                                </button>
+                                                {% else %}
+                                                {{ job.result_message or 'Geen resultaat' }}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                        
+                                        {% if not workspace_data.backup_jobs %}
+                                        <tr>
+                                            <td colspan="7" class="text-center">Geen recente backup taken gevonden</td>
+                                        </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modals -->
+<div class="modal fade" id="restoreModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Backup herstellen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Waarschuwing: Het herstellen van een backup zal de huidige data overschrijven.
+                </p>
+                
+                <form id="restore-form">
+                    <input type="hidden" name="backup_filename" id="restore-filename">
+                    <input type="hidden" name="target_workspace_id" id="restore-workspace-id">
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="restore-include-uploads" name="include_uploads" checked>
+                        <label class="form-check-label" for="restore-include-uploads">
+                            Uploads en bestanden herstellen
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                <button type="button" class="btn btn-success" id="confirm-restore">
+                    <i class="fas fa-undo"></i> Herstellen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Backup verwijderen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Weet u zeker dat u deze backup wilt verwijderen?
+                    Deze actie kan niet ongedaan worden gemaakt.
+                </p>
+                
+                <form id="delete-form">
+                    <input type="hidden" name="backup_filename" id="delete-filename">
+                    <input type="hidden" name="workspace_id" id="delete-workspace-id">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete">
+                    <i class="fas fa-trash"></i> Verwijderen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="planModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Backup Plan Bijwerken</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="plan-form">
+                    <input type="hidden" name="workspace_id" id="plan-workspace-id">
+                    <input type="hidden" name="plan" id="plan-type">
+                    
+                    <p>U staat op het punt uw backup plan bij te werken naar: <strong id="plan-name"></strong></p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Duur:</label>
+                        <select class="form-select" name="duration_months" id="plan-duration">
+                            <option value="12">12 maanden</option>
+                            <option value="24">24 maanden</option>
+                            <option value="36">36 maanden</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+                <button type="button" class="btn btn-primary" id="confirm-plan">
+                    <i class="fas fa-save"></i> Plan Bijwerken
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Foutdetails</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="error-details" class="p-3 bg-light"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Sluiten</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Auto backup UI toggle
+    $('input[name="auto_backup_enabled"]').change(function() {
+        const workspaceId = $(this).attr('id').split('-')[1];
+        if ($(this).is(':checked')) {
+            $(`#auto-settings-${workspaceId}`).show();
+        } else {
+            $(`#auto-settings-${workspaceId}`).hide();
+        }
+    });
+    
+    // Interval change handler
+    $('select[name="auto_backup_interval"]').change(function() {
+        const interval = $(this).val();
+        const daySelect = $(this).closest('div').find('.day-select');
+        
+        if (interval === 'weekly' || interval === 'monthly') {
+            daySelect.show();
+            
+            // Update options based on interval
+            const dayDropdown = daySelect.find('select');
+            dayDropdown.empty();
+            
+            if (interval === 'weekly') {
+                const days = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
+                days.forEach((day, index) => {
+                    dayDropdown.append(`<option value="${index + 1}">${day}</option>`);
+                });
+            } else {
+                for (let i = 1; i <= 31; i++) {
+                    dayDropdown.append(`<option value="${i}">${i}</option>`);
+                }
+            }
+        } else {
+            daySelect.hide();
+        }
+    });
+    
+    // Save settings
+    $('.save-settings').click(function() {
+        const workspaceId = $(this).data('workspace-id');
+        const form = $(`#settings-form-${workspaceId}`);
+        const formData = {};
+        
+        form.serializeArray().forEach(item => {
+            if (item.name === 'backup_enabled' || item.name === 'include_uploads' || item.name === 'auto_backup_enabled') {
+                formData[item.name] = true;
+            } else {
+                formData[item.name] = item.value;
+            }
+        });
+        
+        // Add missing checkboxes (unchecked ones don't get submitted)
+        if (!formData.hasOwnProperty('backup_enabled')) formData.backup_enabled = false;
+        if (!formData.hasOwnProperty('include_uploads')) formData.include_uploads = false;
+        if (!formData.hasOwnProperty('auto_backup_enabled')) formData.auto_backup_enabled = false;
+        
+        $.ajax({
+            url: '/api/backups/update-settings',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                if (response.success) {
+                    // Success notification
+                    toastr.success(response.message);
+                } else {
+                    toastr.error(response.message);
+                }
+            },
+            error: function(xhr) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    toastr.error(response.message);
+                } catch (e) {
+                    toastr.error('Er is een fout opgetreden bij het opslaan van de instellingen.');
+                }
+            }
+        });
+    });
+    
+    // Create backup
+    $('.create-backup').click(function() {
+        const workspaceId = $(this).data('workspace-id');
+        const form = $(`#create-backup-${workspaceId}`);
+        const formData = {};
+        
+        form.serializeArray().forEach(item => {
+            formData[item.name] = item.value;
+        });
+        
+        // Add include_uploads property (unchecked checkbox doesn't get submitted)
+        if (!formData.hasOwnProperty('include_uploads')) {
+            formData.include_uploads = false;
+        } else {
+            formData.include_uploads = true;
+        }
+        
+        // Show loading state
+        $(this).prop('disabled', true);
+        $(this).html('<i class="fas fa-spinner fa-spin"></i> Bezig...');
+        
+        $.ajax({
+            url: '/api/backups/create',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                if (response.success) {
+                    toastr.success(response.message);
+                    // Reload the page after a short delay
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    toastr.error(response.message);
+                    $('.create-backup').prop('disabled', false);
+                    $('.create-backup').html('<i class="fas fa-plus-circle"></i> Nieuwe Backup Maken');
+                }
+            },
+            error: function(xhr) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    toastr.error(response.message);
+                } catch (e) {
+                    toastr.error('Er is een fout opgetreden bij het maken van de backup.');
+                }
+                $('.create-backup').prop('disabled', false);
+                $('.create-backup').html('<i class="fas fa-plus-circle"></i> Nieuwe Backup Maken');
+            }
+        });
+    });
+    
+    // Restore backup
+    $('.restore-backup').click(function() {
+        const filename = $(this).data('filename');
+        const workspaceId = $(this).data('workspace-id');
+        
+        $('#restore-filename').val(filename);
+        $('#restore-workspace-id').val(workspaceId);
+        
+        $('#restoreModal').modal('show');
+    });
+    
+    // Confirm restore
+    $('#confirm-restore').click(function() {
+        const formData = {
+            backup_filename: $('#restore-filename').val(),
+            target_workspace_id: $('#restore-workspace-id').val(),
+            include_uploads: $('#restore-include-uploads').is(':checked')
+        };
+        
+        // Show loading state
+        $(this).prop('disabled', true);
+        $(this).html('<i class="fas fa-spinner fa-spin"></i> Bezig...');
+        
+        $.ajax({
+            url: '/api/backups/restore',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                $('#restoreModal').modal('hide');
+                
+                if (response.success) {
+                    toastr.success(response.message);
+                    // Reload the page after a short delay
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    toastr.error(response.message);
+                }
+                
+                $('#confirm-restore').prop('disabled', false);
+                $('#confirm-restore').html('<i class="fas fa-undo"></i> Herstellen');
+            },
+            error: function(xhr) {
+                $('#restoreModal').modal('hide');
+                
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    toastr.error(response.message);
+                } catch (e) {
+                    toastr.error('Er is een fout opgetreden bij het herstellen van de backup.');
+                }
+                
+                $('#confirm-restore').prop('disabled', false);
+                $('#confirm-restore').html('<i class="fas fa-undo"></i> Herstellen');
+            }
+        });
+    });
+    
+    // Delete backup
+    $('.delete-backup').click(function() {
+        const filename = $(this).data('filename');
+        const workspaceId = $(this).data('workspace-id');
+        
+        $('#delete-filename').val(filename);
+        $('#delete-workspace-id').val(workspaceId);
+        
+        $('#deleteModal').modal('show');
+    });
+    
+    // Confirm delete
+    $('#confirm-delete').click(function() {
+        const formData = {
+            backup_filename: $('#delete-filename').val(),
+            workspace_id: $('#delete-workspace-id').val()
+        };
+        
+        // Show loading state
+        $(this).prop('disabled', true);
+        $(this).html('<i class="fas fa-spinner fa-spin"></i> Bezig...');
+        
+        $.ajax({
+            url: '/api/backups/delete',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                $('#deleteModal').modal('hide');
+                
+                if (response.success) {
+                    toastr.success(response.message);
+                    // Reload the page after a short delay
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    toastr.error(response.message);
+                }
+                
+                $('#confirm-delete').prop('disabled', false);
+                $('#confirm-delete').html('<i class="fas fa-trash"></i> Verwijderen');
+            },
+            error: function(xhr) {
+                $('#deleteModal').modal('hide');
+                
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    toastr.error(response.message);
+                } catch (e) {
+                    toastr.error('Er is een fout opgetreden bij het verwijderen van de backup.');
+                }
+                
+                $('#confirm-delete').prop('disabled', false);
+                $('#confirm-delete').html('<i class="fas fa-trash"></i> Verwijderen');
+            }
+        });
+    });
+    
+    // Select plan
+    $('.select-plan').click(function() {
+        if ($(this).hasClass('disabled')) return;
+        
+        const plan = $(this).data('plan');
+        const workspaceId = $(this).data('workspace-id');
+        
+        $('#plan-workspace-id').val(workspaceId);
+        $('#plan-type').val(plan);
+        
+        // Set the plan name in the modal
+        $('#plan-name').text($(this).closest('.card').find('.card-header').text());
+        
+        $('#planModal').modal('show');
+    });
+    
+    // Confirm plan change
+    $('#confirm-plan').click(function() {
+        const formData = {
+            workspace_id: $('#plan-workspace-id').val(),
+            plan: $('#plan-type').val(),
+            duration_months: $('#plan-duration').val()
+        };
+        
+        // Show loading state
+        $(this).prop('disabled', true);
+        $(this).html('<i class="fas fa-spinner fa-spin"></i> Bezig...');
+        
+        $.ajax({
+            url: '/api/backups/update-settings',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                $('#planModal').modal('hide');
+                
+                if (response.success) {
+                    toastr.success(response.message);
+                    // Reload the page after a short delay
+                    setTimeout(() => { location.reload(); }, 1500);
+                } else {
+                    toastr.error(response.message);
+                }
+                
+                $('#confirm-plan').prop('disabled', false);
+                $('#confirm-plan').html('<i class="fas fa-save"></i> Plan Bijwerken');
+            },
+            error: function(xhr) {
+                $('#planModal').modal('hide');
+                
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    toastr.error(response.message);
+                } catch (e) {
+                    toastr.error('Er is een fout opgetreden bij het bijwerken van het plan.');
+                }
+                
+                $('#confirm-plan').prop('disabled', false);
+                $('#confirm-plan').html('<i class="fas fa-save"></i> Plan Bijwerken');
+            }
+        });
+    });
+    
+    // View error details
+    $('.view-error').click(function() {
+        const errorDetails = $(this).data('error');
+        $('#error-details').text(errorDetails);
+        $('#errorModal').modal('show');
+    });
+});
+</script>
+{% endblock %}

@@ -113,6 +113,31 @@
         </div>
     </div>
     
+    <!-- Backup beheer -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0"><i class="fas fa-save"></i> Backup Beheer</h2>
+                    <a href="{{ url_for('admin_backups') }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-external-link-alt me-1"></i> Naar Backup Dashboard
+                    </a>
+                </div>
+                <div class="card-body">
+                    <p>
+                        Beheer de backups van uw werkruimte, bekijk de backup geschiedenis, en herstel eerder gemaakte backups indien nodig.
+                        Via het backup dashboard kunt u ook de backup instellingen configureren en automatische backups inplannen.
+                    </p>
+                    <div class="mt-3">
+                        <a href="{{ url_for('admin_backups') }}" class="btn btn-primary">
+                            <i class="fas fa-server me-1"></i> Backup Dashboard Openen
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- E-mailinstellingen -->
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-info text-white">

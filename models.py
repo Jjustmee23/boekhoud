@@ -2,10 +2,11 @@ from datetime import datetime, date, timedelta
 import uuid
 import json
 import os
+import logging
 from decimal import Decimal
 from app import db
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -819,6 +820,7 @@ class Workspace(db.Model):
     email_templates = db.relationship('EmailTemplate', back_populates='workspace', cascade='all, delete-orphan')
     email_messages = db.relationship('EmailMessage', back_populates='workspace', cascade='all, delete-orphan')
     mollie_settings = db.relationship('MollieSettings', uselist=False, back_populates='workspace', cascade='all, delete-orphan')
+    backup_settings = db.relationship('BackupSettings', uselist=False, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Workspace {self.name}>'
@@ -1170,5 +1172,281 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     return True
+
+# Backup gerelateerde modellen
+class BackupSettings(db.Model):
+    """
+    Model voor backup instellingen per werkruimte
+    """
+    __tablename__ = 'backup_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'), nullable=False)
+    
+    # Backup plan instellingen
+    plan = db.Column(db.String(20), nullable=False, default='free')  # free, basic, premium, enterprise
+    plan_start_date = db.Column(db.DateTime, default=datetime.now)
+    plan_end_date = db.Column(db.DateTime)
+    
+    # Backup configuratie
+    backup_enabled = db.Column(db.Boolean, default=True)
+    include_uploads = db.Column(db.Boolean, default=True)
+    auto_backup_enabled = db.Column(db.Boolean, default=False)
+    auto_backup_interval = db.Column(db.String(20), default='daily')  # 'hourly', 'daily', 'weekly', 'monthly'
+    auto_backup_time = db.Column(db.String(10), default='02:00')
+    auto_backup_day = db.Column(db.Integer)  # Dag van de week (1-7) of dag van de maand (1-31)
+    last_backup_date = db.Column(db.DateTime)
+    retention_days = db.Column(db.Integer, default=7)
+    
+    # Relaties
+    workspace = db.relationship('Workspace')
+    backup_schedules = db.relationship('BackupSchedule', back_populates='backup_settings', cascade='all, delete-orphan')
+    backup_jobs = db.relationship('BackupJob', back_populates='backup_settings', cascade='all, delete-orphan')
+    
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    def __repr__(self):
+        return f"<BackupSettings id={self.id} workspace_id={self.workspace_id} plan={self.plan}>"
+        
+    def to_dict(self):
+        """Converteer naar dictionary"""
+        return {
+            'id': self.id,
+            'workspace_id': self.workspace_id,
+            'plan': self.plan,
+            'plan_start_date': self.plan_start_date,
+            'plan_end_date': self.plan_end_date,
+            'backup_enabled': self.backup_enabled,
+            'include_uploads': self.include_uploads,
+            'auto_backup_enabled': self.auto_backup_enabled,
+            'auto_backup_interval': self.auto_backup_interval,
+            'auto_backup_time': self.auto_backup_time,
+            'auto_backup_day': self.auto_backup_day,
+            'last_backup_date': self.last_backup_date,
+            'retention_days': self.retention_days,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+        
+    def get_plan_limits(self):
+        """Haal de limieten op voor het huidige plan"""
+        from backup_service import BackupSubscription
+        return BackupSubscription.get_plan_limits(self.plan)
+        
+    def get_plan_description(self):
+        """Haal de omschrijving op voor het huidige plan"""
+        from backup_service import BackupSubscription
+        return BackupSubscription.get_plan_description(self.plan)
+        
+    def update_plan(self, new_plan, duration_months=12):
+        """
+        Werk het backup plan bij
+        
+        Args:
+            new_plan: Het nieuwe plan ('free', 'basic', 'premium', 'enterprise')
+            duration_months: Aantal maanden dat het abonnement geldig is
+        """
+        self.plan = new_plan
+        self.plan_start_date = datetime.now()
+        
+        # Bereken de einddatum (standaard 12 maanden)
+        if duration_months:
+            # Voeg maanden toe en bereken de nieuwe datum
+            year = self.plan_start_date.year + (self.plan_start_date.month + duration_months - 1) // 12
+            month = (self.plan_start_date.month + duration_months - 1) % 12 + 1
+            day = min(self.plan_start_date.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
+            self.plan_end_date = datetime(year, month, day)
+        else:
+            # Geen einddatum voor gratis abonnement
+            self.plan_end_date = None
+            
+        # Bepaal aan de hand van het plan welke backup opties worden ingeschakeld
+        plan_limits = self.get_plan_limits()
+        if new_plan == 'free':
+            self.auto_backup_enabled = False
+            self.retention_days = 7
+        else:
+            self.auto_backup_enabled = plan_limits.get('auto_backup', False)
+            self.retention_days = plan_limits.get('retention_days', 7)
+            self.include_uploads = plan_limits.get('include_uploads', False)
+            
+        self.updated_at = datetime.now()
+        return self
+
+class BackupSchedule(db.Model):
+    """
+    Model voor geplande backups
+    """
+    __tablename__ = 'backup_schedules'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    backup_settings_id = db.Column(db.Integer, db.ForeignKey('backup_settings.id'), nullable=False)
+    
+    # Backup planning
+    interval = db.Column(db.String(20), nullable=False, default='daily')  # 'hourly', 'daily', 'weekly', 'monthly'
+    time = db.Column(db.String(10), default='02:00')  # HH:MM formaat
+    day = db.Column(db.Integer)  # Dag van de week (1-7) of dag van de maand (1-31)
+    
+    # Voor backups van specifieke tabellen
+    tables = db.Column(db.Text)  # JSON lijst met tabelnamen
+    include_uploads = db.Column(db.Boolean, default=True)
+    retention_days = db.Column(db.Integer, default=7)
+    
+    # Status
+    is_active = db.Column(db.Boolean, default=True)
+    last_run = db.Column(db.DateTime)
+    next_run = db.Column(db.DateTime)
+    
+    # Relaties
+    backup_settings = db.relationship('BackupSettings', back_populates='backup_schedules')
+    
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    def __repr__(self):
+        return f"<BackupSchedule id={self.id} interval={self.interval}>"
+        
+    def to_dict(self):
+        """Converteer naar dictionary"""
+        return {
+            'id': self.id,
+            'backup_settings_id': self.backup_settings_id,
+            'interval': self.interval,
+            'time': self.time,
+            'day': self.day,
+            'tables': json.loads(self.tables) if self.tables else None,
+            'include_uploads': self.include_uploads,
+            'retention_days': self.retention_days,
+            'is_active': self.is_active,
+            'last_run': self.last_run,
+            'next_run': self.next_run,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+        
+    def calculate_next_run(self):
+        """
+        Bereken het volgende geplande uitvoermoment op basis van de planning
+        
+        Returns:
+            datetime: Tijdstip van volgende uitvoering
+        """
+        now = datetime.now()
+        time_parts = self.time.split(':')
+        hour = int(time_parts[0])
+        minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+        
+        # Begin met vandaag op het geplande tijdstip
+        next_run = datetime(now.year, now.month, now.day, hour, minute)
+        
+        # Als dat tijdstip al voorbij is, ga naar de volgende interval
+        if next_run <= now:
+            if self.interval == 'hourly':
+                # Volgende uur, zelfde minuut
+                next_run = datetime(now.year, now.month, now.day, now.hour + 1, minute)
+            elif self.interval == 'daily':
+                # Morgen, zelfde uur en minuut
+                next_run = datetime(now.year, now.month, now.day, hour, minute) + timedelta(days=1)
+            elif self.interval == 'weekly':
+                # Volgende week, op de gespecificeerde dag (1=maandag, 7=zondag)
+                if self.day and 1 <= self.day <= 7:
+                    days_ahead = self.day - now.isoweekday()
+                    if days_ahead <= 0:  # Als het vandaag of al voorbij is
+                        days_ahead += 7  # Ga naar volgende week
+                    next_run = datetime(now.year, now.month, now.day, hour, minute) + timedelta(days=days_ahead)
+                else:
+                    # Als geen dag gespecificeerd, volgende week zelfde dag
+                    next_run = datetime(now.year, now.month, now.day, hour, minute) + timedelta(days=7)
+            elif self.interval == 'monthly':
+                # Volgende maand, op de gespecificeerde dag van de maand
+                if self.day and 1 <= self.day <= 31:
+                    # Bereken de datum voor volgende maand
+                    if now.month == 12:
+                        year = now.year + 1
+                        month = 1
+                    else:
+                        year = now.year
+                        month = now.month + 1
+                        
+                    # Zorg dat de dag geldig is voor die maand
+                    last_day = [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+                    day = min(self.day, last_day)
+                    
+                    next_run = datetime(year, month, day, hour, minute)
+                else:
+                    # Als geen dag gespecificeerd, volgende maand zelfde dag
+                    # Voeg 1 maand toe (let op de juiste logica voor maanden met verschillende lengtes)
+                    if now.month == 12:
+                        next_run = datetime(now.year + 1, 1, now.day, hour, minute)
+                    else:
+                        next_month = now.month + 1
+                        # Zorg dat de dag geldig is voor die maand
+                        last_day = [31, 29 if now.year % 4 == 0 and (now.year % 100 != 0 or now.year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][next_month - 1]
+                        day = min(now.day, last_day)
+                        next_run = datetime(now.year, next_month, day, hour, minute)
+                        
+        return next_run
+
+class BackupJob(db.Model):
+    """
+    Model voor backup jobs (uitgevoerde en geplande backups)
+    """
+    __tablename__ = 'backup_jobs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    backup_settings_id = db.Column(db.Integer, db.ForeignKey('backup_settings.id'), nullable=False)
+    backup_id = db.Column(db.String(50))  # ID van de backup in het systeem
+    filename = db.Column(db.String(255))  # Bestandsnaam van de backup
+    
+    # Backup parameters
+    scheduled = db.Column(db.Boolean, default=False)  # Was dit een geplande backup?
+    backup_type = db.Column(db.String(20), default='full')  # 'full', 'database', 'uploads'
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'running', 'completed', 'failed'
+    include_uploads = db.Column(db.Boolean, default=True)
+    
+    # Metagegevens
+    file_size = db.Column(db.BigInteger)  # Grootte in bytes
+    tables = db.Column(db.Text)  # JSON lijst met tabellen in de backup
+    
+    # Tijdstippen
+    scheduled_time = db.Column(db.DateTime)
+    start_time = db.Column(db.DateTime)
+    end_time = db.Column(db.DateTime)
+    
+    # Resultaten
+    result_message = db.Column(db.Text)
+    error_details = db.Column(db.Text)
+    
+    # Relaties
+    backup_settings = db.relationship('BackupSettings', back_populates='backup_jobs')
+    
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    def __repr__(self):
+        return f"<BackupJob id={self.id} status={self.status}>"
+        
+    def to_dict(self):
+        """Converteer naar dictionary"""
+        return {
+            'id': self.id,
+            'backup_settings_id': self.backup_settings_id,
+            'backup_id': self.backup_id,
+            'filename': self.filename,
+            'scheduled': self.scheduled,
+            'backup_type': self.backup_type,
+            'status': self.status,
+            'include_uploads': self.include_uploads,
+            'file_size': self.file_size,
+            'tables': json.loads(self.tables) if self.tables else None,
+            'scheduled_time': self.scheduled_time,
+            'start_time': self.start_time,
+            'end_time': self.end_time,
+            'result_message': self.result_message,
+            'error_details': self.error_details,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
 
 
