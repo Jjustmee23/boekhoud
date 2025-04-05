@@ -602,8 +602,8 @@
                             <small class="form-text text-muted">Het hoofdaccount dat wordt gebruikt voor authenticatie</small>
                         </div>
                         <div class="col-md-6">
-                            <label for="default_sender_name" class="form-label">Naam Afzender</label>
-                            <input type="text" class="form-control" id="default_sender_name" name="default_sender_name" 
+                            <label for="ms_default_sender_name" class="form-label">Naam Afzender</label>
+                            <input type="text" class="form-control" id="ms_default_sender_name" name="default_sender_name" 
                                    value="{{ default_sender_name }}" placeholder="MidaWeb">
                             <small class="form-text text-muted">De naam die wordt weergegeven als afzender van e-mails</small>
                         </div>
@@ -624,8 +624,8 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label for="reply_to" class="form-label">Reply-To E-mailadres</label>
-                            <input type="email" class="form-control" id="reply_to" name="reply_to" 
+                            <label for="ms_reply_to" class="form-label">Reply-To E-mailadres</label>
+                            <input type="email" class="form-control" id="ms_reply_to" name="reply_to" 
                                    value="{{ reply_to }}" placeholder="Optioneel">
                             <small class="form-text text-muted">Optioneel e-mailadres waar ontvangers op kunnen antwoorden</small>
                         </div>
@@ -761,14 +761,14 @@
                                    value="{{ email_from_name }}">
                         </div>
                         <div class="col-md-6">
-                            <label for="default_sender_name" class="form-label">Standaard afzender naam</label>
-                            <input type="text" class="form-control" id="default_sender_name" name="default_sender_name" 
+                            <label for="smtp_default_sender_name" class="form-label">Standaard afzender naam</label>
+                            <input type="text" class="form-control" id="smtp_default_sender_name" name="default_sender_name" 
                                    value="{{ default_sender_name }}" placeholder="MidaWeb">
                             <small class="form-text text-muted">Standaard weergavenaam voor uitgaande e-mails</small>
                         </div>
                         <div class="col-md-6">
-                            <label for="reply_to" class="form-label">Reply-To E-mailadres</label>
-                            <input type="email" class="form-control" id="reply_to" name="reply_to" 
+                            <label for="smtp_reply_to" class="form-label">Reply-To E-mailadres</label>
+                            <input type="email" class="form-control" id="smtp_reply_to" name="reply_to" 
                                    value="{{ reply_to }}" placeholder="Optioneel">
                             <small class="form-text text-muted">Optioneel e-mailadres waar ontvangers op kunnen antwoorden</small>
                         </div>
