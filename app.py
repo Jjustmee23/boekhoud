@@ -255,6 +255,13 @@ def initialize_app():
         # Eerst migraties uitvoeren, dan tabellen aanmaken/bijwerken
         run_migrations()
         
+        # Vernieuw de tabel-metadata voor specifieke tabellen om kolommen correct te laden
+        from database import refresh_table_metadata
+        refresh_table_metadata(db.engine, 'invoices')
+        refresh_table_metadata(db.engine, 'customers')
+        refresh_table_metadata(db.engine, 'workspaces')
+        refresh_table_metadata(db.engine, 'system_settings')
+        
         # Vernieuw de metadata in SQLAlchemy zodat het de nieuwste schema-wijzigingen gebruikt
         db.metadata.clear()
         from models import User, Customer, Invoice, Workspace, SystemSettings  # Opnieuw importeren om metadata te vernieuwen
