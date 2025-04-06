@@ -65,20 +65,16 @@ def update_whmcs_settings():
         settings = SystemSettings(key='whmcs_integration', value='enabled')
         db.session.add(settings)
     
-    # Update de instellingen via de WHMCS service
-    from whmcs_instance import whmcs_service
+    # Update de instellingen
+    settings.whmcs_api_url = whmcs_api_url
+    settings.whmcs_api_identifier = whmcs_api_identifier
+    if whmcs_api_secret:  # Alleen bijwerken als er een waarde is opgegeven
+        settings.whmcs_api_secret = whmcs_api_secret
+    settings.whmcs_auto_sync = auto_sync
+    settings.updated_at = datetime.now()
     
-    # Gebruik de methode om de instellingen op te slaan
-    success = whmcs_service.save_whmcs_settings(
-        api_url=whmcs_api_url,
-        api_identifier=whmcs_api_identifier,
-        api_secret=whmcs_api_secret if whmcs_api_secret else settings.whmcs_api_secret,
-        auto_sync=auto_sync
-    )
-    
-    if not success:
-        flash('Er is een fout opgetreden bij het opslaan van de WHMCS instellingen.', 'danger')
-        return redirect(url_for('whmcs_bp.whmcs_settings'))
+    # Sla op in de database
+    db.session.commit()
     
     # Update ook het .env bestand voor persistente opslag
     try:
@@ -114,7 +110,7 @@ def update_whmcs_settings():
 @admin_required
 def test_whmcs_connection():
     """Test de verbinding met de WHMCS API"""
-    from whmcs_instance import whmcs_service
+    whmcs_service = WHMCSService()
     
     try:
         if not whmcs_service.is_configured():
@@ -148,7 +144,7 @@ def test_whmcs_connection():
 @admin_required
 def sync_whmcs_clients():
     """Synchroniseer klanten van WHMCS naar de applicatie"""
-    from whmcs_instance import whmcs_service
+    whmcs_service = WHMCSService()
     
     try:
         if not whmcs_service.is_configured():
@@ -190,7 +186,7 @@ def sync_whmcs_clients():
 @admin_required
 def sync_whmcs_invoices():
     """Synchroniseer facturen van WHMCS naar de applicatie"""
-    from whmcs_instance import whmcs_service
+    whmcs_service = WHMCSService()
     
     try:
         if not whmcs_service.is_configured():

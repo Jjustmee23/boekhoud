@@ -17,23 +17,9 @@ from database import db
 
 class WHMCSService:
     """Service voor communicatie met de WHMCS API"""
-    
-    # Singleton instantie voor hergebruik
-    _instance = None
-    
-    def __new__(cls):
-        """Implementeer singleton patroon om één instantie te hergebruiken"""
-        if cls._instance is None:
-            cls._instance = super(WHMCSService, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
 
     def __init__(self):
         """Initialiseer de WHMCS API-service met configuratie uit environment variabelen of de database"""
-        # Voorkom dubbele initialisatie door singleton patroon
-        if getattr(self, '_initialized', False):
-            return
-            
         # Stel logger in
         self.logger = logging.getLogger(__name__)
         
@@ -41,9 +27,6 @@ class WHMCSService:
         self.api_url = os.environ.get('WHMCS_API_URL')
         self.api_identifier = os.environ.get('WHMCS_API_IDENTIFIER')
         self.api_secret = os.environ.get('WHMCS_API_SECRET')
-        
-        # Markeer als geïnitialiseerd
-        self._initialized = True
         
         self.logger.info(f"Env WHMCS_API_URL: {self.api_url}")
         self.logger.info(f"Env WHMCS_API_IDENTIFIER: {self.api_identifier}")
@@ -64,46 +47,6 @@ class WHMCSService:
     def is_configured(self) -> bool:
         """Controleer of de API-gegevens zijn geconfigureerd"""
         return bool(self.api_url and self.api_identifier and self.api_secret)
-        
-    def save_whmcs_settings(self, api_url: str, api_identifier: str, api_secret: str, auto_sync: bool = False) -> bool:
-        """
-        Sla de WHMCS API-instellingen op in de database
-        
-        Args:
-            api_url: De URL naar de WHMCS API
-            api_identifier: De API identifier
-            api_secret: Het API secret
-            auto_sync: Of automatische synchronisatie moet worden ingeschakeld
-            
-        Returns:
-            bool: True als het opslaan is gelukt, anders False
-        """
-        try:
-            # Haal de bestaande instellingen op of maak een nieuwe aan
-            settings = SystemSettings.query.filter_by(key='whmcs_integration').first()
-            if not settings:
-                settings = SystemSettings(key='whmcs_integration', value=json.dumps({}))
-                db.session.add(settings)
-            
-            # Update de instellingen
-            settings.whmcs_api_url = api_url
-            settings.whmcs_api_identifier = api_identifier
-            settings.whmcs_api_secret = api_secret
-            settings.whmcs_auto_sync = auto_sync
-            settings.whmcs_last_sync = None  # Reset laatste sync timestamp
-            
-            # Update ook de huidige instantie
-            self.api_url = api_url
-            self.api_identifier = api_identifier
-            self.api_secret = api_secret
-            
-            db.session.commit()
-            self.logger.info("WHMCS settings saved successfully")
-            return True
-        except Exception as e:
-            db.session.rollback()
-            self.logger.error(f"Error saving WHMCS settings: {str(e)}")
-            return False
 
     def _make_api_request(self, action: str, params: Dict = None) -> Dict:
         """
