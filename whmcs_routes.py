@@ -32,9 +32,27 @@ def whmcs_dashboard():
         workspace_id=current_user.workspace_id
     ).count() if not current_user.is_super_admin else Invoice.query.filter_by(synced_from_whmcs=True).count()
     
-    # Controleer of er WHMCS API-gegevens zijn geconfigureerd
+    # Controleer de WHMCS API-status
     whmcs_service = WHMCSService()
     is_configured = whmcs_service.is_configured()
+    
+    # Check API-status voor meer gedetailleerde informatie
+    api_status = None
+    if is_configured:
+        try:
+            api_status = whmcs_service.check_api_status()
+        except Exception as e:
+            current_app.logger.error(f"Error checking WHMCS API status: {str(e)}")
+            api_status = {
+                'enabled': False,
+                'message': f"Fout bij controleren API-status: {str(e)}",
+                'details': {'error': str(e)}
+            }
+    
+    # Converteer laatste synchronisatietijd naar een leesbare string
+    last_sync_str = None
+    if settings and settings.whmcs_last_sync:
+        last_sync_str = settings.whmcs_last_sync.strftime('%d-%m-%Y %H:%M:%S')
     
     return render_template(
         'admin/whmcs_dashboard.html',
@@ -42,10 +60,13 @@ def whmcs_dashboard():
         whmcs_customers_count=whmcs_customers_count,
         whmcs_invoices_count=whmcs_invoices_count,
         is_configured=is_configured,
+        api_status=api_status,
         whmcs_api_url=whmcs_service.api_url,
         whmcs_api_identifier=whmcs_service.api_identifier,
-        # Verberg het geheim voor de veiligheid maar toon een indicator
-        whmcs_api_secret_set=bool(whmcs_service.api_secret)
+        # Verberg de geheimen voor de veiligheid maar toon indicators
+        whmcs_api_secret_set=bool(whmcs_service.api_secret),
+        whmcs_api_token_set=bool(whmcs_service.api_token),
+        last_sync=last_sync_str
     )
 
 @whmcs_bp.route('/admin/whmcs/settings', methods=['POST'])
@@ -57,6 +78,7 @@ def update_whmcs_settings():
     whmcs_api_url = request.form.get('whmcs_api_url')
     whmcs_api_identifier = request.form.get('whmcs_api_identifier')
     whmcs_api_secret = request.form.get('whmcs_api_secret')
+    whmcs_api_token = request.form.get('whmcs_api_token')
     auto_sync = 'auto_sync' in request.form
     
     # Haal bestaande instellingen op of maak nieuw
@@ -67,9 +89,20 @@ def update_whmcs_settings():
     
     # Update de instellingen
     settings.whmcs_api_url = whmcs_api_url
-    settings.whmcs_api_identifier = whmcs_api_identifier
-    if whmcs_api_secret:  # Alleen bijwerken als er een waarde is opgegeven
-        settings.whmcs_api_secret = whmcs_api_secret
+    
+    # Sla Identifier en Secret alleen op als er geen token wordt gebruikt
+    if not whmcs_api_token:
+        settings.whmcs_api_identifier = whmcs_api_identifier
+        if whmcs_api_secret:  # Alleen bijwerken als er een waarde is opgegeven
+            settings.whmcs_api_secret = whmcs_api_secret
+    else:
+        # Als er een token is, verwijder de identifier/secret
+        settings.whmcs_api_identifier = None
+        settings.whmcs_api_secret = None
+        
+    # Sla token op
+    settings.whmcs_api_token = whmcs_api_token if whmcs_api_token else settings.whmcs_api_token
+    
     settings.whmcs_auto_sync = auto_sync
     settings.updated_at = datetime.now()
     
@@ -91,9 +124,20 @@ def update_whmcs_settings():
         
         # Update met nieuwe waarden
         env_content['WHMCS_API_URL'] = whmcs_api_url
-        env_content['WHMCS_API_IDENTIFIER'] = whmcs_api_identifier
-        if whmcs_api_secret:
-            env_content['WHMCS_API_SECRET'] = whmcs_api_secret
+        
+        # Sla Identifier en Secret alleen op als er geen token wordt gebruikt
+        if not whmcs_api_token:
+            env_content['WHMCS_API_IDENTIFIER'] = whmcs_api_identifier
+            if whmcs_api_secret:
+                env_content['WHMCS_API_SECRET'] = whmcs_api_secret
+        else:
+            # Als er een token is, verwijder de identifier/secret uit env
+            if 'WHMCS_API_IDENTIFIER' in env_content:
+                del env_content['WHMCS_API_IDENTIFIER']
+            if 'WHMCS_API_SECRET' in env_content:
+                del env_content['WHMCS_API_SECRET']
+            # Sla token op
+            env_content['WHMCS_API_TOKEN'] = whmcs_api_token
         
         # Schrijf terug naar bestand
         with open(env_path, 'w') as f:
@@ -102,7 +146,17 @@ def update_whmcs_settings():
     except Exception as e:
         current_app.logger.error(f"Fout bij bijwerken .env bestand: {str(e)}")
     
-    flash('WHMCS-instellingen succesvol bijgewerkt', 'success')
+    # Test de verbinding na bijwerken van instellingen
+    whmcs_service = WHMCSService()
+    if whmcs_service.is_configured():
+        api_status = whmcs_service.check_api_status()
+        if api_status['enabled']:
+            flash('WHMCS-instellingen succesvol bijgewerkt en verbinding getest', 'success')
+        else:
+            flash(f'WHMCS-instellingen bijgewerkt, maar er is een probleem met de verbinding: {api_status["message"]}', 'warning')
+    else:
+        flash('WHMCS-instellingen bijgewerkt, maar API is niet volledig geconfigureerd', 'warning')
+    
     return redirect(url_for('whmcs.whmcs_dashboard'))
 
 @whmcs_bp.route('/admin/whmcs/test-connection', methods=['POST'])
@@ -119,21 +173,35 @@ def test_whmcs_connection():
                 'message': 'WHMCS API is niet geconfigureerd. Voeg API-gegevens toe.'
             })
         
-        # Probeer een eenvoudige API-oproep te doen
-        result = whmcs_service._make_api_request('GetSystemUrl')
+        # Gebruik de verbeterde check_api_status methode voor gedetailleerde informatie
+        api_status = whmcs_service.check_api_status()
         
-        if result.get('result') == 'success':
+        if api_status['enabled']:
+            # API is succesvol
+            system_url = api_status['details'].get('system_url', 'Onbekend')
+            api_version = api_status['details'].get('api_version', 'Onbekend')
+            
             return jsonify({
                 'success': True,
                 'message': 'Verbinding met WHMCS API succesvol!',
-                'data': result
+                'data': {
+                    'system_url': system_url,
+                    'api_version': api_version,
+                    'status': api_status
+                }
             })
         else:
+            # API heeft een probleem
             return jsonify({
                 'success': False,
-                'message': f"WHMCS API-fout: {result.get('message', 'Onbekende fout')}"
+                'message': api_status['message'],
+                'data': {
+                    'details': api_status['details'],
+                    'status': api_status
+                }
             })
     except Exception as e:
+        current_app.logger.error(f"Error testing WHMCS connection: {str(e)}")
         return jsonify({
             'success': False,
             'message': f"Fout bij verbinden met WHMCS API: {str(e)}"
