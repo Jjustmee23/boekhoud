@@ -220,8 +220,7 @@
     fetch("{{ url_for('whmcs.test_whmcs_connection') }}", {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': '{{ csrf_token() }}'
+        'Content-Type': 'application/json'
       }
     })
     .then(response => response.json())
@@ -254,7 +253,7 @@
       method: 'POST',
       body: formData,
       headers: {
-        'X-CSRFToken': '{{ csrf_token() }}'
+        'X-Requested-With: XMLHttpRequest }}'
       }
     })
     .then(response => response.json())
@@ -308,7 +307,7 @@
       method: 'POST',
       body: formData,
       headers: {
-        'X-CSRFToken': '{{ csrf_token() }}'
+        'X-Requested-With: XMLHttpRequest }}'
       }
     })
     .then(response => response.json())
