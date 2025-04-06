@@ -105,16 +105,9 @@ if not session_secret:
         session_secret = "ontwikkeling_test_key_niet_gebruiken_in_productie"
 app.secret_key = session_secret
 
-# Configure database
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
-
-# Initialize database with the app
-db.init_app(app)
+# Configure database using centralized database.py functions
+from database import init_app_db
+init_app_db(app)
 
 # Initialize Flask-Login
 login_manager = LoginManager(app)
@@ -239,6 +232,14 @@ def initialize_app():
     with app.app_context():
         # Import the models to ensure they are picked up by SQLAlchemy
         from models import User, Customer, Invoice, Workspace, SystemSettings
+        
+        # Refresh metadata if necessary to pick up any table changes
+        from database import refresh_table_metadata
+        try:
+            refresh_table_metadata()
+            logging.info("Table metadata refreshed")
+        except Exception as e:
+            logging.warning(f"Kon metadata niet vernieuwen: {str(e)}")
         
         # Create all tables
         db.create_all()
