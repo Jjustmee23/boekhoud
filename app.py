@@ -234,6 +234,18 @@ def split_filter(value, delimiter=','):
 
 # App initialization is handled in main.py
 
+def run_migrations():
+    """Run database migrations to ensure compatibility with new code"""
+    with app.app_context():
+        try:
+            # Import the migration module
+            from migrate_database import migrate_whmcs_fields
+            # Run the migration
+            migrate_whmcs_fields()
+            app.logger.info("Database migraties succesvol uitgevoerd")
+        except Exception as e:
+            app.logger.error(f"Fout bij uitvoeren van database migraties: {str(e)}")
+
 def initialize_app():
     """Initialize the application, create database tables and register blueprints"""
     with app.app_context():
@@ -243,6 +255,9 @@ def initialize_app():
         # Create all tables
         db.create_all()
         
+        # Run migrations for adding new columns
+        run_migrations()
+        
         # Create default admin user
         create_default_admin()
         
@@ -250,5 +265,5 @@ def initialize_app():
         from whmcs_routes import whmcs_bp
         app.register_blueprint(whmcs_bp)
         
-        # Initialize sample data if needed
-        init_sample_data()
+        # Tijdelijk uitgeschakeld om opstart te versnellen
+        # init_sample_data()
