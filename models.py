@@ -154,6 +154,7 @@ class Invoice(db.Model):
     # Make invoice_number unique per workspace
     __table_args__ = (
         sa.UniqueConstraint('invoice_number', 'workspace_id', name='uix_invoice_number_workspace'),
+        {'extend_existing': True}  # Hiermee dwingen we SQLAlchemy om de tabel te updaten, zelfs als deze al bestaat
     )
     
     def to_dict(self):

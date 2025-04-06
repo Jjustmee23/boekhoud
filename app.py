@@ -252,11 +252,15 @@ def initialize_app():
         # Import the models to ensure they are picked up by SQLAlchemy
         from models import User, Customer, Invoice, Workspace, SystemSettings
         
+        # Eerst migraties uitvoeren, dan tabellen aanmaken/bijwerken
+        run_migrations()
+        
+        # Vernieuw de metadata in SQLAlchemy zodat het de nieuwste schema-wijzigingen gebruikt
+        db.metadata.clear()
+        from models import User, Customer, Invoice, Workspace, SystemSettings  # Opnieuw importeren om metadata te vernieuwen
+        
         # Create all tables
         db.create_all()
-        
-        # Run migrations for adding new columns
-        run_migrations()
         
         # Create default admin user
         create_default_admin()
