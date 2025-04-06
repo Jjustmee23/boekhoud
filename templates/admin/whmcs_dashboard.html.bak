@@ -6,10 +6,10 @@
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>WHMCS Integratie</h1>
-    <a href="{{ url_for('admin') }}" class="btn btn-secondary">Terug naar Admin</a>
+    <a href="{{ url_for("admin") }}" class="btn btn-secondary">Terug naar Admin</a>
   </div>
 
-  {% include 'includes/flashed_messages.html' %}
+  {% include "includes/flashed_messages.html" %}
 
   <!-- Status Card -->
   <div class="card mb-4">
@@ -82,7 +82,7 @@
         <div class="col-md-4">
           <div class="card mb-3">
             <div class="card-body text-center">
-              <h3 class="mb-0">{{ last_sync|default('Nooit', true) }}</h3>
+              <h3 class="mb-0">{{ last_sync|default("Nooit", true) }}</h3>
               <p class="text-muted mb-0">Laatste Synchronisatie</p>
             </div>
           </div>
@@ -102,7 +102,7 @@
       <h5>WHMCS API Instellingen</h5>
     </div>
     <div class="card-body">
-      <form action="{{ url_for('whmcs.update_whmcs_settings') }}" method="POST">
+      <form action="{{ url_for("whmcs.update_whmcs_settings") }}" method="POST">
         <div class="mb-3">
           <label for="whmcs_api_url" class="form-label">WHMCS API URL</label>
           <input type="url" class="form-control" id="whmcs_api_url" name="whmcs_api_url" 
@@ -242,28 +242,28 @@
 
 {% block scripts %}
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener("DOMContentLoaded", function() {
     // Test Connection Button
-    const testConnectionBtn = document.getElementById('test-connection-btn');
+    const testConnectionBtn = document.getElementById("test-connection-btn");
     if (testConnectionBtn) {
-      testConnectionBtn.addEventListener('click', function() {
+      testConnectionBtn.addEventListener("click", function() {
         testWHMCSConnection();
       });
     }
     
     // Sync Clients Button
-    const syncClientsBtn = document.getElementById('sync-clients-btn');
+    const syncClientsBtn = document.getElementById("sync-clients-btn");
     if (syncClientsBtn) {
-      syncClientsBtn.addEventListener('click', function() {
+      syncClientsBtn.addEventListener("click", function() {
         syncWHMCSClients();
       });
     }
     
     // Sync Invoices Button
-    const syncInvoicesBtn = document.getElementById('sync-invoices-btn');
+    const syncInvoicesBtn = document.getElementById("sync-invoices-btn");
     if (syncInvoicesBtn) {
-      syncInvoicesBtn.addEventListener('click', function() {
-        const status = document.getElementById('invoice-status').value;
+      syncInvoicesBtn.addEventListener("click", function() {
+        const status = document.getElementById("invoice-status").value;
         syncWHMCSInvoices(status);
       });
     }
@@ -271,65 +271,65 @@
   
   // Test WHMCS Connection
   function testWHMCSConnection() {
-    showSyncResults('Verbinding testen...', true);
+    showSyncResults("Verbinding testen...", true);
     
-    fetch("{{ url_for('whmcs.test_whmcs_connection') }}", {
-      method: 'POST',
+    fetch("{{ url_for("whmcs.test_whmcs_connection") }}", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json"
       }
     })
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        showSyncResults(data.message, false, 'success');
+        showSyncResults(data.message, false, "success");
         
         if (data.data && data.data.system_url) {
-          let detailsHtml = '<ul>';
+          let detailsHtml = "<ul>";
           detailsHtml += `<li>Systeem URL: ${data.data.system_url}</li>`;
           if (data.data.api_version) {
             detailsHtml += `<li>API versie: ${data.data.api_version}</li>`;
           }
-          detailsHtml += '</ul>';
-          document.getElementById('sync-details').innerHTML = detailsHtml;
+          detailsHtml += "</ul>";
+          document.getElementById("sync-details").innerHTML = detailsHtml;
         }
       } else {
-        showSyncResults(data.message, false, 'danger');
+        showSyncResults(data.message, false, "danger");
         
         if (data.data && data.data.details) {
-          document.getElementById('sync-details').innerHTML = `<p>Details: ${JSON.stringify(data.data.details)}</p>`;
+          document.getElementById("sync-details").innerHTML = `<p>Details: ${JSON.stringify(data.data.details)}</p>`;
         }
       }
     })
     .catch(error => {
-      showSyncResults('Fout bij verbinden: ' + error, false, 'danger');
+      showSyncResults("Fout bij verbinden: " + error, false, "danger");
     });
   }
   
   // Sync WHMCS Clients
   function syncWHMCSClients() {
-    showSyncResults('Klanten synchroniseren...', true);
+    showSyncResults("Klanten synchroniseren...", true);
     
     const formData = new FormData();
     {% if current_user.is_super_admin %}
     // Voor super admin, voeg werkruimte ID toe indien een specifieke is geselecteerd
-    const workspaceId = '{{ current_user.workspace_id }}';
+    const workspaceId = "{{ current_user.workspace_id }}";
     if (workspaceId) {
-      formData.append('workspace_id', workspaceId);
+      formData.append("workspace_id", workspaceId);
     }
     {% endif %}
     
-    fetch("{{ url_for('whmcs.sync_whmcs_clients') }}", {
-      method: 'POST',
+    fetch("{{ url_for("whmcs.sync_whmcs_clients") }}", {
+      method: "POST",
       body: formData,
       headers: {
-        'X-Requested-With': 'XMLHttpRequest'
+        "X-Requested-With": "XMLHttpRequest"
       }
     })
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        showSyncResults(data.message, false, 'success');
+        showSyncResults(data.message, false, "success");
         
         if (data.data) {
           let details = `
@@ -340,7 +340,7 @@
               <li>Totaal verwerkt: ${data.data.total}</li>
             </ul>
           `;
-          document.getElementById('sync-details').innerHTML = details;
+          document.getElementById("sync-details").innerHTML = details;
         }
         
         // Ververs de pagina na 3 seconden voor bijgewerkte tellingen
@@ -348,42 +348,42 @@
           location.reload();
         }, 3000);
       } else {
-        showSyncResults(data.message, false, 'danger');
+        showSyncResults(data.message, false, "danger");
       }
     })
     .catch(error => {
-      showSyncResults('Fout bij synchroniseren: ' + error, false, 'danger');
+      showSyncResults("Fout bij synchroniseren: " + error, false, "danger");
     });
   }
   
   // Sync WHMCS Invoices
   function syncWHMCSInvoices(status) {
-    showSyncResults('Facturen synchroniseren...', true);
+    showSyncResults("Facturen synchroniseren...", true);
     
     const formData = new FormData();
     if (status) {
-      formData.append('status', status);
+      formData.append("status", status);
     }
     
     {% if current_user.is_super_admin %}
     // Voor super admin, voeg werkruimte ID toe indien een specifieke is geselecteerd
-    const workspaceId = '{{ current_user.workspace_id }}';
+    const workspaceId = "{{ current_user.workspace_id }}";
     if (workspaceId) {
-      formData.append('workspace_id', workspaceId);
+      formData.append("workspace_id", workspaceId);
     }
     {% endif %}
     
-    fetch("{{ url_for('whmcs.sync_whmcs_invoices') }}", {
-      method: 'POST',
+    fetch("{{ url_for("whmcs.sync_whmcs_invoices") }}", {
+      method: "POST",
       body: formData,
       headers: {
-        'X-Requested-With': 'XMLHttpRequest'
+        "X-Requested-With": "XMLHttpRequest"
       }
     })
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        showSyncResults(data.message, false, 'success');
+        showSyncResults(data.message, false, "success");
         
         if (data.data) {
           let details = `
@@ -395,7 +395,7 @@
               <li>Totaal verwerkt: ${data.data.total}</li>
             </ul>
           `;
-          document.getElementById('sync-details').innerHTML = details;
+          document.getElementById("sync-details").innerHTML = details;
         }
         
         // Ververs de pagina na 3 seconden voor bijgewerkte tellingen
@@ -403,37 +403,37 @@
           location.reload();
         }, 3000);
       } else {
-        showSyncResults(data.message, false, 'danger');
+        showSyncResults(data.message, false, "danger");
       }
     })
     .catch(error => {
-      showSyncResults('Fout bij synchroniseren: ' + error, false, 'danger');
+      showSyncResults("Fout bij synchroniseren: " + error, false, "danger");
     });
   }
   
   // Helper function to show sync results
-  function showSyncResults(message, isLoading = false, type = 'info') {
-    const resultsDiv = document.getElementById('sync-results');
-    const spinner = document.getElementById('sync-spinner');
-    const messageElement = document.getElementById('sync-message');
-    const detailsElement = document.getElementById('sync-details');
+  function showSyncResults(message, isLoading = false, type = "info") {
+    const resultsDiv = document.getElementById("sync-results");
+    const spinner = document.getElementById("sync-spinner");
+    const messageElement = document.getElementById("sync-message");
+    const detailsElement = document.getElementById("sync-details");
     
-    resultsDiv.classList.remove('d-none', 'alert-info', 'alert-success', 'alert-danger');
+    resultsDiv.classList.remove("d-none", "alert-info", "alert-success", "alert-danger");
     resultsDiv.classList.add(`alert-${type}`);
     
     if (isLoading) {
-      spinner.classList.remove('d-none');
+      spinner.classList.remove("d-none");
     } else {
-      spinner.classList.add('d-none');
+      spinner.classList.add("d-none");
     }
     
     messageElement.textContent = message;
     
     if (!isLoading) {
-      detailsElement.innerHTML = '';
+      detailsElement.innerHTML = "";
     }
     
-    resultsDiv.scrollIntoView({ behavior: 'smooth' });
+    resultsDiv.scrollIntoView({ behavior: "smooth" });
   }
 </script>
 {% endblock %}
