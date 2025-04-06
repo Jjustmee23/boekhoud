@@ -320,19 +320,26 @@ def date_to_quarter(date):
     return f"Q{quarter} {date.year}"
 
 
-def get_quarters(start_year, end_year=None):
+def get_quarters(start_year=None, end_year=None):
     """
     Genereer een lijst van kwartalen voor rapportage
     
     Args:
-        start_year: Het startjaar
-        end_year: Het eindjaar (optioneel, standaard is het startjaar)
+        start_year: Het startjaar (optioneel, standaard is het huidige jaar - 3)
+        end_year: Het eindjaar (optioneel, standaard is het huidige jaar)
         
     Returns:
         list: Lijst van kwartalen (bijv. ["Q1 2022", "Q2 2022", ...])
     """
-    if not end_year:
-        end_year = start_year
+    from datetime import datetime
+    
+    current_year = datetime.now().year
+    
+    if start_year is None:
+        start_year = current_year - 3
+        
+    if end_year is None:
+        end_year = current_year
     
     quarters = []
     for year in range(start_year, end_year + 1):
@@ -342,21 +349,28 @@ def get_quarters(start_year, end_year=None):
     return quarters
 
 
-def get_months(start_year, start_month=1, end_year=None, end_month=12):
+def get_months(start_year=None, start_month=1, end_year=None, end_month=12):
     """
     Genereer een lijst van maanden voor rapportage
     
     Args:
-        start_year: Het startjaar
+        start_year: Het startjaar (optioneel, standaard is het huidige jaar - 1)
         start_month: De startmaand (standaard 1)
-        end_year: Het eindjaar (optioneel, standaard is het startjaar)
+        end_year: Het eindjaar (optioneel, standaard is het huidige jaar)
         end_month: De eindmaand (standaard 12)
         
     Returns:
         list: Lijst van maanden (bijv. ["Jan 2022", "Feb 2022", ...])
     """
-    if not end_year:
-        end_year = start_year
+    from datetime import datetime
+    
+    current_year = datetime.now().year
+    
+    if start_year is None:
+        start_year = current_year - 1
+        
+    if end_year is None:
+        end_year = current_year
     
     months = []
     month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -370,19 +384,26 @@ def get_months(start_year, start_month=1, end_year=None, end_month=12):
     return months
 
 
-def get_years(start_year, end_year=None):
+def get_years(start_year=None, end_year=None):
     """
     Genereer een lijst van jaren voor rapportage
     
     Args:
-        start_year: Het startjaar
-        end_year: Het eindjaar (optioneel, standaard is het startjaar)
+        start_year: Het startjaar (optioneel, standaard is het huidige jaar - 3)
+        end_year: Het eindjaar (optioneel, standaard is het huidige jaar)
         
     Returns:
         list: Lijst van jaren (bijv. [2021, 2022, 2023])
     """
-    if not end_year:
-        end_year = start_year
+    from datetime import datetime
+    
+    current_year = datetime.now().year
+    
+    if start_year is None:
+        start_year = current_year - 3
+        
+    if end_year is None:
+        end_year = current_year
     
     return list(range(start_year, end_year + 1))
 

@@ -1744,12 +1744,13 @@ def vat_report_form():
         flash('U moet eerst een werkruimte kiezen om BTW-rapporten te bekijken', 'warning')
         return redirect(url_for('dashboard'))
         
+    current_year = datetime.now().year
     return render_template(
         'vat_report.html',
-        years=get_years(),
+        years=get_years(start_year=current_year-3, end_year=current_year),
         quarters=get_quarters(),
         months=get_months(),
-        current_year=datetime.now().year,
+        current_year=current_year,
         current_quarter=date_to_quarter(datetime.now()),
         now=datetime.now()
     )
