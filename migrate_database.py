@@ -16,12 +16,14 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData, Table, Column, Integer, Boolean, DateTime, String
 from sqlalchemy.sql import text
 
-# Gebruik de database module voor de bestaande SQLAlchemy instantie en configuratie
-from database import db, init_app_db
+# Gebruik de database module voor de bestaande SQLAlchemy instantie
+from database import db
 # Maak een tijdelijke Flask-app voor de database-verbinding
 app = Flask(__name__)
-# Initialiseer de app met onze centrale database configuratie
-init_app_db(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Initialiseer de bestaande db instantie met deze app
+db.init_app(app)
 
 def add_column_if_not_exists(table_name, column_name, column_type):
     """Voeg een kolom toe aan een tabel als deze nog niet bestaat"""
@@ -69,6 +71,14 @@ def migrate_whmcs_fields():
     """
     logger.info("Start migratie van WHMCS-velden...")
     
+    # Vernieuw de SQLAlchemy metadata om te zorgen dat we de nieuwste schema hebben
+    try:
+        db.metadata.clear()
+        # Importeer modellen opnieuw om de metadata te vernieuwen
+        import models
+    except Exception as e:
+        logger.warning(f"Fout bij het vernieuwen van metadata: {str(e)}")
+    
     # Voer directe SQL-queries uit voor het toevoegen van kolommen
     with db.engine.connect() as conn:
         try:
@@ -84,14 +94,15 @@ def migrate_whmcs_fields():
             logger.error(f"Fout bij toevoegen van WHMCS-velden aan customers tabel: {str(e)}")
         
         try:
-            # WHMCS-velden voor Invoice
+            # WHMCS-velden voor Invoice en ontbrekende due_date kolom
             conn.execute(text("""
                 ALTER TABLE invoices 
+                ADD COLUMN IF NOT EXISTS due_date DATE,
                 ADD COLUMN IF NOT EXISTS whmcs_invoice_id INTEGER,
                 ADD COLUMN IF NOT EXISTS synced_from_whmcs BOOLEAN DEFAULT FALSE,
                 ADD COLUMN IF NOT EXISTS whmcs_last_sync TIMESTAMP
             """))
-            logger.info("WHMCS-velden toegevoegd aan invoices tabel")
+            logger.info("WHMCS-velden en ontbrekende kolommen toegevoegd aan invoices tabel")
         except Exception as e:
             logger.error(f"Fout bij toevoegen van WHMCS-velden aan invoices tabel: {str(e)}")
         

@@ -105,9 +105,16 @@ if not session_secret:
         session_secret = "ontwikkeling_test_key_niet_gebruiken_in_productie"
 app.secret_key = session_secret
 
-# Configure database using centralized database.py functions
-from database import init_app_db
-init_app_db(app)
+# Configure database
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+}
+
+# Initialize database with the app
+db.init_app(app)
 
 # Initialize Flask-Login
 login_manager = LoginManager(app)
@@ -227,19 +234,37 @@ def split_filter(value, delimiter=','):
 
 # App initialization is handled in main.py
 
+def run_migrations():
+    """Run database migrations to ensure compatibility with new code"""
+    with app.app_context():
+        try:
+            # Import the migration module
+            from migrate_database import migrate_whmcs_fields
+            # Run the migration
+            migrate_whmcs_fields()
+            app.logger.info("Database migraties succesvol uitgevoerd")
+        except Exception as e:
+            app.logger.error(f"Fout bij uitvoeren van database migraties: {str(e)}")
+
 def initialize_app():
     """Initialize the application, create database tables and register blueprints"""
     with app.app_context():
         # Import the models to ensure they are picked up by SQLAlchemy
         from models import User, Customer, Invoice, Workspace, SystemSettings
         
-        # Refresh metadata if necessary to pick up any table changes
+        # Eerst migraties uitvoeren, dan tabellen aanmaken/bijwerken
+        run_migrations()
+        
+        # Vernieuw de tabel-metadata voor specifieke tabellen om kolommen correct te laden
         from database import refresh_table_metadata
-        try:
-            refresh_table_metadata()
-            logging.info("Table metadata refreshed")
-        except Exception as e:
-            logging.warning(f"Kon metadata niet vernieuwen: {str(e)}")
+        refresh_table_metadata(db.engine, 'invoices')
+        refresh_table_metadata(db.engine, 'customers')
+        refresh_table_metadata(db.engine, 'workspaces')
+        refresh_table_metadata(db.engine, 'system_settings')
+        
+        # Vernieuw de metadata in SQLAlchemy zodat het de nieuwste schema-wijzigingen gebruikt
+        db.metadata.clear()
+        from models import User, Customer, Invoice, Workspace, SystemSettings  # Opnieuw importeren om metadata te vernieuwen
         
         # Create all tables
         db.create_all()
@@ -251,5 +276,5 @@ def initialize_app():
         from whmcs_routes import whmcs_bp
         app.register_blueprint(whmcs_bp)
         
-        # Initialize sample data if needed
-        init_sample_data()
+        # Tijdelijk uitgeschakeld om opstart te versnellen
+        # init_sample_data()

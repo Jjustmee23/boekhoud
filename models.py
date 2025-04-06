@@ -154,6 +154,7 @@ class Invoice(db.Model):
     # Make invoice_number unique per workspace
     __table_args__ = (
         sa.UniqueConstraint('invoice_number', 'workspace_id', name='uix_invoice_number_workspace'),
+        {'extend_existing': True}  # Hiermee dwingen we SQLAlchemy om de tabel te updaten, zelfs als deze al bestaat
     )
     
     def to_dict(self):
@@ -909,7 +910,7 @@ class Workspace(db.Model):
     email_templates = db.relationship('EmailTemplate', back_populates='workspace', cascade='all, delete-orphan')
     email_messages = db.relationship('EmailMessage', back_populates='workspace', cascade='all, delete-orphan')
     mollie_settings = db.relationship('MollieSettings', uselist=False, back_populates='workspace', cascade='all, delete-orphan')
-    backup_settings = db.relationship('BackupSettings', uselist=False, cascade='all, delete-orphan', back_populates='workspace')
+    backup_settings = db.relationship('BackupSettings', uselist=False, back_populates='workspace', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Workspace {self.name}>'
