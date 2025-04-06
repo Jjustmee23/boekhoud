@@ -154,7 +154,6 @@ class Invoice(db.Model):
     # Make invoice_number unique per workspace
     __table_args__ = (
         sa.UniqueConstraint('invoice_number', 'workspace_id', name='uix_invoice_number_workspace'),
-        {'extend_existing': True}  # Hiermee dwingen we SQLAlchemy om de tabel te updaten, zelfs als deze al bestaat
     )
     
     def to_dict(self):
@@ -910,7 +909,7 @@ class Workspace(db.Model):
     email_templates = db.relationship('EmailTemplate', back_populates='workspace', cascade='all, delete-orphan')
     email_messages = db.relationship('EmailMessage', back_populates='workspace', cascade='all, delete-orphan')
     mollie_settings = db.relationship('MollieSettings', uselist=False, back_populates='workspace', cascade='all, delete-orphan')
-    backup_settings = db.relationship('BackupSettings', uselist=False, back_populates='workspace', cascade='all, delete-orphan')
+    backup_settings = db.relationship('BackupSettings', uselist=False, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Workspace {self.name}>'
@@ -1289,7 +1288,7 @@ class BackupSettings(db.Model):
     retention_days = db.Column(db.Integer, default=7)
     
     # Relaties
-    workspace = db.relationship('Workspace', back_populates='backup_settings')
+    workspace = db.relationship('Workspace')
     backup_schedules = db.relationship('BackupSchedule', back_populates='backup_settings', cascade='all, delete-orphan')
     backup_jobs = db.relationship('BackupJob', back_populates='backup_settings', cascade='all, delete-orphan')
     

@@ -234,37 +234,11 @@ def split_filter(value, delimiter=','):
 
 # App initialization is handled in main.py
 
-def run_migrations():
-    """Run database migrations to ensure compatibility with new code"""
-    with app.app_context():
-        try:
-            # Import the migration module
-            from migrate_database import migrate_whmcs_fields
-            # Run the migration
-            migrate_whmcs_fields()
-            app.logger.info("Database migraties succesvol uitgevoerd")
-        except Exception as e:
-            app.logger.error(f"Fout bij uitvoeren van database migraties: {str(e)}")
-
 def initialize_app():
     """Initialize the application, create database tables and register blueprints"""
     with app.app_context():
         # Import the models to ensure they are picked up by SQLAlchemy
         from models import User, Customer, Invoice, Workspace, SystemSettings
-        
-        # Eerst migraties uitvoeren, dan tabellen aanmaken/bijwerken
-        run_migrations()
-        
-        # Vernieuw de tabel-metadata voor specifieke tabellen om kolommen correct te laden
-        from database import refresh_table_metadata
-        refresh_table_metadata(db.engine, 'invoices')
-        refresh_table_metadata(db.engine, 'customers')
-        refresh_table_metadata(db.engine, 'workspaces')
-        refresh_table_metadata(db.engine, 'system_settings')
-        
-        # Vernieuw de metadata in SQLAlchemy zodat het de nieuwste schema-wijzigingen gebruikt
-        db.metadata.clear()
-        from models import User, Customer, Invoice, Workspace, SystemSettings  # Opnieuw importeren om metadata te vernieuwen
         
         # Create all tables
         db.create_all()
@@ -276,5 +250,5 @@ def initialize_app():
         from whmcs_routes import whmcs_bp
         app.register_blueprint(whmcs_bp)
         
-        # Tijdelijk uitgeschakeld om opstart te versnellen
-        # init_sample_data()
+        # Initialize sample data if needed
+        init_sample_data()

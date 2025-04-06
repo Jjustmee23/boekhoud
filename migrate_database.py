@@ -71,14 +71,6 @@ def migrate_whmcs_fields():
     """
     logger.info("Start migratie van WHMCS-velden...")
     
-    # Vernieuw de SQLAlchemy metadata om te zorgen dat we de nieuwste schema hebben
-    try:
-        db.metadata.clear()
-        # Importeer modellen opnieuw om de metadata te vernieuwen
-        import models
-    except Exception as e:
-        logger.warning(f"Fout bij het vernieuwen van metadata: {str(e)}")
-    
     # Voer directe SQL-queries uit voor het toevoegen van kolommen
     with db.engine.connect() as conn:
         try:
@@ -94,15 +86,14 @@ def migrate_whmcs_fields():
             logger.error(f"Fout bij toevoegen van WHMCS-velden aan customers tabel: {str(e)}")
         
         try:
-            # WHMCS-velden voor Invoice en ontbrekende due_date kolom
+            # WHMCS-velden voor Invoice
             conn.execute(text("""
                 ALTER TABLE invoices 
-                ADD COLUMN IF NOT EXISTS due_date DATE,
                 ADD COLUMN IF NOT EXISTS whmcs_invoice_id INTEGER,
                 ADD COLUMN IF NOT EXISTS synced_from_whmcs BOOLEAN DEFAULT FALSE,
                 ADD COLUMN IF NOT EXISTS whmcs_last_sync TIMESTAMP
             """))
-            logger.info("WHMCS-velden en ontbrekende kolommen toegevoegd aan invoices tabel")
+            logger.info("WHMCS-velden toegevoegd aan invoices tabel")
         except Exception as e:
             logger.error(f"Fout bij toevoegen van WHMCS-velden aan invoices tabel: {str(e)}")
         

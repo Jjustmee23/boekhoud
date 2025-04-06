@@ -64,7 +64,7 @@
         <div class="col-md-4">
           <div class="card mb-3">
             <div class="card-body text-center">
-              <h3 class="mb-0">{{ settings.whmcs_last_sync|default('Nooit', true) }}</h3>
+              <h3 class="mb-0">{{ settings.whmcs_last_sync|default('Nooit', true)|date }}</h3>
               <p class="text-muted mb-0">Laatste Synchronisatie</p>
             </div>
           </div>
@@ -220,7 +220,8 @@
     fetch("{{ url_for('whmcs.test_whmcs_connection') }}", {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
       }
     })
     .then(response => response.json())
@@ -253,7 +254,7 @@
       method: 'POST',
       body: formData,
       headers: {
-        'X-Requested-With': 'XMLHttpRequest'
+        'X-CSRFToken': '{{ csrf_token() }}'
       }
     })
     .then(response => response.json())
@@ -307,7 +308,7 @@
       method: 'POST',
       body: formData,
       headers: {
-        'X-Requested-With': 'XMLHttpRequest'
+        'X-CSRFToken': '{{ csrf_token() }}'
       }
     })
     .then(response => response.json())
