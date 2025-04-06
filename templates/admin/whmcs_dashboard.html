@@ -44,24 +44,6 @@
       </div>
       
       {% if is_configured %}
-      <!-- API Status informatie -->
-      {% if api_status %}
-      <div class="alert {% if api_status.enabled %}alert-success{% else %}alert-warning{% endif %} mb-3">
-        <h6 class="alert-heading">API Verbindingsstatus</h6>
-        <p>{{ api_status.message }}</p>
-        {% if api_status.details %}
-        <ul class="mb-0">
-          {% if api_status.details.system_url %}
-          <li>Systeem URL: {{ api_status.details.system_url }}</li>
-          {% endif %}
-          {% if api_status.details.api_version %}
-          <li>API versie: {{ api_status.details.api_version }}</li>
-          {% endif %}
-        </ul>
-        {% endif %}
-      </div>
-      {% endif %}
-      
       <div class="row">
         <div class="col-md-4">
           <div class="card mb-3">
@@ -82,7 +64,7 @@
         <div class="col-md-4">
           <div class="card mb-3">
             <div class="card-body text-center">
-              <h3 class="mb-0">{{ last_sync|default('Nooit', true) }}</h3>
+              <h3 class="mb-0">{{ settings.whmcs_last_sync|default('Nooit', true) }}</h3>
               <p class="text-muted mb-0">Laatste Synchronisatie</p>
             </div>
           </div>
@@ -110,60 +92,22 @@
           <div class="form-text">Volledig URL-pad naar het WHMCS API endpoint.</div>
         </div>
         
-        <div class="card mb-4">
-          <div class="card-header">
-            <h6>Authenticatiemethode</h6>
-          </div>
-          <div class="card-body">
-            <p class="text-muted mb-3">Kies één van de twee authenticatiemethoden:</p>
-            
-            <ul class="nav nav-tabs" id="authTabs" role="tablist">
-              <li class="nav-item" role="presentation">
-                <button class="nav-link {% if not whmcs_api_token_set %}active{% endif %}" id="identifier-secret-tab" data-bs-toggle="tab" 
-                        data-bs-target="#identifier-secret" type="button" role="tab">Identifier & Secret</button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link {% if whmcs_api_token_set %}active{% endif %}" id="api-token-tab" data-bs-toggle="tab" 
-                        data-bs-target="#api-token" type="button" role="tab">API Token</button>
-              </li>
-            </ul>
-            
-            <div class="tab-content mt-3" id="authTabsContent">
-              <div class="tab-pane fade {% if not whmcs_api_token_set %}show active{% endif %}" id="identifier-secret" role="tabpanel">
-                <div class="mb-3">
-                  <label for="whmcs_api_identifier" class="form-label">API Identifier</label>
-                  <input type="text" class="form-control" id="whmcs_api_identifier" name="whmcs_api_identifier" 
-                         value="{{ whmcs_api_identifier }}" placeholder="API Identifier">
-                  <div class="form-text">Je WHMCS API identificatiesleutel.</div>
-                </div>
-                
-                <div class="mb-3">
-                  <label for="whmcs_api_secret" class="form-label">API Secret</label>
-                  <input type="password" class="form-control" id="whmcs_api_secret" name="whmcs_api_secret" 
-                         placeholder="{% if whmcs_api_secret_set %}••••••••••••••••{% else %}API Secret{% endif %}">
-                  <div class="form-text">
-                    Je WHMCS API geheime sleutel. 
-                    {% if whmcs_api_secret_set %}
-                    <span class="text-success">Reeds ingesteld.</span> Laat leeg om niet te wijzigen.
-                    {% endif %}
-                  </div>
-                </div>
-              </div>
-              
-              <div class="tab-pane fade {% if whmcs_api_token_set %}show active{% endif %}" id="api-token" role="tabpanel">
-                <div class="mb-3">
-                  <label for="whmcs_api_token" class="form-label">API Token</label>
-                  <input type="password" class="form-control" id="whmcs_api_token" name="whmcs_api_token" 
-                         placeholder="{% if whmcs_api_token_set %}••••••••••••••••{% else %}API Token{% endif %}">
-                  <div class="form-text">
-                    Je WHMCS API token. Dit is een alternatieve authenticatiemethode die identificator/secret vervangt.
-                    {% if whmcs_api_token_set %}
-                    <span class="text-success">Reeds ingesteld.</span> Laat leeg om niet te wijzigen.
-                    {% endif %}
-                  </div>
-                </div>
-              </div>
-            </div>
+        <div class="mb-3">
+          <label for="whmcs_api_identifier" class="form-label">API Identifier</label>
+          <input type="text" class="form-control" id="whmcs_api_identifier" name="whmcs_api_identifier" 
+                 value="{{ whmcs_api_identifier }}" placeholder="API Identifier" required>
+          <div class="form-text">Je WHMCS API identificatiesleutel.</div>
+        </div>
+        
+        <div class="mb-3">
+          <label for="whmcs_api_secret" class="form-label">API Secret</label>
+          <input type="password" class="form-control" id="whmcs_api_secret" name="whmcs_api_secret" 
+                 placeholder="{% if whmcs_api_secret_set %}••••••••••••••••{% else %}API Secret{% endif %}">
+          <div class="form-text">
+            Je WHMCS API geheime sleutel. 
+            {% if whmcs_api_secret_set %}
+            <span class="text-success">Reeds ingesteld.</span> Laat leeg om niet te wijzigen.
+            {% endif %}
           </div>
         </div>
         
@@ -283,22 +227,8 @@
     .then(data => {
       if (data.success) {
         showSyncResults(data.message, false, 'success');
-        
-        if (data.data && data.data.system_url) {
-          let detailsHtml = '<ul>';
-          detailsHtml += `<li>Systeem URL: ${data.data.system_url}</li>`;
-          if (data.data.api_version) {
-            detailsHtml += `<li>API versie: ${data.data.api_version}</li>`;
-          }
-          detailsHtml += '</ul>';
-          document.getElementById('sync-details').innerHTML = detailsHtml;
-        }
       } else {
         showSyncResults(data.message, false, 'danger');
-        
-        if (data.data && data.data.details) {
-          document.getElementById('sync-details').innerHTML = `<p>Details: ${JSON.stringify(data.data.details)}</p>`;
-        }
       }
     })
     .catch(error => {

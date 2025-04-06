@@ -105,7 +105,6 @@ def migrate_whmcs_fields():
                 ADD COLUMN IF NOT EXISTS whmcs_api_url VARCHAR(255),
                 ADD COLUMN IF NOT EXISTS whmcs_api_identifier VARCHAR(255),
                 ADD COLUMN IF NOT EXISTS whmcs_api_secret VARCHAR(255),
-                ADD COLUMN IF NOT EXISTS whmcs_api_token VARCHAR(255),
                 ADD COLUMN IF NOT EXISTS whmcs_auto_sync BOOLEAN DEFAULT FALSE,
                 ADD COLUMN IF NOT EXISTS whmcs_last_sync TIMESTAMP
             """))

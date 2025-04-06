@@ -27,12 +27,10 @@ class WHMCSService:
         self.api_url = os.environ.get('WHMCS_API_URL')
         self.api_identifier = os.environ.get('WHMCS_API_IDENTIFIER')
         self.api_secret = os.environ.get('WHMCS_API_SECRET')
-        self.api_token = os.environ.get('WHMCS_API_TOKEN')  # Alternatieve authenticatiemethode
         
         self.logger.info(f"Env WHMCS_API_URL: {self.api_url}")
         self.logger.info(f"Env WHMCS_API_IDENTIFIER: {self.api_identifier}")
         self.logger.info(f"Env WHMCS_API_SECRET set: {bool(self.api_secret)}")
-        self.logger.info(f"Env WHMCS_API_TOKEN set: {bool(self.api_token)}")
         
         # Als niet in environment, probeer database
         if not self.is_configured():
@@ -41,19 +39,14 @@ class WHMCSService:
                 self.logger.info(f"DB whmcs_api_url: {settings.whmcs_api_url}")
                 self.logger.info(f"DB whmcs_api_identifier: {settings.whmcs_api_identifier}")
                 self.logger.info(f"DB whmcs_api_secret set: {bool(settings.whmcs_api_secret)}")
-                self.logger.info(f"DB whmcs_api_token set: {bool(settings.whmcs_api_token)}")
                 
                 self.api_url = settings.whmcs_api_url
                 self.api_identifier = settings.whmcs_api_identifier
                 self.api_secret = settings.whmcs_api_secret
-                self.api_token = settings.whmcs_api_token
 
     def is_configured(self) -> bool:
         """Controleer of de API-gegevens zijn geconfigureerd"""
-        # Controleer of we een API-URL hebben EN (een identifier+secret OF een token)
-        has_identifier_secret = bool(self.api_identifier and self.api_secret)
-        has_token = bool(self.api_token)
-        return bool(self.api_url and (has_identifier_secret or has_token))
+        return bool(self.api_url and self.api_identifier and self.api_secret)
 
     def _make_api_request(self, action: str, params: Dict = None) -> Dict:
         """
@@ -73,16 +66,10 @@ class WHMCSService:
         # Basis parameters
         request_params = {
             'action': action,
+            'identifier': self.api_identifier,
+            'secret': self.api_secret,
             'responsetype': 'json',
         }
-        
-        # Gebruik API token als authenticatiemethode als het beschikbaar is
-        if self.api_token:
-            request_params['accesskey'] = self.api_token
-        else:
-            # Anders gebruik identifier/secret authenticatie
-            request_params['identifier'] = self.api_identifier
-            request_params['secret'] = self.api_secret
         
         # Voeg eventuele extra parameters toe
         if params:
@@ -91,31 +78,9 @@ class WHMCSService:
         try:
             # Log de API URL voor debugging
             self.logger.info(f"Making WHMCS API request to URL: {self.api_url}")
-            self.logger.info(f"Using action: {action}")
-            
-            # Log request parameters (zonder wachtwoord)
-            safe_params = {k: '******' if k in ('secret', 'password') else v for k, v in request_params.items()}
-            self.logger.info(f"Request parameters: {json.dumps(safe_params)}")
-            
-            # Voeg headers toe
-            headers = {
-                'User-Agent': 'WHMCS API Client',
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json'
-            }
-            
             # Maak API-verzoek
-            response = requests.post(self.api_url, data=request_params, headers=headers, timeout=30)
-            
-            # Log volledige response inclusief headers voor debugging
-            self.logger.info(f"Response status code: {response.status_code}")
-            self.logger.info(f"Response headers: {dict(response.headers)}")
-            
-            # Log response text als debug info, zelfs als het geen geldige JSON is
-            self.logger.info(f"Response text: {response.text[:1000]}...")
-            
-            # Controleer op HTTP-fouten
-            response.raise_for_status()
+            response = requests.post(self.api_url, data=request_params, timeout=30)
+            response.raise_for_status()  # Raising an exception for 4XX/5XX responses
             
             # Parse JSON-respons
             result = response.json()
@@ -132,16 +97,9 @@ class WHMCSService:
             return result
         except requests.RequestException as e:
             self.logger.error(f"WHMCS API request error: {str(e)}")
-            
-            # Gedetailleerde log informatie over de fout
-            if hasattr(e, 'response') and e.response is not None:
-                self.logger.error(f"Error status code: {e.response.status_code}")
-                self.logger.error(f"Error response headers: {dict(e.response.headers)}")
-                self.logger.error(f"Error response text: {e.response.text[:1000]}...")
-            
             return {"result": "error", "message": f"Request error: {str(e)}"}
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Invalid JSON response from WHMCS API: {str(e)}")
+        except json.JSONDecodeError:
+            self.logger.error("Invalid JSON response from WHMCS API")
             return {"result": "error", "message": "Invalid JSON response"}
         except Exception as e:
             self.logger.error(f"Unexpected error in WHMCS API request: {str(e)}")
@@ -362,61 +320,6 @@ class WHMCSService:
             self.logger.error(f"Error creating customer from WHMCS data: {str(e)}")
             return None
 
-    def check_api_status(self) -> Dict:
-        """
-        Controleert de status van de WHMCS API
-        
-        Returns:
-            Dict: Statusinformatie over de API
-        """
-        if not self.is_configured():
-            return {
-                'enabled': False,
-                'message': 'WHMCS API niet geconfigureerd. Voeg API-gegevens toe in de instellingen.',
-                'details': {}
-            }
-        
-        # Probeer een eenvoudige API-oproep om te zien of de verbinding werkt
-        try:
-            result = self._make_api_request('GetSystemUrl')
-            
-            if result.get('result') == 'success':
-                return {
-                    'enabled': True,
-                    'message': 'WHMCS API is beschikbaar en reageert correct.',
-                    'details': {
-                        'system_url': result.get('systemurl', 'Onbekend'),
-                        'api_version': result.get('version', 'Onbekend')
-                    }
-                }
-            else:
-                error_msg = result.get('message', 'Onbekende fout')
-                # Controleer op specifieke foutmeldingen gerelateerd aan API-toegang
-                if 'API Access Denied' in error_msg:
-                    return {
-                        'enabled': False,
-                        'message': 'WHMCS API toegang geweigerd. Controleer API-rechten in WHMCS Admin.',
-                        'details': {'error': error_msg}
-                    }
-                elif 'Invalid IP' in error_msg:
-                    return {
-                        'enabled': False,
-                        'message': 'IP-adres niet toegestaan voor WHMCS API-toegang. Whitelist het IP-adres in WHMCS Admin.',
-                        'details': {'error': error_msg}
-                    }
-                else:
-                    return {
-                        'enabled': False,
-                        'message': f'WHMCS API-fout: {error_msg}',
-                        'details': {'error': error_msg}
-                    }
-        except Exception as e:
-            return {
-                'enabled': False,
-                'message': f'Fout bij verbinden met WHMCS API: {str(e)}',
-                'details': {'error': str(e)}
-            }
-    
     def _update_customer_from_whmcs(self, customer: Customer, client_data: Dict) -> bool:
         """Update een bestaande klant met WHMCS-klantgegevens"""
         try:
