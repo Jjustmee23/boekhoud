@@ -20,21 +20,29 @@ class WHMCSService:
 
     def __init__(self):
         """Initialiseer de WHMCS API-service met configuratie uit environment variabelen of de database"""
+        # Stel logger in
+        self.logger = logging.getLogger(__name__)
+        
         # Probeer eerst uit environment variabelen
         self.api_url = os.environ.get('WHMCS_API_URL')
         self.api_identifier = os.environ.get('WHMCS_API_IDENTIFIER')
         self.api_secret = os.environ.get('WHMCS_API_SECRET')
         
+        self.logger.info(f"Env WHMCS_API_URL: {self.api_url}")
+        self.logger.info(f"Env WHMCS_API_IDENTIFIER: {self.api_identifier}")
+        self.logger.info(f"Env WHMCS_API_SECRET set: {bool(self.api_secret)}")
+        
         # Als niet in environment, probeer database
         if not self.is_configured():
             settings = SystemSettings.query.filter_by(key='whmcs_integration').first()
             if settings:
+                self.logger.info(f"DB whmcs_api_url: {settings.whmcs_api_url}")
+                self.logger.info(f"DB whmcs_api_identifier: {settings.whmcs_api_identifier}")
+                self.logger.info(f"DB whmcs_api_secret set: {bool(settings.whmcs_api_secret)}")
+                
                 self.api_url = settings.whmcs_api_url
                 self.api_identifier = settings.whmcs_api_identifier
                 self.api_secret = settings.whmcs_api_secret
-        
-        # Stel logger in
-        self.logger = logging.getLogger(__name__)
 
     def is_configured(self) -> bool:
         """Controleer of de API-gegevens zijn geconfigureerd"""
@@ -68,6 +76,8 @@ class WHMCSService:
             request_params.update(params)
         
         try:
+            # Log de API URL voor debugging
+            self.logger.info(f"Making WHMCS API request to URL: {self.api_url}")
             # Maak API-verzoek
             response = requests.post(self.api_url, data=request_params, timeout=30)
             response.raise_for_status()  # Raising an exception for 4XX/5XX responses
