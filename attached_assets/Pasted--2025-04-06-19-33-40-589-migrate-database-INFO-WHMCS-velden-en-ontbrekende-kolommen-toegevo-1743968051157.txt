@@ -1,0 +1,205 @@
+  | 2025-04-06 19:33:40,589 - migrate_database - INFO - WHMCS-velden en ontbrekende kolommen toegevoegd aan invoices tabel
+flask_web  | 2025-04-06 19:33:40,589 - migrate_database - INFO - WHMCS-velden toegevoegd aan system_settings tabel
+flask_web  | 2025-04-06 19:33:40,590 - migrate_database - INFO - Migratie van WHMCS-velden voltooid
+flask_web  | 2025-04-06 19:33:40,590 - app - INFO - Database migraties succesvol uitgevoerd
+flask_web  | 2025-04-06 19:33:40,597 - database - INFO - Tabel invoices kolommen vernieuwd: id, invoice_number, customer_id, date, invoice_type, amount_excl_vat, amount_incl_vat, vat_rate, vat_amount, file_path, status, created_at, updated_at, workspace_id
+flask_web  | 2025-04-06 19:33:40,601 - database - INFO - Tabel customers kolommen vernieuwd: id, company_name, vat_number, first_name, last_name, email, phone, street, house_number, postal_code, city, country, customer_type, workspace_id, default_vat_rate, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,605 - database - INFO - Tabel workspaces kolommen vernieuwd: id, name, description, domain, is_active, subscription_id, subscription_start_date, subscription_end_date, extra_users, billing_cycle, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,609 - database - INFO - Tabel system_settings kolommen vernieuwd: id, key, value, whmcs_api_url, whmcs_api_identifier, whmcs_api_secret, whmcs_auto_sync, whmcs_last_sync, system_version, last_backup, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,614 - database - INFO - Tabel invoices kolommen vernieuwd: id, invoice_number, customer_id, date, invoice_type, amount_excl_vat, amount_incl_vat, vat_rate, vat_amount, file_path, status, created_at, updated_at, workspace_id
+flask_web  | 2025-04-06 19:33:40,614 - database - INFO - Tabel system_settings kolommen vernieuwd: id, key, value, whmcs_api_url, whmcs_api_identifier, whmcs_api_secret, whmcs_auto_sync, whmcs_last_sync, system_version, last_backup, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,618 - database - INFO - Tabel customers kolommen vernieuwd: id, company_name, vat_number, first_name, last_name, email, phone, street, house_number, postal_code, city, country, customer_type, workspace_id, default_vat_rate, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,622 - database - INFO - Tabel workspaces kolommen vernieuwd: id, name, description, domain, is_active, subscription_id, subscription_start_date, subscription_end_date, extra_users, billing_cycle, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,625 - app - INFO - Logs monitoring system geregistreerd
+flask_web  | 2025-04-06 19:33:40,626 - database - INFO - Tabel system_settings kolommen vernieuwd: id, key, value, whmcs_api_url, whmcs_api_identifier, whmcs_api_secret, whmcs_auto_sync, whmcs_last_sync, system_version, last_backup, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,628 - app - INFO - Onboarding tutorial system geregistreerd
+flask_web  | 2025-04-06 19:33:40,630 - app - INFO - Logs monitoring system geregistreerd
+flask_web  | 2025-04-06 19:33:40,632 - app - INFO - Onboarding tutorial system geregistreerd
+flask_web  | 2025-04-06 19:33:40,653 - migrate_database - INFO - Start migratie van WHMCS-velden...
+flask_web  | 2025-04-06 19:33:40,658 - migrate_database - INFO - Start migratie van WHMCS-velden...
+flask_web  | 2025-04-06 19:33:40,670 - migrate_database - INFO - WHMCS-velden toegevoegd aan customers tabel
+flask_web  | 2025-04-06 19:33:40,671 - migrate_database - INFO - WHMCS-velden en ontbrekende kolommen toegevoegd aan invoices tabel
+flask_web  | 2025-04-06 19:33:40,672 - migrate_database - INFO - WHMCS-velden toegevoegd aan system_settings tabel
+flask_web  | 2025-04-06 19:33:40,673 - migrate_database - INFO - Migratie van WHMCS-velden voltooid
+flask_web  | 2025-04-06 19:33:40,673 - app - INFO - Database migraties succesvol uitgevoerd
+flask_web  | 2025-04-06 19:33:40,675 - migrate_database - INFO - WHMCS-velden toegevoegd aan customers tabel
+flask_web  | 2025-04-06 19:33:40,676 - migrate_database - INFO - WHMCS-velden en ontbrekende kolommen toegevoegd aan invoices tabel
+flask_web  | 2025-04-06 19:33:40,677 - migrate_database - INFO - WHMCS-velden toegevoegd aan system_settings tabel
+flask_web  | 2025-04-06 19:33:40,677 - migrate_database - INFO - Migratie van WHMCS-velden voltooid
+flask_web  | 2025-04-06 19:33:40,678 - app - INFO - Database migraties succesvol uitgevoerd
+flask_web  | 2025-04-06 19:33:40,699 - database - INFO - Tabel invoices kolommen vernieuwd: id, invoice_number, customer_id, date, invoice_type, amount_excl_vat, amount_incl_vat, vat_rate, vat_amount, file_path, status, created_at, updated_at, workspace_id
+flask_web  | 2025-04-06 19:33:40,704 - database - INFO - Tabel invoices kolommen vernieuwd: id, invoice_number, customer_id, date, invoice_type, amount_excl_vat, amount_incl_vat, vat_rate, vat_amount, file_path, status, created_at, updated_at, workspace_id
+flask_web  | 2025-04-06 19:33:40,705 - database - INFO - Tabel customers kolommen vernieuwd: id, company_name, vat_number, first_name, last_name, email, phone, street, house_number, postal_code, city, country, customer_type, workspace_id, default_vat_rate, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,708 - database - INFO - Tabel customers kolommen vernieuwd: id, company_name, vat_number, first_name, last_name, email, phone, street, house_number, postal_code, city, country, customer_type, workspace_id, default_vat_rate, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,710 - database - INFO - Tabel workspaces kolommen vernieuwd: id, name, description, domain, is_active, subscription_id, subscription_start_date, subscription_end_date, extra_users, billing_cycle, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,710 - app - INFO - Logs monitoring system geregistreerd
+flask_web  | 2025-04-06 19:33:40,712 - app - INFO - Onboarding tutorial system geregistreerd
+flask_web  | 2025-04-06 19:33:40,713 - database - INFO - Tabel workspaces kolommen vernieuwd: id, name, description, domain, is_active, subscription_id, subscription_start_date, subscription_end_date, extra_users, billing_cycle, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,714 - database - INFO - Tabel system_settings kolommen vernieuwd: id, key, value, whmcs_api_url, whmcs_api_identifier, whmcs_api_secret, whmcs_auto_sync, whmcs_last_sync, system_version, last_backup, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,717 - database - INFO - Tabel system_settings kolommen vernieuwd: id, key, value, whmcs_api_url, whmcs_api_identifier, whmcs_api_secret, whmcs_auto_sync, whmcs_last_sync, system_version, last_backup, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,721 - app - INFO - Logs monitoring system geregistreerd
+flask_web  | 2025-04-06 19:33:40,724 - app - INFO - Onboarding tutorial system geregistreerd
+flask_web  | 2025-04-06 19:33:40,738 - migrate_database - INFO - Start migratie van WHMCS-velden...
+flask_web  | 2025-04-06 19:33:40,750 - migrate_database - INFO - Start migratie van WHMCS-velden...
+flask_web  | 2025-04-06 19:33:40,757 - migrate_database - INFO - WHMCS-velden toegevoegd aan customers tabel
+flask_web  | 2025-04-06 19:33:40,758 - migrate_database - INFO - WHMCS-velden en ontbrekende kolommen toegevoegd aan invoices tabel
+flask_web  | 2025-04-06 19:33:40,759 - migrate_database - INFO - WHMCS-velden toegevoegd aan system_settings tabel
+flask_web  | 2025-04-06 19:33:40,760 - migrate_database - INFO - Migratie van WHMCS-velden voltooid
+flask_web  | 2025-04-06 19:33:40,760 - app - INFO - Database migraties succesvol uitgevoerd
+flask_web  | 2025-04-06 19:33:40,767 - migrate_database - INFO - WHMCS-velden toegevoegd aan customers tabel
+flask_web  | 2025-04-06 19:33:40,768 - migrate_database - INFO - WHMCS-velden en ontbrekende kolommen toegevoegd aan invoices tabel
+flask_web  | 2025-04-06 19:33:40,769 - migrate_database - INFO - WHMCS-velden toegevoegd aan system_settings tabel
+flask_web  | 2025-04-06 19:33:40,769 - migrate_database - INFO - Migratie van WHMCS-velden voltooid
+flask_web  | 2025-04-06 19:33:40,770 - app - INFO - Database migraties succesvol uitgevoerd
+flask_web  | 2025-04-06 19:33:40,781 - app - INFO - Logs monitoring system geregistreerd
+flask_web  | 2025-04-06 19:33:40,783 - app - INFO - Onboarding tutorial system geregistreerd
+flask_web  | 2025-04-06 19:33:40,787 - database - INFO - Tabel invoices kolommen vernieuwd: id, invoice_number, customer_id, date, invoice_type, amount_excl_vat, amount_incl_vat, vat_rate, vat_amount, file_path, status, created_at, updated_at, workspace_id
+flask_web  | 2025-04-06 19:33:40,792 - database - INFO - Tabel customers kolommen vernieuwd: id, company_name, vat_number, first_name, last_name, email, phone, street, house_number, postal_code, city, country, customer_type, workspace_id, default_vat_rate, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,796 - database - INFO - Tabel invoices kolommen vernieuwd: id, invoice_number, customer_id, date, invoice_type, amount_excl_vat, amount_incl_vat, vat_rate, vat_amount, file_path, status, created_at, updated_at, workspace_id
+flask_web  | 2025-04-06 19:33:40,797 - database - INFO - Tabel workspaces kolommen vernieuwd: id, name, description, domain, is_active, subscription_id, subscription_start_date, subscription_end_date, extra_users, billing_cycle, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,800 - database - INFO - Tabel customers kolommen vernieuwd: id, company_name, vat_number, first_name, last_name, email, phone, street, house_number, postal_code, city, country, customer_type, workspace_id, default_vat_rate, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,802 - database - INFO - Tabel system_settings kolommen vernieuwd: id, key, value, whmcs_api_url, whmcs_api_identifier, whmcs_api_secret, whmcs_auto_sync, whmcs_last_sync, system_version, last_backup, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,805 - database - INFO - Tabel workspaces kolommen vernieuwd: id, name, description, domain, is_active, subscription_id, subscription_start_date, subscription_end_date, extra_users, billing_cycle, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,810 - database - INFO - Tabel system_settings kolommen vernieuwd: id, key, value, whmcs_api_url, whmcs_api_identifier, whmcs_api_secret, whmcs_auto_sync, whmcs_last_sync, system_version, last_backup, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,812 - migrate_database - INFO - Start migratie van WHMCS-velden...
+flask_web  | 2025-04-06 19:33:40,830 - migrate_database - INFO - WHMCS-velden toegevoegd aan customers tabel
+flask_web  | 2025-04-06 19:33:40,831 - migrate_database - INFO - WHMCS-velden en ontbrekende kolommen toegevoegd aan invoices tabel
+flask_web  | 2025-04-06 19:33:40,832 - migrate_database - INFO - WHMCS-velden toegevoegd aan system_settings tabel
+flask_web  | 2025-04-06 19:33:40,833 - migrate_database - INFO - Migratie van WHMCS-velden voltooid
+flask_web  | 2025-04-06 19:33:40,833 - app - INFO - Database migraties succesvol uitgevoerd
+flask_web  | 2025-04-06 19:33:40,860 - database - INFO - Tabel invoices kolommen vernieuwd: id, invoice_number, customer_id, date, invoice_type, amount_excl_vat, amount_incl_vat, vat_rate, vat_amount, file_path, status, created_at, updated_at, workspace_id
+flask_web  | 2025-04-06 19:33:40,864 - database - INFO - Tabel customers kolommen vernieuwd: id, company_name, vat_number, first_name, last_name, email, phone, street, house_number, postal_code, city, country, customer_type, workspace_id, default_vat_rate, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,868 - database - INFO - Tabel workspaces kolommen vernieuwd: id, name, description, domain, is_active, subscription_id, subscription_start_date, subscription_end_date, extra_users, billing_cycle, created_at, updated_at
+flask_web  | 2025-04-06 19:33:40,873 - database - INFO - Tabel system_settings kolommen vernieuwd: id, key, value, whmcs_api_url, whmcs_api_identifier, whmcs_api_secret, whmcs_auto_sync, whmcs_last_sync, system_version, last_backup, created_at, updated_at
+flask_web  | 2025-04-06 19:33:51,693 - app - INFO - Login poging voor gebruiker: admin, werkruimte: , werkruimte ID: None
+flask_web  | 2025-04-06 19:33:51,701 - app - INFO - Super admin admin gevonden, controleer wachtwoord
+flask_web  | 2025-04-06 19:33:52,035 - app - INFO - Wachtwoord correct voor super admin admin
+flask_web  | 2025-04-06 19:33:52,405 - app - INFO - Werkruimtes opgehaald: 1 gevonden
+flask_web  | 2025-04-06 19:33:52,438 - app - ERROR - Exception on /system-overview [GET]
+flask_web  | Traceback (most recent call last):
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+flask_web  |     self.dialect.do_execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 945, in do_execute
+flask_web  |     cursor.execute(statement, parameters)
+flask_web  | psycopg2.errors.UndefinedColumn: column customers.whmcs_client_id does not exist
+flask_web  | LINE 2: ...stomers.customer_type AS customers_customer_type, customers....
+flask_web  |                                                              ^
+flask_web  |
+flask_web  |
+flask_web  | The above exception was the direct cause of the following exception:
+flask_web  |
+flask_web  | Traceback (most recent call last):
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 1511, in wsgi_app
+flask_web  |     response = self.full_dispatch_request()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 919, in full_dispatch_request
+flask_web  |     rv = self.handle_user_exception(e)
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 917, in full_dispatch_request
+flask_web  |     rv = self.dispatch_request()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 902, in dispatch_request
+flask_web  |     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/flask_login/utils.py", line 290, in decorated_view
+flask_web  |     return current_app.ensure_sync(func)(*args, **kwargs)
+flask_web  |   File "/app/routes.py", line 2646, in system_overview
+flask_web  |     customer_count = Customer.query.count()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 3147, in count
+flask_web  |     self._legacy_from_self(col).enable_eagerloads(False).scalar()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2836, in scalar
+flask_web  |     ret = self.one()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2809, in one
+flask_web  |     return self._iter().one()  # type: ignore
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2858, in _iter
+flask_web  |     result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/session.py", line 2365, in execute
+flask_web  |     return self._execute_internal(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/session.py", line 2251, in _execute_internal
+flask_web  |     result: Result[Any] = compile_state_cls.orm_execute_statement(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+flask_web  |     result = conn.execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1416, in execute
+flask_web  |     return meth(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/sql/elements.py", line 523, in _execute_on_connection
+flask_web  |     return connection._execute_clauseelement(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1638, in _execute_clauseelement
+flask_web  |     ret = self._execute_context(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1843, in _execute_context
+flask_web  |     return self._exec_single_context(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1983, in _exec_single_context
+flask_web  |     self._handle_dbapi_exception(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 2352, in _handle_dbapi_exception
+flask_web  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+flask_web  |     self.dialect.do_execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 945, in do_execute
+flask_web  |     cursor.execute(statement, parameters)
+flask_web  | sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column customers.whmcs_client_id does not exist
+flask_web  | LINE 2: ...stomers.customer_type AS customers_customer_type, customers....
+flask_web  |                                                              ^
+flask_web  |
+flask_web  | [SQL: SELECT count(*) AS count_1
+flask_web  | FROM (SELECT customers.id AS customers_id, customers.company_name AS customers_company_name, customers.vat_number AS customers_vat_number, customers.first_name AS customers_first_name, customers.last_name AS customers_last_name, customers.email AS customers_email, customers.phone AS customers_phone, customers.street AS customers_street, customers.house_number AS customers_house_number, customers.postal_code AS customers_postal_code, customers.city AS customers_city, customers.country AS customers_country, customers.customer_type AS customers_customer_type, customers.whmcs_client_id AS customers_whmcs_client_id, customers.synced_from_whmcs AS customers_synced_from_whmcs, customers.whmcs_last_sync AS customers_whmcs_last_sync, customers.workspace_id AS customers_workspace_id, customers.default_vat_rate AS customers_default_vat_rate, customers.created_at AS customers_created_at, customers.updated_at AS customers_updated_at
+flask_web  | FROM customers) AS anon_1]
+flask_web  | (Background on this error at: https://sqlalche.me/e/20/f405)
+flask_web  | 2025-04-06 19:33:52,456 - routes - ERROR - 500 Server error: 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.
+flask_web  | Traceback (most recent call last):
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+flask_web  |     self.dialect.do_execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 945, in do_execute
+flask_web  |     cursor.execute(statement, parameters)
+flask_web  | psycopg2.errors.UndefinedColumn: column customers.whmcs_client_id does not exist
+flask_web  | LINE 2: ...stomers.customer_type AS customers_customer_type, customers....
+flask_web  |                                                              ^
+flask_web  |
+flask_web  |
+flask_web  | The above exception was the direct cause of the following exception:
+flask_web  |
+flask_web  | Traceback (most recent call last):
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 1511, in wsgi_app
+flask_web  |     response = self.full_dispatch_request()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 919, in full_dispatch_request
+flask_web  |     rv = self.handle_user_exception(e)
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 917, in full_dispatch_request
+flask_web  |     rv = self.dispatch_request()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 902, in dispatch_request
+flask_web  |     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/flask_login/utils.py", line 290, in decorated_view
+flask_web  |     return current_app.ensure_sync(func)(*args, **kwargs)
+flask_web  |   File "/app/routes.py", line 2646, in system_overview
+flask_web  |     customer_count = Customer.query.count()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 3147, in count
+flask_web  |     self._legacy_from_self(col).enable_eagerloads(False).scalar()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2836, in scalar
+flask_web  |     ret = self.one()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2809, in one
+flask_web  |     return self._iter().one()  # type: ignore
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2858, in _iter
+flask_web  |     result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/session.py", line 2365, in execute
+flask_web  |     return self._execute_internal(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/session.py", line 2251, in _execute_internal
+flask_web  |     result: Result[Any] = compile_state_cls.orm_execute_statement(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+flask_web  |     result = conn.execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1416, in execute
+flask_web  |     return meth(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/sql/elements.py", line 523, in _execute_on_connection
+flask_web  |     return connection._execute_clauseelement(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1638, in _execute_clauseelement
+flask_web  |     ret = self._execute_context(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1843, in _execute_context
+flask_web  |     return self._exec_single_context(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1983, in _exec_single_context
+flask_web  |     self._handle_dbapi_exception(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 2352, in _handle_dbapi_exception
+flask_web  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+flask_web  |     self.dialect.do_execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 945, in do_execute
+flask_web  |     cursor.execute(statement, parameters)
+flask_web  | sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column customers.whmcs_client_id does not exist
+flask_web  | LINE 2: ...stomers.customer_type AS customers_customer_type, customers....
+flask_web  |                                                              ^
+flask_web  |
+flask_web  | [SQL: SELECT count(*) AS count_1
+flask_web  | FROM (SELECT customers.id AS customers_id, customers.company_name AS customers_company_name, customers.vat_number AS customers_vat_number, customers.first_name AS customers_first_name, customers.last_name AS customers_last_name, customers.email AS customers_email, customers.phone AS customers_phone, customers.street AS customers_street, customers.house_number AS customers_house_number, customers.postal_code AS customers_postal_code, customers.city AS customers_city, customers.country AS customers_country, customers.customer_type AS customers_customer_type, customers.whmcs_client_id AS customers_whmcs_client_id, customers.synced_from_whmcs AS customers_synced_from_whmcs, customers.whmcs_last_sync AS customers_whmcs_last_sync, customers.workspace_id AS customers_workspace_id, customers.default_vat_rate AS customers_default_vat_rate, customers.created_at AS customers_created_at, customers.updated_at AS customers_updated_at
+flask_web  | FROM customers) AS anon_1]
+flask_web  | (Background on this error at: https://sqlalche.me/e/20/f405)

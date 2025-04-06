@@ -83,12 +83,14 @@ def migrate_whmcs_fields():
     with db.engine.connect() as conn:
         try:
             # WHMCS-velden voor Customer
-            conn.execute(text("""
+            result = conn.execute(text("""
                 ALTER TABLE customers 
                 ADD COLUMN IF NOT EXISTS whmcs_client_id INTEGER,
                 ADD COLUMN IF NOT EXISTS synced_from_whmcs BOOLEAN DEFAULT FALSE,
                 ADD COLUMN IF NOT EXISTS whmcs_last_sync TIMESTAMP
             """))
+            # Forceer commit om de wijzigingen direct toe te passen
+            conn.commit()
             logger.info("WHMCS-velden toegevoegd aan customers tabel")
         except Exception as e:
             logger.error(f"Fout bij toevoegen van WHMCS-velden aan customers tabel: {str(e)}")
@@ -98,10 +100,13 @@ def migrate_whmcs_fields():
             conn.execute(text("""
                 ALTER TABLE invoices 
                 ADD COLUMN IF NOT EXISTS due_date DATE,
+                ADD COLUMN IF NOT EXISTS notes TEXT,
                 ADD COLUMN IF NOT EXISTS whmcs_invoice_id INTEGER,
                 ADD COLUMN IF NOT EXISTS synced_from_whmcs BOOLEAN DEFAULT FALSE,
                 ADD COLUMN IF NOT EXISTS whmcs_last_sync TIMESTAMP
             """))
+            # Forceer commit om de wijzigingen direct toe te passen
+            conn.commit()
             logger.info("WHMCS-velden en ontbrekende kolommen toegevoegd aan invoices tabel")
         except Exception as e:
             logger.error(f"Fout bij toevoegen van WHMCS-velden aan invoices tabel: {str(e)}")
@@ -116,6 +121,8 @@ def migrate_whmcs_fields():
                 ADD COLUMN IF NOT EXISTS whmcs_auto_sync BOOLEAN DEFAULT FALSE,
                 ADD COLUMN IF NOT EXISTS whmcs_last_sync TIMESTAMP
             """))
+            # Forceer commit om de wijzigingen direct toe te passen
+            conn.commit()
             logger.info("WHMCS-velden toegevoegd aan system_settings tabel")
         except Exception as e:
             logger.error(f"Fout bij toevoegen van WHMCS-velden aan system_settings tabel: {str(e)}")
