@@ -1,0 +1,99 @@
+Hieronder geef ik een voorbeeld van een prompt (in dit geval een Python-script) die een officiële Belgische factuur genereert. In België zijn er enkele verplichte gegevens op een factuur, zoals het factuurnummer, de datum, de gegevens van de verkoper en koper (inclusief BTW-nummers), een duidelijke omschrijving van de geleverde goederen of diensten, en de prijsdetails (inclusief BTW-bedragen). Het onderstaande script bevat al deze elementen en is makkelijk uitbreidbaar en aan te passen:
+
+python
+Kopiëren
+def generate_invoice(data):
+    """
+    Genereert een tekstuele weergave van een officiële Belgische factuur.
+
+    Parameters:
+        data (dict): Een dictionary met factuurgegevens.
+            Vereiste sleutels:
+                - factuurnummer: Uniek factuurnummer.
+                - datum: Datum van uitgifte.
+                - verkoper_naam: Naam van de verkoper.
+                - verkoper_adres: Adres van de verkoper.
+                - verkoper_btw: BTW-nummer van de verkoper.
+                - klant_naam: Naam van de klant.
+                - klant_adres: Adres van de klant.
+                - klant_btw: BTW-nummer van de klant.
+                - items: Lijst van dictionaries voor elk factuuritem met:
+                    * omschrijving: Beschrijving van het product of de dienst.
+                    * aantal: Hoeveelheid.
+                    * eenheidsprijs: Prijs per stuk.
+                    * btw: BTW-percentage.
+                    * totaal: Totaalbedrag (inclusief BTW) voor dat item.
+                - subtotaal: Subtotaalbedrag exclusief BTW.
+                - totaal_btw: Totale BTW-bedrag.
+                - totaal_bedrag: Eindtotaalbedrag (inclusief BTW).
+                - betalingsvoorwaarden: Betalingsinstructies en termijn.
+    Returns:
+        str: De volledige factuur als opgemaakte tekst.
+    """
+    invoice = f"""
+Officiële Factuur - België
+==================================
+Factuurnummer: {data['factuurnummer']}
+Datum: {data['datum']}
+
+Verkoper:
+  Naam: {data['verkoper_naam']}
+  Adres: {data['verkoper_adres']}
+  BTW-nummer: {data['verkoper_btw']}
+
+Klant:
+  Naam: {data['klant_naam']}
+  Adres: {data['klant_adres']}
+  BTW-nummer: {data['klant_btw']}
+
+----------------------------------
+Omschrijving         Aantal  Eenheidsprijs  BTW (%)   Totaal
+----------------------------------"""
+
+    # Voeg de factuurregels toe
+    for item in data['items']:
+        invoice += f"\n{item['omschrijving']:<20} {item['aantal']:^6} {item['eenheidsprijs']:^14}€ {item['btw']:^8}% {item['totaal']:^8}€"
+    
+    invoice += f"""
+
+----------------------------------
+Subtotaal (excl. BTW): {data['subtotaal']}€
+Totaal BTW:           {data['totaal_btw']}€
+Totaal bedrag:        {data['totaal_bedrag']}€
+----------------------------------
+
+Betalingsvoorwaarden: {data['betalingsvoorwaarden']}
+==================================
+"""
+    return invoice
+
+# Voorbeelddata voor de factuur
+data = {
+    "factuurnummer": "2023-001",
+    "datum": "2023-04-06",
+    "verkoper_naam": "Bedrijf XYZ",
+    "verkoper_adres": "Hoofdstraat 1, 1000 Brussel",
+    "verkoper_btw": "BE0123456789",
+    "klant_naam": "Klant ABC",
+    "klant_adres": "Marktplein 2, 2000 Antwerpen",
+    "klant_btw": "BE9876543210",
+    "items": [
+        {"omschrijving": "Consultancy", "aantal": 2, "eenheidsprijs": 150, "btw": 21, "totaal": 363},
+        {"omschrijving": "Software licentie", "aantal": 1, "eenheidsprijs": 200, "btw": 21, "totaal": 242}
+    ],
+    "subtotaal": 350,
+    "totaal_btw": 63,
+    "totaal_bedrag": 413,
+    "betalingsvoorwaarden": "Betaling binnen 30 dagen"
+}
+
+# Genereer en print de factuur
+print(generate_invoice(data))
+Uitleg en overwegingen
+Verplichte gegevens: Het script bevat alle essentiële elementen die volgens de Belgische regelgeving op een factuur moeten staan. Dit zorgt ervoor dat je factuur aan de wettelijke vereisten voldoet.
+
+Flexibiliteit: Door de factuurgegevens via een dictionary aan te leveren, kun je het script makkelijk aanpassen voor verschillende klanten of facturen.
+
+Uitbreidbaarheid: Voor complexere toepassingen (zoals PDF-generatie of web-integratie) kan dit script als basis dienen. Persoonlijk vind ik het een goed uitgangspunt, omdat het eenvoudig en overzichtelijk blijft.
+
+Ik hoop dat dit voorbeeld je een goed uitgangspunt biedt voor het genereren van officiële Belgische facturen. Natuurlijk kan dit verder worden aangepast naar specifieke wensen of extra functionaliteiten, zoals automatische BTW-calculaties of integratie met boekhoudsystemen. Wat is jouw mening over deze aanpak? Denk je dat dit voldoende flexibiliteit biedt, of zou je graag nog extra functionaliteit zien?

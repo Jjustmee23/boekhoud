@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}WHMCS Integratie | Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>WHMCS Integratie</h1>
+    <a href="{{ url_for('admin') }}" class="btn btn-secondary">Terug naar Admin</a>
+  </div>
+
+  {% include 'includes/flashed_messages.html' %}
+
+  <!-- Status Card -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5>WHMCS API Status</h5>
+    </div>
+    <div class="card-body">
+      <div class="d-flex align-items-center mb-3">
+        <div class="status-indicator me-3">
+          {% if is_configured %}
+          <i class="fas fa-check-circle text-success" style="font-size: 24px;"></i>
+          {% else %}
+          <i class="fas fa-exclamation-circle text-danger" style="font-size: 24px;"></i>
+          {% endif %}
+        </div>
+        <div>
+          <h5 class="mb-0">
+            {% if is_configured %}
+            API Geconfigureerd
+            {% else %}
+            API Niet Geconfigureerd
+            {% endif %}
+          </h5>
+          <small class="text-muted">
+            {% if is_configured %}
+            WHMCS API-gegevens zijn ingesteld en klaar voor gebruik.
+            {% else %}
+            Configureer de WHMCS API-gegevens hieronder.
+            {% endif %}
+          </small>
+        </div>
+      </div>
+      
+      {% if is_configured %}
+      <div class="row">
+        <div class="col-md-4">
+          <div class="card mb-3">
+            <div class="card-body text-center">
+              <h3 class="mb-0">{{ whmcs_customers_count }}</h3>
+              <p class="text-muted mb-0">Gesynchroniseerde Klanten</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card mb-3">
+            <div class="card-body text-center">
+              <h3 class="mb-0">{{ whmcs_invoices_count }}</h3>
+              <p class="text-muted mb-0">Gesynchroniseerde Facturen</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card mb-3">
+            <div class="card-body text-center">
+              <h3 class="mb-0">{{ settings.whmcs_last_sync|default('Nooit', true)|date }}</h3>
+              <p class="text-muted mb-0">Laatste Synchronisatie</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <button type="button" id="test-connection-btn" class="btn btn-primary">
+        <i class="fas fa-sync"></i> Test Verbinding
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- WHMCS Settings Form -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5>WHMCS API Instellingen</h5>
+    </div>
+    <div class="card-body">
+      <form action="{{ url_for('whmcs.update_whmcs_settings') }}" method="POST">
+        <div class="mb-3">
+          <label for="whmcs_api_url" class="form-label">WHMCS API URL</label>
+          <input type="url" class="form-control" id="whmcs_api_url" name="whmcs_api_url" 
+                 value="{{ whmcs_api_url }}" placeholder="https://yourdomain.com/includes/api.php" required>
+          <div class="form-text">Volledig URL-pad naar het WHMCS API endpoint.</div>
+        </div>
+        
+        <div class="mb-3">
+          <label for="whmcs_api_identifier" class="form-label">API Identifier</label>
+          <input type="text" class="form-control" id="whmcs_api_identifier" name="whmcs_api_identifier" 
+                 value="{{ whmcs_api_identifier }}" placeholder="API Identifier" required>
+          <div class="form-text">Je WHMCS API identificatiesleutel.</div>
+        </div>
+        
+        <div class="mb-3">
+          <label for="whmcs_api_secret" class="form-label">API Secret</label>
+          <input type="password" class="form-control" id="whmcs_api_secret" name="whmcs_api_secret" 
+                 placeholder="{% if whmcs_api_secret_set %}••••••••••••••••{% else %}API Secret{% endif %}">
+          <div class="form-text">
+            Je WHMCS API geheime sleutel. 
+            {% if whmcs_api_secret_set %}
+            <span class="text-success">Reeds ingesteld.</span> Laat leeg om niet te wijzigen.
+            {% endif %}
+          </div>
+        </div>
+        
+        <div class="mb-3 form-check">
+          <input type="checkbox" class="form-check-input" id="auto_sync" name="auto_sync" 
+                 {% if settings and settings.whmcs_auto_sync %}checked{% endif %}>
+          <label class="form-check-label" for="auto_sync">Automatisch synchroniseren</label>
+          <div class="form-text">Indien ingeschakeld, worden WHMCS-klanten en facturen dagelijks gesynchroniseerd.</div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Instellingen Opslaan</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Synchronization Actions -->
+  {% if is_configured %}
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5>Synchronisatie Acties</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Klanten Synchroniseren</h5>
+              <p class="card-text">Haal klantgegevens op uit WHMCS en maak overeenkomende klanten aan in deze applicatie.</p>
+              <button type="button" id="sync-clients-btn" class="btn btn-primary">
+                <i class="fas fa-users"></i> Klanten Synchroniseren
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Facturen Synchroniseren</h5>
+              <p class="card-text">Haal factuurgegevens op uit WHMCS en maak overeenkomende facturen aan in deze applicatie.</p>
+              <button type="button" id="sync-invoices-btn" class="btn btn-primary">
+                <i class="fas fa-file-invoice"></i> Facturen Synchroniseren
+              </button>
+              
+              <div class="mt-3">
+                <label for="invoice-status" class="form-label">Filter op Status (optioneel)</label>
+                <select class="form-select" id="invoice-status">
+                  <option value="">Alle Statussen</option>
+                  <option value="Unpaid">Onbetaald</option>
+                  <option value="Paid">Betaald</option>
+                  <option value="Cancelled">Geannuleerd</option>
+                  <option value="Refunded">Terugbetaald</option>
+                  <option value="Collections">Achterstallig</option>
+                  <option value="Draft">Concept</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Response area for API calls -->
+      <div id="sync-results" class="alert alert-info d-none">
+        <div class="d-flex align-items-center">
+          <div class="spinner-border spinner-border-sm me-2" role="status" id="sync-spinner">
+            <span class="visually-hidden">Bezig met synchroniseren...</span>
+          </div>
+          <span id="sync-message">Synchroniseren...</span>
+        </div>
+        <div id="sync-details" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Test Connection Button
+    const testConnectionBtn = document.getElementById('test-connection-btn');
+    if (testConnectionBtn) {
+      testConnectionBtn.addEventListener('click', function() {
+        testWHMCSConnection();
+      });
+    }
+    
+    // Sync Clients Button
+    const syncClientsBtn = document.getElementById('sync-clients-btn');
+    if (syncClientsBtn) {
+      syncClientsBtn.addEventListener('click', function() {
+        syncWHMCSClients();
+      });
+    }
+    
+    // Sync Invoices Button
+    const syncInvoicesBtn = document.getElementById('sync-invoices-btn');
+    if (syncInvoicesBtn) {
+      syncInvoicesBtn.addEventListener('click', function() {
+        const status = document.getElementById('invoice-status').value;
+        syncWHMCSInvoices(status);
+      });
+    }
+  });
+  
+  // Test WHMCS Connection
+  function testWHMCSConnection() {
+    showSyncResults('Verbinding testen...', true);
+    
+    fetch("{{ url_for('whmcs.test_whmcs_connection') }}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSyncResults(data.message, false, 'success');
+      } else {
+        showSyncResults(data.message, false, 'danger');
+      }
+    })
+    .catch(error => {
+      showSyncResults('Fout bij verbinden: ' + error, false, 'danger');
+    });
+  }
+  
+  // Sync WHMCS Clients
+  function syncWHMCSClients() {
+    showSyncResults('Klanten synchroniseren...', true);
+    
+    const formData = new FormData();
+    {% if current_user.is_super_admin %}
+    // Voor super admin, voeg werkruimte ID toe indien een specifieke is geselecteerd
+    const workspaceId = '{{ current_user.workspace_id }}';
+    if (workspaceId) {
+      formData.append('workspace_id', workspaceId);
+    }
+    {% endif %}
+    
+    fetch("{{ url_for('whmcs.sync_whmcs_clients') }}", {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': '{{ csrf_token() }}'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSyncResults(data.message, false, 'success');
+        
+        if (data.data) {
+          let details = `
+            <ul>
+              <li>Toegevoegd: ${data.data.added}</li>
+              <li>Bijgewerkt: ${data.data.updated}</li>
+              <li>Mislukt: ${data.data.failed}</li>
+              <li>Totaal verwerkt: ${data.data.total}</li>
+            </ul>
+          `;
+          document.getElementById('sync-details').innerHTML = details;
+        }
+        
+        // Ververs de pagina na 3 seconden voor bijgewerkte tellingen
+        setTimeout(() => {
+          location.reload();
+        }, 3000);
+      } else {
+        showSyncResults(data.message, false, 'danger');
+      }
+    })
+    .catch(error => {
+      showSyncResults('Fout bij synchroniseren: ' + error, false, 'danger');
+    });
+  }
+  
+  // Sync WHMCS Invoices
+  function syncWHMCSInvoices(status) {
+    showSyncResults('Facturen synchroniseren...', true);
+    
+    const formData = new FormData();
+    if (status) {
+      formData.append('status', status);
+    }
+    
+    {% if current_user.is_super_admin %}
+    // Voor super admin, voeg werkruimte ID toe indien een specifieke is geselecteerd
+    const workspaceId = '{{ current_user.workspace_id }}';
+    if (workspaceId) {
+      formData.append('workspace_id', workspaceId);
+    }
+    {% endif %}
+    
+    fetch("{{ url_for('whmcs.sync_whmcs_invoices') }}", {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': '{{ csrf_token() }}'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showSyncResults(data.message, false, 'success');
+        
+        if (data.data) {
+          let details = `
+            <ul>
+              <li>Toegevoegd: ${data.data.added}</li>
+              <li>Bijgewerkt: ${data.data.updated}</li>
+              <li>Mislukt: ${data.data.failed}</li>
+              <li>Zonder klant: ${data.data.no_customer}</li>
+              <li>Totaal verwerkt: ${data.data.total}</li>
+            </ul>
+          `;
+          document.getElementById('sync-details').innerHTML = details;
+        }
+        
+        // Ververs de pagina na 3 seconden voor bijgewerkte tellingen
+        setTimeout(() => {
+          location.reload();
+        }, 3000);
+      } else {
+        showSyncResults(data.message, false, 'danger');
+      }
+    })
+    .catch(error => {
+      showSyncResults('Fout bij synchroniseren: ' + error, false, 'danger');
+    });
+  }
+  
+  // Helper function to show sync results
+  function showSyncResults(message, isLoading = false, type = 'info') {
+    const resultsDiv = document.getElementById('sync-results');
+    const spinner = document.getElementById('sync-spinner');
+    const messageElement = document.getElementById('sync-message');
+    const detailsElement = document.getElementById('sync-details');
+    
+    resultsDiv.classList.remove('d-none', 'alert-info', 'alert-success', 'alert-danger');
+    resultsDiv.classList.add(`alert-${type}`);
+    
+    if (isLoading) {
+      spinner.classList.remove('d-none');
+    } else {
+      spinner.classList.add('d-none');
+    }
+    
+    messageElement.textContent = message;
+    
+    if (!isLoading) {
+      detailsElement.innerHTML = '';
+    }
+    
+    resultsDiv.scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}WHMCS Klant Details | Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>WHMCS Klant Details</h1>
+    <div>
+      <a href="{{ url_for('whmcs.whmcs_dashboard') }}" class="btn btn-secondary me-2">Terug naar WHMCS Dashboard</a>
+      <a href="{{ url_for('admin') }}" class="btn btn-secondary">Terug naar Admin</a>
+    </div>
+  </div>
+
+  {% include 'includes/flashed_messages.html' %}
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Klantgegevens</h5>
+          {% if local_customer %}
+          <span class="badge bg-success">Gesynchroniseerd</span>
+          {% else %}
+          <span class="badge bg-warning">Niet Gesynchroniseerd</span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>WHMCS ID:</strong></div>
+            <div class="col-md-8">{{ client.id }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Naam:</strong></div>
+            <div class="col-md-8">{{ client.firstname }} {{ client.lastname }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Bedrijf:</strong></div>
+            <div class="col-md-8">{{ client.companyname|default('N/A', true) }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>E-mail:</strong></div>
+            <div class="col-md-8">{{ client.email }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Telefoon:</strong></div>
+            <div class="col-md-8">{{ client.phonenumber|default('Niet opgegeven', true) }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Adres:</strong></div>
+            <div class="col-md-8">
+              {{ client.address1 }}<br>
+              {% if client.address2 %}{{ client.address2 }}<br>{% endif %}
+              {{ client.postcode }} {{ client.city }}<br>
+              {{ client.country }}
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>BTW-nummer:</strong></div>
+            <div class="col-md-8">{{ client.tax_id|default('Niet opgegeven', true) }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Registratiedatum:</strong></div>
+            <div class="col-md-8">{{ client.datecreated|date }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Status:</strong></div>
+            <div class="col-md-8">
+              {% if client.status == 'Active' %}
+              <span class="badge bg-success">Actief</span>
+              {% elif client.status == 'Inactive' %}
+              <span class="badge bg-secondary">Inactief</span>
+              {% elif client.status == 'Closed' %}
+              <span class="badge bg-danger">Gesloten</span>
+              {% else %}
+              <span class="badge bg-info">{{ client.status }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          {% if local_customer %}
+          <a href="{{ url_for('customer_view', customer_id=local_customer.id) }}" class="btn btn-primary">
+            <i class="fas fa-eye"></i> Bekijk in Boekhoudapplicatie
+          </a>
+          {% else %}
+          <form action="{{ url_for('whmcs.sync_whmcs_clients') }}" method="POST">
+            <input type="hidden" name="client_id" value="{{ client.id }}">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-sync"></i> Synchroniseer naar Boekhoudapplicatie
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5>Facturen</h5>
+        </div>
+        <div class="card-body">
+          {% if invoices %}
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Nummer</th>
+                  <th>Datum</th>
+                  <th>Bedrag</th>
+                  <th>Status</th>
+                  <th>Acties</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for invoice in invoices %}
+                <tr>
+                  <td>{{ invoice.invoicenum }}</td>
+                  <td>{{ invoice.date|date }}</td>
+                  <td>€ {{ invoice.total }}</td>
+                  <td>
+                    {% if invoice.status == 'Unpaid' %}
+                    <span class="badge bg-warning">Onbetaald</span>
+                    {% elif invoice.status == 'Paid' %}
+                    <span class="badge bg-success">Betaald</span>
+                    {% elif invoice.status == 'Cancelled' %}
+                    <span class="badge bg-danger">Geannuleerd</span>
+                    {% elif invoice.status == 'Refunded' %}
+                    <span class="badge bg-info">Terugbetaald</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ invoice.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <a href="{{ url_for('whmcs.view_whmcs_invoice', whmcs_invoice_id=invoice.id) }}" class="btn btn-sm btn-info">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Geen facturen gevonden voor deze klant.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

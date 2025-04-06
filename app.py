@@ -2,9 +2,11 @@ import os
 import logging
 from datetime import datetime
 from flask import Flask, session
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from dotenv import load_dotenv
+
+# Import SQLAlchemy instantie
+from database import db
 
 # Load environment variables from .env file
 load_dotenv()
@@ -111,8 +113,8 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
 }
 
-# Initialize database
-db = SQLAlchemy(app)
+# Initialize database with the app
+db.init_app(app)
 
 # Initialize Flask-Login
 login_manager = LoginManager(app)
@@ -193,21 +195,6 @@ def create_default_admin():
     db.session.commit()
     app.logger.info('Default admin user created successfully!')
 
-def initialize_app():
-    """Initialize the application, create database tables and add sample data"""
-    with app.app_context():
-        # Import models to ensure they're registered with SQLAlchemy
-        import models
-        
-        # Create all database tables
-        db.create_all()
-        
-        # Create default admin user
-        create_default_admin()
-        
-        # Add initial data if needed
-        init_sample_data()
-
 # Import routes at the end to avoid circular imports
 from routes import *
 
@@ -246,3 +233,22 @@ def split_filter(value, delimiter=','):
     return value.split(delimiter)
 
 # App initialization is handled in main.py
+
+def initialize_app():
+    """Initialize the application, create database tables and register blueprints"""
+    with app.app_context():
+        # Import the models to ensure they are picked up by SQLAlchemy
+        from models import User, Customer, Invoice, Workspace, SystemSettings
+        
+        # Create all tables
+        db.create_all()
+        
+        # Create default admin user
+        create_default_admin()
+        
+        # Register blueprints
+        from whmcs_routes import whmcs_bp
+        app.register_blueprint(whmcs_bp)
+        
+        # Initialize sample data if needed
+        init_sample_data()

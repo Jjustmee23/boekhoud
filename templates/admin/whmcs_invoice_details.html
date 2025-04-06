@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}WHMCS Factuur Details | Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>WHMCS Factuur Details</h1>
+    <div>
+      <a href="{{ url_for('whmcs.whmcs_dashboard') }}" class="btn btn-secondary me-2">Terug naar WHMCS Dashboard</a>
+      <a href="{{ url_for('admin') }}" class="btn btn-secondary">Terug naar Admin</a>
+    </div>
+  </div>
+
+  {% include 'includes/flashed_messages.html' %}
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Factuurgegevens</h5>
+          {% if local_invoice %}
+          <span class="badge bg-success">Gesynchroniseerd</span>
+          {% else %}
+          <span class="badge bg-warning">Niet Gesynchroniseerd</span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>WHMCS Factuur ID:</strong></div>
+            <div class="col-md-8">{{ invoice.id }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Factuurnummer:</strong></div>
+            <div class="col-md-8">{{ invoice.invoicenum }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Klant:</strong></div>
+            <div class="col-md-8">
+              {{ invoice.firstname }} {{ invoice.lastname }}
+              {% if invoice.companyname %}
+              <br><small>{{ invoice.companyname }}</small>
+              {% endif %}
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Aanmaakdatum:</strong></div>
+            <div class="col-md-8">{{ invoice.date|date }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Vervaldatum:</strong></div>
+            <div class="col-md-8">{{ invoice.duedate|date }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Subtotaal:</strong></div>
+            <div class="col-md-8">€ {{ invoice.subtotal }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>BTW:</strong></div>
+            <div class="col-md-8">€ {{ invoice.tax|default('0.00', true) }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Totaal:</strong></div>
+            <div class="col-md-8"><strong>€ {{ invoice.total }}</strong></div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Status:</strong></div>
+            <div class="col-md-8">
+              {% if invoice.status == 'Unpaid' %}
+              <span class="badge bg-warning">Onbetaald</span>
+              {% elif invoice.status == 'Paid' %}
+              <span class="badge bg-success">Betaald</span>
+              {% elif invoice.status == 'Cancelled' %}
+              <span class="badge bg-danger">Geannuleerd</span>
+              {% elif invoice.status == 'Refunded' %}
+              <span class="badge bg-info">Terugbetaald</span>
+              {% else %}
+              <span class="badge bg-secondary">{{ invoice.status }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Betalingsmethode:</strong></div>
+            <div class="col-md-8">{{ invoice.paymentmethod }}</div>
+          </div>
+          {% if invoice.notes %}
+          <div class="row mb-3">
+            <div class="col-md-4"><strong>Notities:</strong></div>
+            <div class="col-md-8">{{ invoice.notes }}</div>
+          </div>
+          {% endif %}
+        </div>
+        <div class="card-footer">
+          {% if local_invoice %}
+          <a href="{{ url_for('invoice_view', invoice_id=local_invoice.id) }}" class="btn btn-primary">
+            <i class="fas fa-eye"></i> Bekijk in Boekhoudapplicatie
+          </a>
+          {% else %}
+          <form action="{{ url_for('whmcs.sync_whmcs_invoices') }}" method="POST">
+            <input type="hidden" name="invoice_id" value="{{ invoice.id }}">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-sync"></i> Synchroniseer naar Boekhoudapplicatie
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5>Factuuritems</h5>
+        </div>
+        <div class="card-body">
+          {% if invoice.items and invoice.items.item %}
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Omschrijving</th>
+                  <th>Bedrag</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if invoice.items.item is mapping %}
+                <tr>
+                  <td>{{ invoice.items.item.description }}</td>
+                  <td>€ {{ invoice.items.item.amount }}</td>
+                </tr>
+                {% else %}
+                {% for item in invoice.items.item %}
+                <tr>
+                  <td>{{ item.description }}</td>
+                  <td>€ {{ item.amount }}</td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Geen items gevonden voor deze factuur.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5>Transacties</h5>
+        </div>
+        <div class="card-body">
+          {% if invoice.transactions and invoice.transactions.transaction %}
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Bedrag</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if invoice.transactions.transaction is mapping %}
+                <tr>
+                  <td>{{ invoice.transactions.transaction.date|date }}</td>
+                  <td>€ {{ invoice.transactions.transaction.amount }}</td>
+                  <td>
+                    {% if invoice.transactions.transaction.status == 'Success' %}
+                    <span class="badge bg-success">Geslaagd</span>
+                    {% elif invoice.transactions.transaction.status == 'Pending' %}
+                    <span class="badge bg-warning">In afwachting</span>
+                    {% elif invoice.transactions.transaction.status == 'Failed' %}
+                    <span class="badge bg-danger">Mislukt</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ invoice.transactions.transaction.status }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                {% for transaction in invoice.transactions.transaction %}
+                <tr>
+                  <td>{{ transaction.date|date }}</td>
+                  <td>€ {{ transaction.amount }}</td>
+                  <td>
+                    {% if transaction.status == 'Success' %}
+                    <span class="badge bg-success">Geslaagd</span>
+                    {% elif transaction.status == 'Pending' %}
+                    <span class="badge bg-warning">In afwachting</span>
+                    {% elif transaction.status == 'Failed' %}
+                    <span class="badge bg-danger">Mislukt</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ transaction.status }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Geen transacties gevonden voor deze factuur.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

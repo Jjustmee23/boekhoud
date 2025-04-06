@@ -4,7 +4,7 @@ import json
 import os
 import logging
 from decimal import Decimal
-from app import db
+from database import db
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from flask_login import UserMixin
@@ -15,6 +15,35 @@ customers = {}  # id -> customer
 invoices = {}   # id -> invoice
 
 # Database models
+
+class InvoiceItem(db.Model):
+    """Invoice item model for detailed invoice lines"""
+    __tablename__ = 'invoice_items'
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    invoice_id = db.Column(UUID(as_uuid=True), db.ForeignKey('invoices.id', ondelete='CASCADE'), nullable=False)
+    description = db.Column(db.String(255), nullable=False)
+    quantity = db.Column(db.Float, default=1.0, nullable=False)
+    unit_price = db.Column(db.Float, nullable=False)
+    vat_rate = db.Column(db.Float, nullable=False, default=21.0)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # Relationship to invoice
+    invoice = db.relationship('Invoice', back_populates='items')
+    
+    def to_dict(self):
+        """Convert item to dictionary for serialization"""
+        return {
+            'id': str(self.id),
+            'invoice_id': str(self.invoice_id),
+            'description': self.description,
+            'quantity': self.quantity,
+            'unit_price': self.unit_price,
+            'vat_rate': self.vat_rate,
+            'total_without_vat': self.quantity * self.unit_price,
+            'total_with_vat': self.quantity * self.unit_price * (1 + self.vat_rate / 100)
+        }
 class Customer(db.Model):
     __tablename__ = 'customers'
     
@@ -31,6 +60,11 @@ class Customer(db.Model):
     city = db.Column(db.String(50))
     country = db.Column(db.String(50), default='België')
     customer_type = db.Column(db.String(20), default='business')  # business, individual, supplier
+    
+    # WHMCS integratie
+    whmcs_client_id = db.Column(db.Integer, nullable=True)
+    synced_from_whmcs = db.Column(db.Boolean, default=False)
+    whmcs_last_sync = db.Column(db.DateTime, nullable=True)
     
     # Workspace relationship
     workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'))
@@ -90,15 +124,22 @@ class Invoice(db.Model):
     invoice_number = db.Column(db.String(20), nullable=False)
     customer_id = db.Column(UUID(as_uuid=True), db.ForeignKey('customers.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
+    due_date = db.Column(db.Date, nullable=True)
     invoice_type = db.Column(db.String(10), nullable=False)  # income, expense
     amount_excl_vat = db.Column(db.Float, nullable=False)
     amount_incl_vat = db.Column(db.Float, nullable=False)
     vat_rate = db.Column(db.Float, nullable=False)
     vat_amount = db.Column(db.Float, nullable=False)
     file_path = db.Column(db.String(255))
-    status = db.Column(db.String(20), default='processed')  # processed, unprocessed
+    status = db.Column(db.String(20), default='processed')  # processed, unprocessed, paid, overdue, cancelled
+    notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    # WHMCS integratie
+    whmcs_invoice_id = db.Column(db.Integer, nullable=True)
+    synced_from_whmcs = db.Column(db.Boolean, default=False)
+    whmcs_last_sync = db.Column(db.DateTime, nullable=True)
     
     # Workspace relationship
     workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'))
@@ -106,6 +147,9 @@ class Invoice(db.Model):
     
     # Relationship to customer
     customer = db.relationship('Customer', back_populates='invoices')
+    
+    # Relationship to invoice items
+    items = db.relationship('InvoiceItem', back_populates='invoice', cascade='all, delete-orphan')
     
     # Make invoice_number unique per workspace
     __table_args__ = (
@@ -790,6 +834,51 @@ class Payment(db.Model):
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
+
+class SystemSettings(db.Model):
+    """
+    Model voor systeeminstellingen, waaronder WHMCS-integratie-instellingen.
+    """
+    __tablename__ = 'system_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), nullable=False, unique=True)
+    value = db.Column(db.Text, nullable=True)
+    
+    # WHMCS API instellingen
+    whmcs_api_url = db.Column(db.String(255), nullable=True)
+    whmcs_api_identifier = db.Column(db.String(255), nullable=True)
+    whmcs_api_secret = db.Column(db.String(255), nullable=True)
+    whmcs_auto_sync = db.Column(db.Boolean, default=False)
+    whmcs_last_sync = db.Column(db.DateTime, nullable=True)
+    
+    # Versie en systeeminformatie
+    system_version = db.Column(db.String(20), default='1.0.0')
+    last_backup = db.Column(db.DateTime, nullable=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    @staticmethod
+    def get_setting(key, default=None):
+        """Haal een systeeminstelling op volgens sleutel"""
+        setting = SystemSettings.query.filter_by(key=key).first()
+        if setting and setting.value is not None:
+            return setting.value
+        return default
+    
+    @staticmethod
+    def set_setting(key, value):
+        """Stel een systeeminstelling in volgens sleutel"""
+        setting = SystemSettings.query.filter_by(key=key).first()
+        if setting:
+            setting.value = value
+        else:
+            setting = SystemSettings(key=key, value=value)
+            db.session.add(setting)
+        db.session.commit()
+        return setting
+
 
 class Workspace(db.Model):
     __tablename__ = 'workspaces'
