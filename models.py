@@ -46,6 +46,7 @@ class InvoiceItem(db.Model):
         }
 class Customer(db.Model):
     __tablename__ = 'customers'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_name = db.Column(db.String(100), nullable=False)
@@ -841,6 +842,7 @@ class SystemSettings(db.Model):
     Model voor systeeminstellingen, waaronder WHMCS-integratie-instellingen.
     """
     __tablename__ = 'system_settings'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(100), nullable=False, unique=True)
@@ -883,6 +885,7 @@ class SystemSettings(db.Model):
 
 class Workspace(db.Model):
     __tablename__ = 'workspaces'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
@@ -1031,6 +1034,7 @@ class User(UserMixin, db.Model):
     __table_args__ = (
         sa.UniqueConstraint('username', 'workspace_id', name='uix_user_username_workspace'),
         sa.UniqueConstraint('email', 'workspace_id', name='uix_user_email_workspace'),
+        {'extend_existing': True}
     )
     
     def has_permission(self, permission_name):
@@ -1269,6 +1273,7 @@ class BackupSettings(db.Model):
     Model voor backup instellingen per werkruimte
     """
     __tablename__ = 'backup_settings'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     workspace_id = db.Column(db.Integer, db.ForeignKey('workspaces.id'), nullable=False)

@@ -1,0 +1,199 @@
+psycopg2.errors.UndefinedColumn: column customers.whmcs_client_id does not exist
+flask_web  | LINE 2: ...stomers.customer_type AS customers_customer_type, customers....
+flask_web  |                                                              ^
+flask_web  |
+flask_web  |
+flask_web  | The above exception was the direct cause of the following exception:
+flask_web  |
+flask_web  | Traceback (most recent call last):
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+flask_web  |     worker.init_process()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/workers/base.py", line 135, in init_process
+flask_web  |     self.load_wsgi()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+flask_web  |     self.wsgi = self.app.wsgi()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/app/base.py", line 66, in wsgi
+flask_web  |     self.callable = self.load()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+flask_web  |     return self.load_wsgiapp()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+flask_web  |     return util.import_app(self.app_uri)
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/util.py", line 370, in import_app
+flask_web  |     mod = importlib.import_module(module)
+flask_web  |   File "/usr/local/lib/python3.9/importlib/__init__.py", line 127, in import_module
+flask_web  |     return _bootstrap._gcd_import(name[level:], package, level)
+flask_web  |   File "<frozen importlib._bootstrap>", line 1030, in _gcd_import
+flask_web  |   File "<frozen importlib._bootstrap>", line 1007, in _find_and_load
+flask_web  |   File "<frozen importlib._bootstrap>", line 986, in _find_and_load_unlocked
+flask_web  |   File "<frozen importlib._bootstrap>", line 680, in _load_unlocked
+flask_web  |   File "<frozen importlib._bootstrap_external>", line 850, in exec_module
+flask_web  |   File "<frozen importlib._bootstrap>", line 228, in _call_with_frames_removed
+flask_web  |   File "/app/main.py", line 11, in <module>
+flask_web  |     initialize_app()
+flask_web  |   File "/app/app.py", line 254, in initialize_app
+flask_web  |     init_sample_data()
+flask_web  |   File "/app/app.py", line 141, in init_sample_data
+flask_web  |     if Customer.query.count() == 0 and Invoice.query.count() == 0:
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 3147, in count
+flask_web  |     self._legacy_from_self(col).enable_eagerloads(False).scalar()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2836, in scalar
+flask_web  |     ret = self.one()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2809, in one
+flask_web  |     return self._iter().one()  # type: ignore
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2858, in _iter
+flask_web  |     result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/session.py", line 2365, in execute
+flask_web  |     return self._execute_internal(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/session.py", line 2251, in _execute_internal
+flask_web  |     result: Result[Any] = compile_state_cls.orm_execute_statement(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+flask_web  |     result = conn.execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1416, in execute
+flask_web  |     return meth(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/sql/elements.py", line 523, in _execute_on_connection
+flask_web  |     return connection._execute_clauseelement(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1638, in _execute_clauseelement
+flask_web  |     ret = self._execute_context(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1843, in _execute_context
+flask_web  |     return self._exec_single_context(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1983, in _exec_single_context
+flask_web  |     self._handle_dbapi_exception(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 2352, in _handle_dbapi_exception
+flask_web  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+flask_web  |     self.dialect.do_execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 945, in do_execute
+flask_web  |     cursor.execute(statement, parameters)
+flask_web  | sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column customers.whmcs_client_id does not exist
+flask_web  | LINE 2: ...stomers.customer_type AS customers_customer_type, customers....
+flask_web  |                                                              ^
+flask_web  |
+flask_web  | [SQL: SELECT count(*) AS count_1
+flask_web  | FROM (SELECT customers.id AS customers_id, customers.company_name AS customers_company_name, customers.vat_number AS customers_vat_number, customers.first_name AS customers_first_name, customers.last_name AS customers_last_name, customers.email AS customers_email, customers.phone AS customers_phone, customers.street AS customers_street, customers.house_number AS customers_house_number, customers.postal_code AS customers_postal_code, customers.city AS customers_city, customers.country AS customers_country, customers.customer_type AS customers_customer_type, customers.whmcs_client_id AS customers_whmcs_client_id, customers.synced_from_whmcs AS customers_synced_from_whmcs, customers.whmcs_last_sync AS customers_whmcs_last_sync, customers.workspace_id AS customers_workspace_id, customers.default_vat_rate AS customers_default_vat_rate, customers.created_at AS customers_created_at, customers.updated_at AS customers_updated_at
+flask_web  | FROM customers) AS anon_1]
+flask_web  | (Background on this error at: https://sqlalche.me/e/20/f405)
+flask_web  | [2025-04-06 19:26:23 +0000] [16] [INFO] Worker exiting (pid: 16)
+flask_web  | [2025-04-06 19:26:23 +0000] [1] [ERROR] Worker (pid:7) exited with code 3
+flask_web  | Traceback (most recent call last):
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 208, in run
+flask_web  |     self.sleep()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 359, in sleep
+flask_web  |     ready = select.select([self.PIPE[0]], [], [], 1.0)
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 241, in handle_chld
+flask_web  |     self.reap_workers()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 529, in reap_workers
+flask_web  |     raise HaltServer(reason, self.WORKER_BOOT_ERROR)
+flask_web  | gunicorn.errors.HaltServer: <HaltServer 'Worker failed to boot.' 3>
+flask_web  |
+flask_web  | During handling of the above exception, another exception occurred:
+flask_web  |
+flask_web  | Traceback (most recent call last):
+flask_web  |   File "/usr/local/bin/gunicorn", line 8, in <module>
+flask_web  |     sys.exit(run())
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/app/wsgiapp.py", line 66, in run
+flask_web  |     WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]", prog=prog).run()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/app/base.py", line 235, in run
+flask_web  |     super().run()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/app/base.py", line 71, in run
+flask_web  |     Arbiter(self).run()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 228, in run
+flask_web  |     self.halt(reason=inst.reason, exit_status=inst.exit_status)
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 341, in halt
+flask_web  |     self.stop()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 395, in stop
+flask_web  |     time.sleep(0.1)
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 241, in handle_chld
+flask_web  |     self.reap_workers()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 529, in reap_workers
+flask_web  |     raise HaltServer(reason, self.WORKER_BOOT_ERROR)
+flask_web  | gunicorn.errors.HaltServer: <HaltServer 'Worker failed to boot.' 3>
+flask_db   | 2025-04-06 19:26:23.142 UTC [168] ERROR:  column customers.whmcs_client_id does not exist at character 592
+flask_db   | 2025-04-06 19:26:23.142 UTC [168] STATEMENT:  SELECT count(*) AS count_1
+flask_db   |    FROM (SELECT customers.id AS customers_id, customers.company_name AS customers_company_name, customers.vat_number AS customers_vat_number, customers.first_name AS customers_first_name, customers.last_name AS customers_last_name, customers.email AS customers_email, customers.phone AS customers_phone, customers.street AS customers_street, customers.house_number AS customers_house_number, customers.postal_code AS customers_postal_code, customers.city AS customers_city, customers.country AS customers_country, customers.customer_type AS customers_customer_type, customers.whmcs_client_id AS customers_whmcs_client_id, customers.synced_from_whmcs AS customers_synced_from_whmcs, customers.whmcs_last_sync AS customers_whmcs_last_sync, customers.workspace_id AS customers_workspace_id, customers.default_vat_rate AS customers_default_vat_rate, customers.created_at AS customers_created_at, customers.updated_at AS customers_updated_at
+flask_db   |    FROM customers) AS anon_1
+flask_db   | 2025-04-06 19:26:23.151 UTC [167] ERROR:  column customers.whmcs_client_id does not exist at character 592
+flask_db   | 2025-04-06 19:26:23.151 UTC [167] STATEMENT:  SELECT count(*) AS count_1
+flask_db   |    FROM (SELECT customers.id AS customers_id, customers.company_name AS customers_company_name, customers.vat_number AS customers_vat_number, customers.first_name AS customers_first_name, customers.last_name AS customers_last_name, customers.email AS customers_email, customers.phone AS customers_phone, customers.street AS customers_street, customers.house_number AS customers_house_number, customers.postal_code AS customers_postal_code, customers.city AS customers_city, customers.country AS customers_country, customers.customer_type AS customers_customer_type, customers.whmcs_client_id AS customers_whmcs_client_id, customers.synced_from_whmcs AS customers_synced_from_whmcs, customers.whmcs_last_sync AS customers_whmcs_last_sync, customers.workspace_id AS customers_workspace_id, customers.default_vat_rate AS customers_default_vat_rate, customers.created_at AS customers_created_at, customers.updated_at AS customers_updated_at
+flask_db   |    FROM customers) AS anon_1
+flask_web  | 2025-04-06 19:26:23,153 - app - INFO - Logs monitoring system geregistreerd
+flask_web  | 2025-04-06 19:26:23,156 - app - INFO - Onboarding tutorial system geregistreerd
+flask_web  | [2025-04-06 19:26:23 +0000] [17] [ERROR] Exception in worker process
+flask_web  | Traceback (most recent call last):
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+flask_web  |     self.dialect.do_execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 945, in do_execute
+flask_web  |     cursor.execute(statement, parameters)
+flask_web  | psycopg2.errors.UndefinedColumn: column customers.whmcs_client_id does not exist
+flask_web  | LINE 2: ...stomers.customer_type AS customers_customer_type, customers....
+flask_web  |                                                              ^
+flask_web  |
+flask_web  |
+flask_web  | The above exception was the direct cause of the following exception:
+flask_web  |
+flask_web  | Traceback (most recent call last):
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+flask_web  |     worker.init_process()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/workers/base.py", line 135, in init_process
+flask_web  |     self.load_wsgi()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+flask_web  |     self.wsgi = self.app.wsgi()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/app/base.py", line 66, in wsgi
+flask_web  |     self.callable = self.load()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+flask_web  |     return self.load_wsgiapp()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+flask_web  |     return util.import_app(self.app_uri)
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/gunicorn/util.py", line 370, in import_app
+flask_web  |     mod = importlib.import_module(module)
+flask_web  |   File "/usr/local/lib/python3.9/importlib/__init__.py", line 127, in import_module
+flask_web  |     return _bootstrap._gcd_import(name[level:], package, level)
+flask_web  |   File "<frozen importlib._bootstrap>", line 1030, in _gcd_import
+flask_web  |   File "<frozen importlib._bootstrap>", line 1007, in _find_and_load
+flask_web  |   File "<frozen importlib._bootstrap>", line 986, in _find_and_load_unlocked
+flask_web  |   File "<frozen importlib._bootstrap>", line 680, in _load_unlocked
+flask_web  |   File "<frozen importlib._bootstrap_external>", line 850, in exec_module
+flask_web  |   File "<frozen importlib._bootstrap>", line 228, in _call_with_frames_removed
+flask_web  |   File "/app/main.py", line 11, in <module>
+flask_web  |     initialize_app()
+flask_web  |   File "/app/app.py", line 254, in initialize_app
+flask_web  |     init_sample_data()
+flask_web  |   File "/app/app.py", line 141, in init_sample_data
+flask_web  |     if Customer.query.count() == 0 and Invoice.query.count() == 0:
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 3147, in count
+flask_web  |     self._legacy_from_self(col).enable_eagerloads(False).scalar()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2836, in scalar
+flask_web  |     ret = self.one()
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2809, in one
+flask_web  |     return self._iter().one()  # type: ignore
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/query.py", line 2858, in _iter
+flask_web  |     result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/session.py", line 2365, in execute
+flask_web  |     return self._execute_internal(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/session.py", line 2251, in _execute_internal
+flask_web  |     result: Result[Any] = compile_state_cls.orm_execute_statement(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+flask_web  |     result = conn.execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1416, in execute
+flask_web  |     return meth(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/sql/elements.py", line 523, in _execute_on_connection
+flask_web  |     return connection._execute_clauseelement(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1638, in _execute_clauseelement
+flask_web  |     ret = self._execute_context(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1843, in _execute_context
+flask_web  |     return self._exec_single_context(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1983, in _exec_single_context
+flask_web  |     self._handle_dbapi_exception(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 2352, in _handle_dbapi_exception
+flask_web  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+flask_web  |     self.dialect.do_execute(
+flask_web  |   File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 945, in do_execute
+flask_web  |     cursor.execute(statement, parameters)
+flask_web  | sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column customers.whmcs_client_id does not exist
+flask_web  | LINE 2: ...stomers.customer_type AS customers_customer_type, customers....
+flask_web  |                                                              ^
+flask_web  |
+flask_web  | [SQL: SELECT count(*) AS count_1
+flask_web  | FROM (SELECT customers.id AS customers_id, customers.company_name AS customers_company_name, customers.vat_number AS customers_vat_number, customers.first_name AS customers_first_name, customers.last_name AS customers_last_name, customers.email AS customers_email, customers.phone AS customers_phone, customers.street AS customers_street, customers.house_number AS customers_house_number, customers.postal_code AS customers_postal_code, customers.city AS customers_city, customers.country AS customers_country, customers.customer_type AS customers_customer_type, customers.whmcs_client_id AS customers_whmcs_client_id, customers.synced_from_whmcs AS customers_synced_from_whmcs, customers.whmcs_last_sync AS customers_whmcs_last_sync, customers.workspace_id AS customers_workspace_id, customers.default_vat_rate AS customers_default_vat_rate, customers.created_at AS customers_created_at, customers.updated_at AS customers_updated_at
+flask_web  | FROM customers) AS anon_1]
+flask_web  | (Background on this error at: https://sqlalche.me/e/20/f405)
