@@ -162,6 +162,7 @@ class Invoice(db.Model):
             'invoice_number': self.invoice_number,
             'customer_id': str(self.customer_id),
             'date': self.date.strftime('%Y-%m-%d') if isinstance(self.date, date) else self.date,
+            'due_date': self.due_date.strftime('%Y-%m-%d') if isinstance(self.due_date, date) and self.due_date else None,
             'invoice_type': self.invoice_type,
             'amount_excl_vat': self.amount_excl_vat,
             'amount_incl_vat': self.amount_incl_vat,
@@ -256,7 +257,7 @@ def check_duplicate_invoice(invoice_number=None, customer_id=None, date=None, am
     # No duplicate found
     return False, None
 
-def add_invoice(customer_id, date, invoice_type, amount_incl_vat, vat_rate, invoice_number=None, file_path=None, check_duplicate=True):
+def add_invoice(customer_id, date, invoice_type, amount_incl_vat, vat_rate, invoice_number=None, due_date=None, file_path=None, check_duplicate=True):
     """Add a new invoice"""
     if customer_id not in customers:
         return None
@@ -282,11 +283,21 @@ def add_invoice(customer_id, date, invoice_type, amount_incl_vat, vat_rate, invo
     vat_amount = amount_incl_vat - (amount_incl_vat / (1 + vat_rate / 100))
     amount_excl_vat = amount_incl_vat - vat_amount
     
+    # If due_date is not provided, default to date + 14 days for income invoices
+    if due_date is None and invoice_type == 'income':
+        # Handle both string dates and date objects
+        if isinstance(date, str):
+            parsed_date = datetime.strptime(date, '%Y-%m-%d').date()
+            due_date = (parsed_date + timedelta(days=14)).strftime('%Y-%m-%d')
+        elif isinstance(date, (datetime, date)):
+            due_date = (date + timedelta(days=14)).strftime('%Y-%m-%d')
+    
     invoice = {
         'id': invoice_id,
         'invoice_number': invoice_number if invoice_number else get_next_invoice_number(),
         'customer_id': customer_id,
         'date': date,
+        'due_date': due_date,
         'invoice_type': invoice_type,  # 'income' or 'expense'
         'amount_incl_vat': float(amount_incl_vat),
         'amount_excl_vat': float(amount_excl_vat),
@@ -299,7 +310,7 @@ def add_invoice(customer_id, date, invoice_type, amount_incl_vat, vat_rate, invo
     invoices[invoice_id] = invoice
     return invoice, "Invoice added successfully", None
 
-def update_invoice(invoice_id, customer_id, date, invoice_type, amount_incl_vat, vat_rate, invoice_number=None, file_path=None):
+def update_invoice(invoice_id, customer_id, date, invoice_type, amount_incl_vat, vat_rate, invoice_number=None, due_date=None, file_path=None):
     """Update an existing invoice"""
     if invoice_id not in invoices or customer_id not in customers:
         return None, "Invoice or customer not found", None
@@ -320,6 +331,7 @@ def update_invoice(invoice_id, customer_id, date, invoice_type, amount_incl_vat,
         if is_duplicate and duplicate_id != invoice_id:
             return None, "Duplicate invoice number detected", duplicate_id
     
+    # Update basic fields
     invoice['customer_id'] = customer_id
     invoice['date'] = date
     invoice['invoice_type'] = invoice_type
@@ -327,6 +339,18 @@ def update_invoice(invoice_id, customer_id, date, invoice_type, amount_incl_vat,
     invoice['amount_excl_vat'] = float(amount_excl_vat)
     invoice['vat_rate'] = float(vat_rate)
     invoice['vat_amount'] = float(vat_amount)
+    
+    # Update due_date if provided
+    if due_date is not None:
+        invoice['due_date'] = due_date
+    # Calculate due_date if not set and invoice type is income
+    elif 'due_date' not in invoice and invoice_type == 'income':
+        # Handle both string dates and date objects
+        if isinstance(date, str):
+            parsed_date = datetime.strptime(date, '%Y-%m-%d').date()
+            invoice['due_date'] = (parsed_date + timedelta(days=14)).strftime('%Y-%m-%d')
+        elif isinstance(date, (datetime, date)):
+            invoice['due_date'] = (date + timedelta(days=14)).strftime('%Y-%m-%d')
     
     # Only update these fields if provided
     if invoice_number:
